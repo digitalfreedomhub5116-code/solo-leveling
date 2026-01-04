@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Shield, Lock, ChevronRight, AlertTriangle, Loader2, User, Eye, ArrowRight, RefreshCcw, HelpCircle, Database, Key } from 'lucide-react';
+import { Terminal, Shield, Lock, AlertTriangle, Loader2, User, Eye, ArrowRight, Database, Key } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PlayerData } from '../types';
 import ForgotPassword from './ForgotPassword';
