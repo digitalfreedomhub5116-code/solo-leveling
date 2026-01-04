@@ -109,6 +109,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ player, onUpdate }) => {
                     <Fingerprint size={32} />
                     <div className="text-[8px] text-right">
                         ID: {player.userId || 'SYS-LOC-001'}<br/>
+                        LAST LOGIN: {player.lastLoginDate}<br/>
                         ISSUED: {new Date().getFullYear()}
                     </div>
                  </div>

@@ -1,12 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Gamepad2, Pizza, Tv, Moon, Users, Star, Lock } from 'lucide-react';
+import { ShoppingBag, Gamepad2, Pizza, Tv, Moon, Users, Star, Lock, Trash2 } from 'lucide-react';
 import { ShopItem } from '../types';
 
 interface ShopItemCardProps {
   item: ShopItem;
   currentGold: number;
   onPurchase: (item: ShopItem) => void;
+  onRemove: (id: string) => void;
 }
 
 // Icon mapper
@@ -22,7 +23,7 @@ const getIcon = (iconName: string) => {
   }
 };
 
-const ShopItemCard: React.FC<ShopItemCardProps> = ({ item, currentGold, onPurchase }) => {
+const ShopItemCard: React.FC<ShopItemCardProps> = ({ item, currentGold, onPurchase, onRemove }) => {
   const canAfford = currentGold >= item.cost;
 
   return (
@@ -39,10 +40,23 @@ const ShopItemCard: React.FC<ShopItemCardProps> = ({ item, currentGold, onPurcha
            <div className={`p-3 rounded-lg ${canAfford ? 'bg-system-warning/10 text-system-warning' : 'bg-gray-900 text-gray-600'}`}>
               {getIcon(item.icon)}
            </div>
-           <div className="text-right">
-              <span className={`font-mono font-bold text-lg ${canAfford ? 'text-system-warning' : 'text-gray-500'}`}>
-                {item.cost} G
-              </span>
+           
+           <div className="flex flex-col items-end gap-2">
+               {/* Delete Button */}
+               <button 
+                  onClick={(e) => {
+                      e.stopPropagation();
+                      onRemove(item.id);
+                  }}
+                  className="text-gray-700 hover:text-system-danger transition-colors p-1"
+                  title="Remove Item"
+               >
+                   <Trash2 size={14} />
+               </button>
+
+               <span className={`font-mono font-bold text-lg ${canAfford ? 'text-system-warning' : 'text-gray-500'}`}>
+                 {item.cost} G
+               </span>
            </div>
         </div>
 

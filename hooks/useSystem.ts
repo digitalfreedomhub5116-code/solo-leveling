@@ -135,6 +135,41 @@ export const useSystem = () => {
       updated_at: new Date().toISOString()
   });
 
+  const checkDailyQuests = (playerData: PlayerData): PlayerData => {
+    const newData = { ...playerData };
+    const now = Date.now();
+
+    if (newData.isConfigured) {
+      if (!newData.dailyQuestComplete) {
+        // Daily Failure Logic
+        if (newData.currentXp > 100) {
+           // XP Deduction Logic
+           const deduction = 200;
+           const loss = Math.min(newData.currentXp, deduction); // Don't go below 0 on current
+           newData.currentXp -= loss;
+           newData.totalXp = Math.max(0, newData.totalXp - loss);
+           
+           newData.logs.unshift(createLog(`Daily Quests Incomplete. -${loss} XP Penalty Applied.`, 'PENALTY'));
+           addNotification(`Daily Quests Failed. -${loss} XP`, 'DANGER');
+        } else {
+           // Penalty Zone Logic
+           newData.isPenaltyActive = true;
+           newData.penaltyEndTime = now + PENALTY_DURATION_MS;
+           
+           newData.logs.unshift(createLog("Daily Quests Incomplete. Penalty Zone Activated.", 'PENALTY'));
+           addNotification("Daily Quests Failed. Penalty Zone Active.", 'DANGER');
+        }
+      } else {
+        // Daily Success Logic (Resetting for new day)
+        newData.logs.unshift(createLog("Daily Cycle Reset. New Quests Available.", 'SYSTEM'));
+      }
+      // Always reset flag for the new day
+      newData.dailyQuestComplete = false;
+    }
+
+    return newData;
+  };
+
   const processSystemLogic = useCallback((data: PlayerData): PlayerData => {
     const today = getLocalDate();
     const lastLogin = data.lastLoginDate;
@@ -172,6 +207,9 @@ export const useSystem = () => {
         newData.logs.unshift(createLog(`Daily Reset: ${resetCount} Quests Refreshed`, 'SYSTEM'));
       }
 
+      // Perform Daily Check (Deductions or Penalty)
+      newData = checkDailyQuests(newData);
+
       const lastLoginDateObj = new Date(lastLogin);
       const todayDateObj = new Date(today);
       const diffTime = Math.abs(todayDateObj.getTime() - lastLoginDateObj.getTime());
@@ -200,20 +238,6 @@ export const useSystem = () => {
       }
       newData.mp = newData.maxMp; 
 
-      if (!data.dailyQuestComplete && data.isConfigured) {
-        if (newData.totalXp > 0) {
-           newData.totalXp = Math.max(0, newData.totalXp - 100);
-           newData.currentXp = Math.max(0, newData.currentXp - 100);
-           newData.logs.unshift(createLog("[ERROR] Daily Failure: -100 XP", 'PENALTY'));
-           addNotification("Daily Failure. XP Deducted.", 'DANGER');
-        }
-        newData.isPenaltyActive = true;
-        newData.penaltyEndTime = now + PENALTY_DURATION_MS;
-        newData.logs.unshift(createLog("Penalty Zone Active", 'PENALTY'));
-      } else if (data.isConfigured) {
-        newData.dailyQuestComplete = false;
-        newData.logs.unshift(createLog("New Daily Quests Available", 'SYSTEM'));
-      }
       newData.lastLoginDate = today;
     }
 
@@ -265,6 +289,19 @@ export const useSystem = () => {
          newProfileData = {
             ...INITIAL_PLAYER_DATA,
             ...profileOrName,
+            // Critical Mappings: Snake Case (DB) -> Camel Case (App)
+            lastLoginDate: incoming.last_login_date || incoming.lastLoginDate || INITIAL_PLAYER_DATA.lastLoginDate,
+            currentXp: incoming.current_xp ?? incoming.currentXp ?? INITIAL_PLAYER_DATA.currentXp,
+            requiredXp: incoming.required_xp ?? incoming.requiredXp ?? INITIAL_PLAYER_DATA.requiredXp,
+            totalXp: incoming.total_xp ?? incoming.totalXp ?? INITIAL_PLAYER_DATA.totalXp,
+            dailyXp: incoming.daily_xp ?? incoming.dailyXp ?? INITIAL_PLAYER_DATA.dailyXp,
+            maxHp: incoming.max_hp ?? incoming.maxHp ?? INITIAL_PLAYER_DATA.maxHp,
+            maxMp: incoming.max_mp ?? incoming.maxMp ?? INITIAL_PLAYER_DATA.maxMp,
+            dailyQuestComplete: incoming.daily_quest_complete ?? incoming.dailyQuestComplete ?? INITIAL_PLAYER_DATA.dailyQuestComplete,
+            isPenaltyActive: incoming.is_penalty_active ?? incoming.isPenaltyActive ?? INITIAL_PLAYER_DATA.isPenaltyActive,
+            penaltyEndTime: incoming.penalty_end_time ?? incoming.penaltyEndTime ?? INITIAL_PLAYER_DATA.penaltyEndTime,
+            shopItems: incoming.shop_items ?? incoming.shopItems ?? INITIAL_PLAYER_DATA.shopItems,
+
             isConfigured: true,
             stats: incoming.stats || INITIAL_STATS,
             quests: incoming.quests || [],
@@ -277,7 +314,6 @@ export const useSystem = () => {
          newProfileData = processSystemLogic(newProfileData);
       }
       setPlayer(newProfileData);
-      // Removed generic sound here to avoid noise on auto-login
   }, [processSystemLogic]);
 
   // AUTH CHECK ON MOUNT
@@ -468,6 +504,14 @@ export const useSystem = () => {
     addNotification("New Reward Registered.", 'SYSTEM');
   };
 
+  const removeShopItem = (itemId: string) => {
+      setPlayer(prev => ({
+          ...prev,
+          shopItems: prev.shopItems.filter(i => i.id !== itemId)
+      }));
+      addNotification("Reward Removed.", 'SYSTEM');
+  };
+
   const reducePenalty = (msAmount: number) => {
     setPlayer(prev => {
        if (!prev.penaltyEndTime || !prev.isPenaltyActive) return prev;
@@ -528,6 +572,7 @@ export const useSystem = () => {
     reducePenalty,
     purchaseItem,
     addShopItem,
+    removeShopItem,
     removeNotification
   };
 };

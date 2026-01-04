@@ -302,7 +302,7 @@ const App: React.FC = () => {
     gainXp, completeDaily, 
     addQuest, completeQuest, deleteQuest, 
     reducePenalty, clearPenalty, 
-    purchaseItem, addShopItem,
+    purchaseItem, addShopItem, removeShopItem,
     notifications, removeNotification
   } = useSystem();
 
@@ -419,6 +419,7 @@ const App: React.FC = () => {
                    items={player.shopItems}
                    purchaseItem={purchaseItem}
                    addItem={addShopItem}
+                   removeItem={removeShopItem}
                 />
               )}
               {activeTab === 'PROFILE' && (

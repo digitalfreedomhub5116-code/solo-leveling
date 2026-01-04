@@ -9,9 +9,10 @@ interface ShopViewProps {
   items: ShopItem[];
   purchaseItem: (item: ShopItem) => void;
   addItem: (item: ShopItem) => void;
+  removeItem: (id: string) => void;
 }
 
-const ShopView: React.FC<ShopViewProps> = ({ gold, items, purchaseItem, addItem }) => {
+const ShopView: React.FC<ShopViewProps> = ({ gold, items, purchaseItem, addItem, removeItem }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -73,7 +74,8 @@ const ShopView: React.FC<ShopViewProps> = ({ gold, items, purchaseItem, addItem 
              key={item.id} 
              item={item} 
              currentGold={gold} 
-             onPurchase={purchaseItem} 
+             onPurchase={purchaseItem}
+             onRemove={removeItem}
            />
          ))}
          
