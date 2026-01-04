@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import Layout from './components/Layout';
-import WelcomeIntro from './components/WelcomeIntro';
 import Navigation from './components/Navigation';
 import EvaluationMatrix from './components/StatsRadar';
 import QuestsView from './components/QuestsView';
@@ -17,7 +16,6 @@ import SplashScreen from './components/SplashScreen';
 import AwakeningView from './components/AwakeningView';
 import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab } from './types';
-import { supabase } from './lib/supabase';
 
 // Helper: Modern Continuous Stat Bar
 const StatBar: React.FC<{ 
