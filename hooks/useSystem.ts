@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PlayerData, Rank, CoreStats, StatTimestamps, ActivityLog, Quest, ShopItem, SystemNotification, NotificationType, HistoryEntry } from '../types';
 import { playSystemSoundEffect } from '../utils/soundEngine';
+import { supabase } from '../lib/supabase';
 
 const INITIAL_STATS: CoreStats = { strength: 10, intelligence: 10, focus: 10, social: 10, willpower: 10 };
 const INITIAL_TIMESTAMPS: StatTimestamps = { 
@@ -91,6 +92,38 @@ export const useSystem = () => {
     message,
     timestamp: Date.now(),
     type
+  });
+
+  // Mapper: Local Data -> Database Format
+  const localToDb = (local: PlayerData) => ({
+      id: local.userId,
+      name: local.name,
+      level: local.level,
+      current_xp: local.currentXp,
+      required_xp: local.requiredXp,
+      total_xp: local.totalXp,
+      daily_xp: local.dailyXp,
+      rank: local.rank,
+      gold: local.gold,
+      hp: local.hp,
+      max_hp: local.maxHp,
+      mp: local.mp,
+      max_mp: local.maxMp,
+      fatigue: local.fatigue,
+      job: local.job,
+      title: local.title,
+      last_login_date: local.lastLoginDate,
+      daily_quest_complete: local.dailyQuestComplete,
+      is_penalty_active: local.isPenaltyActive,
+      penalty_end_time: local.penaltyEndTime,
+      stats: local.stats,
+      last_stat_update: local.lastStatUpdate,
+      history: local.history,
+      logs: local.logs,
+      quests: local.quests,
+      shop_items: local.shopItems,
+      awakening: local.awakening,
+      updated_at: new Date().toISOString()
   });
 
   // Helper: Process Daily Logic
@@ -189,23 +222,32 @@ export const useSystem = () => {
     }
   }, [processSystemLogic]);
 
-  // Save to LocalStorage (Debounced)
+  // Persistence (LocalStorage + Supabase)
   useEffect(() => {
     if (isLoaded) {
         if (saveTimeout.current) clearTimeout(saveTimeout.current);
         
-        saveTimeout.current = setTimeout(() => {
+        saveTimeout.current = setTimeout(async () => {
+            // 1. Local Persistence
             localStorage.setItem(STORAGE_KEY, JSON.stringify(player));
+
+            // 2. Cloud Persistence (Sync Quest and other data)
+            if (player.userId) {
+                const dbPayload = localToDb(player);
+                const { error } = await supabase.from('profiles').upsert(dbPayload);
+                if (error) console.error("Cloud Sync Error:", error.message);
+            }
         }, 1000); 
     }
   }, [player, isLoaded]);
 
   // --- ACTIONS ---
 
-  const registerUser = (name: string) => {
+  const registerUser = (name: string, userId: string) => {
       setPlayer(prev => ({
           ...prev,
           name: name,
+          userId: userId, // Store the Supabase ID
           isConfigured: true,
           logs: [createLog(`System Initialized. Welcome, ${name}.`, 'SYSTEM')]
       }));

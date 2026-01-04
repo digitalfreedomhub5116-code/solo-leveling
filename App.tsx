@@ -307,8 +307,8 @@ const App: React.FC = () => {
     setSplashComplete(true);
   };
   
-  const handleOnboardingComplete = (name: string) => {
-    registerUser(name);
+  const handleOnboardingComplete = (name: string, userId: string) => {
+    registerUser(name, userId);
     // welcomeComplete defaults to false, so WelcomeCinematic will show next
   };
 
@@ -343,24 +343,7 @@ const App: React.FC = () => {
     return <Onboarding onComplete={handleOnboardingComplete} />;
   }
 
-  // Welcome Cinematic (Only right after onboarding or logic choice)
-  // Logic: If user JUST configured (we can infer this if we want, or just show Dashboard).
-  // For the requested flow: "Once clicked continue he should be greeted with a welcome message... animated greatly"
-  // We use a local state 'welcomeComplete'. If player is configured BUT we haven't seen welcome this session (or just after reg),
-  // we might want to skip it for returning users? 
-  // For this request, let's assume if we just registered, show it.
-  // Implementation details: local storage tracks 'player.isConfigured'. 
-  // If we are already configured on load, we skip 'Onboarding'. 
-  // To show 'Welcome' only after NEW registration, we can manage it via state in the parent. 
-  // However, `welcomeComplete` is false by default. 
-  // If player was ALREADY configured (from storage), we should probably skip WelcomeCinematic to annoy them less, 
-  // OR show a different "Welcome Back".
-  // Let's keep it simple: If `welcomeComplete` is false AND we just came from Onboarding (implied), show it.
-  // Actually, to make it seamless: if `player.isConfigured` was true ON LOAD, set `welcomeComplete` to true immediately.
-  
-  // Correction: The hook loads async. We need to check this logic.
-  // Updated Logic below in effect:
-  
+  // Welcome Cinematic
   return (
     <>
       <InitialCheck 
@@ -445,15 +428,6 @@ const App: React.FC = () => {
 const InitialCheck = ({ isConfigured, setWelcomeComplete }: { isConfigured: boolean, setWelcomeComplete: (v: boolean) => void }) => {
    useEffect(() => {
       // If user was already configured when app loaded, skip cinematic
-      // The only way to see cinematic is if isConfigured goes from false -> true (handled in App flow)
-      // But wait, on fresh load `isConfigured` might be true.
-      // We want to skip welcome if it's a reload.
-      // Since `setWelcomeComplete` defaults to false, we need to set it true if already configured.
-      // However, if we just registered, we want it false initially.
-      
-      // We can use a ref or session storage, but for this demo, let's assume:
-      // If `isConfigured` is true on MOUNT, skip welcome.
-      // If it becomes true later (via register), show welcome.
    }, []);
    
    const mounted = React.useRef(false);

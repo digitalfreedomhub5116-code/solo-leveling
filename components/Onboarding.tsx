@@ -1,18 +1,51 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Terminal, ArrowRight, User } from 'lucide-react';
+import { Terminal, ArrowRight, User, Loader2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface OnboardingProps {
-  onComplete: (name: string) => void;
+  onComplete: (name: string, userId: string) => void;
 }
 
 const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (name.trim()) {
-      onComplete(name.trim());
+    if (!name.trim()) return;
+
+    setLoading(true);
+    const codename = name.trim();
+
+    try {
+      // SHADOW AUTH: Create a silent account to allow DB syncing
+      // We generate a unique identity for this device/user
+      const shadowId = Math.random().toString(36).substring(2, 15);
+      const email = `shadow-${shadowId}@biosync.local`;
+      const password = `shadow-${shadowId}-${Date.now()}`;
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: codename }
+        }
+      });
+
+      if (error) {
+        console.warn("Shadow Link Failed, continuing offline:", error);
+        // Fallback to offline mode with a random local ID
+        onComplete(codename, `local-${shadowId}`);
+      } else if (data.user) {
+        onComplete(codename, data.user.id);
+      }
+    } catch (err) {
+      console.error("Initialization Error", err);
+      // Fallback
+      onComplete(codename, `local-${Date.now()}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,18 +89,19 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                value={name}
                onChange={(e) => setName(e.target.value)}
                placeholder="ENTER CODENAME..."
-               className="w-full bg-black border border-system-border rounded-lg py-4 pl-12 pr-4 text-xl text-white font-mono focus:outline-none focus:border-system-neon focus:shadow-[0_0_20px_rgba(0,210,255,0.15)] transition-all placeholder:text-gray-800"
+               disabled={loading}
+               className="w-full bg-black border border-system-border rounded-lg py-4 pl-12 pr-4 text-xl text-white font-mono focus:outline-none focus:border-system-neon focus:shadow-[0_0_20px_rgba(0,210,255,0.15)] transition-all placeholder:text-gray-800 disabled:opacity-50"
              />
           </div>
 
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            disabled={!name.trim()}
+            disabled={!name.trim() || loading}
             className="w-full mt-6 bg-system-neon text-black font-bold font-mono py-4 rounded-lg flex items-center justify-center gap-2 hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
           >
-             INITIALIZE SYSTEM
-             <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+             {loading ? <Loader2 className="animate-spin" size={20} /> : 'INITIALIZE SYSTEM'}
+             {!loading && <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />}
           </motion.button>
         </form>
 
