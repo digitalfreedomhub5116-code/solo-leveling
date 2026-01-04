@@ -81,7 +81,8 @@ export interface HistoryEntry {
 }
 
 export interface PlayerData {
-  userId?: string; // Linked to Supabase Auth ID
+  userId?: string; 
+  isConfigured: boolean; // Tracks if user has entered their name
   
   // Core System Data
   name: string;          // Player Name

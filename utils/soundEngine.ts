@@ -9,6 +9,43 @@ const getContext = () => {
     return audioCtx;
 }
 
+export const speakSystemMessage = (text: string) => {
+    try {
+        if (!('speechSynthesis' in window)) return;
+        
+        // Cancel any existing speech
+        window.speechSynthesis.cancel();
+
+        const utter = () => {
+             const msg = new SpeechSynthesisUtterance(text);
+             msg.rate = 0.95; // Slightly slower for clarity
+             msg.pitch = 1;
+             msg.volume = 1;
+             
+             // Try to get a decent voice
+             const voices = window.speechSynthesis.getVoices();
+             const bestVoice = voices.find(v => 
+                v.name.includes("Google US English") || 
+                v.name.includes("Samantha") ||
+                v.lang === "en-US"
+             );
+             
+             if (bestVoice) msg.voice = bestVoice;
+             window.speechSynthesis.speak(msg);
+        };
+
+        // Chrome loads voices asynchronously
+        if (window.speechSynthesis.getVoices().length === 0) {
+             window.speechSynthesis.addEventListener('voiceschanged', utter, { once: true });
+        } else {
+             utter();
+        }
+
+    } catch (e) {
+        console.error("TTS Error", e);
+    }
+};
+
 export const playSystemSoundEffect = (type: string) => {
     try {
         const ctx = getContext();

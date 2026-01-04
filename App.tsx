@@ -11,11 +11,10 @@ import PenaltyZone from './components/PenaltyZone';
 import SystemMessage from './components/SystemMessage'; 
 import LevelUpCinematic from './components/LevelUpCinematic';
 import ProfileView from './components/ProfileView';
-import AuthView from './components/AuthView'; // Import Auth
+import Onboarding from './components/Onboarding';
+import WelcomeCinematic from './components/WelcomeCinematic';
 import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab } from './types';
-import { supabase } from './lib/supabase';
-import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
 // Helper: Modern Continuous Stat Bar
 const StatBar: React.FC<{ 
@@ -102,6 +101,22 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
                100% { transform: translateX(-50%); }
             }
          `}</style>
+      </div>
+      
+      {/* PERSONALIZED GREETING */}
+      <div className="max-w-lg mx-auto mb-2">
+         <motion.div 
+           initial={{ opacity: 0, y: 10 }}
+           animate={{ opacity: 1, y: 0 }}
+           className="text-left"
+         >
+           <h1 className="text-2xl md:text-3xl font-bold text-white font-mono leading-tight">
+             HELLO <span className="text-system-neon">{player.name.toUpperCase()}</span>.
+           </h1>
+           <p className="text-gray-500 font-mono text-xs md:text-sm mt-1">
+             SYSTEM READY. WHAT IS YOUR COMMAND?
+           </p>
+         </motion.div>
       </div>
 
       <div className="flex justify-center">    
@@ -270,13 +285,13 @@ const SyncOverlay: React.FC = () => (
 );
 
 const App: React.FC = () => {
-  const [session, setSession] = useState<Session | null>(null);
   const [splashComplete, setSplashComplete] = useState(false);
+  const [welcomeComplete, setWelcomeComplete] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
   
   // Use new hook values
   const { 
-    player, isLoaded, updateProfile,
+    player, isLoaded, updateProfile, registerUser,
     gainXp, completeDaily, 
     addQuest, completeQuest, deleteQuest, 
     reducePenalty, clearPenalty, 
@@ -288,23 +303,17 @@ const App: React.FC = () => {
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [prevLevel, setPrevLevel] = useState(1);
 
-  // Check Supabase Auth
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const handleSystemReady = () => {
     setSplashComplete(true);
+  };
+  
+  const handleOnboardingComplete = (name: string) => {
+    registerUser(name);
+    // welcomeComplete defaults to false, so WelcomeCinematic will show next
+  };
+
+  const handleWelcomeComplete = () => {
+    setWelcomeComplete(true);
   };
 
   // Detect Level Up
@@ -319,37 +328,57 @@ const App: React.FC = () => {
     }
   }, [player.level, prevLevel, isLoaded]);
 
-  // If no session, show Auth View
-  if (!session) {
-    return <AuthView />;
-  }
-
-  // Cloud Sync Loading State (While session is being checked)
+  // Loading State
   if (!isLoaded) {
       return <SyncOverlay />;
   }
 
-  const loading = !splashComplete;
-
-  // Render Penalty Screen if active
-  if (!loading && player.isPenaltyActive) {
-    return (
-       <PenaltyZone 
-         endTime={player.penaltyEndTime || Date.now() + 10000} 
-         onSurvive={clearPenalty} 
-         reducePenalty={reducePenalty}
-       />
-    );
+  // Splash Screen (First Load only)
+  if (!splashComplete) {
+    return <SplashScreen key="splash" onComplete={handleSystemReady} />;
   }
 
+  // Onboarding (If no name configured)
+  if (!player.isConfigured) {
+    return <Onboarding onComplete={handleOnboardingComplete} />;
+  }
+
+  // Welcome Cinematic (Only right after onboarding or logic choice)
+  // Logic: If user JUST configured (we can infer this if we want, or just show Dashboard).
+  // For the requested flow: "Once clicked continue he should be greeted with a welcome message... animated greatly"
+  // We use a local state 'welcomeComplete'. If player is configured BUT we haven't seen welcome this session (or just after reg),
+  // we might want to skip it for returning users? 
+  // For this request, let's assume if we just registered, show it.
+  // Implementation details: local storage tracks 'player.isConfigured'. 
+  // If we are already configured on load, we skip 'Onboarding'. 
+  // To show 'Welcome' only after NEW registration, we can manage it via state in the parent. 
+  // However, `welcomeComplete` is false by default. 
+  // If player was ALREADY configured (from storage), we should probably skip WelcomeCinematic to annoy them less, 
+  // OR show a different "Welcome Back".
+  // Let's keep it simple: If `welcomeComplete` is false AND we just came from Onboarding (implied), show it.
+  // Actually, to make it seamless: if `player.isConfigured` was true ON LOAD, set `welcomeComplete` to true immediately.
+  
+  // Correction: The hook loads async. We need to check this logic.
+  // Updated Logic below in effect:
+  
   return (
     <>
+      <InitialCheck 
+         isConfigured={player.isConfigured} 
+         setWelcomeComplete={setWelcomeComplete} 
+      />
+
       <AnimatePresence>
-        {loading && <SplashScreen key="splash" onComplete={handleSystemReady} />}
+        {!welcomeComplete && player.isConfigured && (
+          <motion.div exit={{ opacity: 0 }} key="welcome-cinematic">
+             <WelcomeCinematic username={player.name} onComplete={handleWelcomeComplete} />
+          </motion.div>
+        )}
+
         {showLevelUp && <LevelUpCinematic key="levelup" level={player.level} onComplete={() => setShowLevelUp(false)} />}
       </AnimatePresence>
 
-      {!loading && (
+      {welcomeComplete && player.isConfigured && (
         <Layout 
           navigation={<Navigation activeTab={activeTab} onTabChange={setActiveTab} />}
           playerLevel={player.level}
@@ -397,8 +426,47 @@ const App: React.FC = () => {
           </AnimatePresence>
         </Layout>
       )}
+
+      {/* Penalty Overlay (Only if logged in/configured) */}
+      {player.isConfigured && player.isPenaltyActive && (
+         <div className="fixed inset-0 z-[200]">
+           <PenaltyZone 
+             endTime={player.penaltyEndTime || Date.now() + 10000} 
+             onSurvive={clearPenalty} 
+             reducePenalty={reducePenalty}
+           />
+         </div>
+      )}
     </>
   );
+};
+
+// Helper component to avoid hooks in conditions
+const InitialCheck = ({ isConfigured, setWelcomeComplete }: { isConfigured: boolean, setWelcomeComplete: (v: boolean) => void }) => {
+   useEffect(() => {
+      // If user was already configured when app loaded, skip cinematic
+      // The only way to see cinematic is if isConfigured goes from false -> true (handled in App flow)
+      // But wait, on fresh load `isConfigured` might be true.
+      // We want to skip welcome if it's a reload.
+      // Since `setWelcomeComplete` defaults to false, we need to set it true if already configured.
+      // However, if we just registered, we want it false initially.
+      
+      // We can use a ref or session storage, but for this demo, let's assume:
+      // If `isConfigured` is true on MOUNT, skip welcome.
+      // If it becomes true later (via register), show welcome.
+   }, []);
+   
+   const mounted = React.useRef(false);
+   useEffect(() => {
+      if (!mounted.current) {
+          if (isConfigured) {
+              setWelcomeComplete(true);
+          }
+          mounted.current = true;
+      }
+   }, [isConfigured, setWelcomeComplete]);
+
+   return null;
 };
 
 export default App;

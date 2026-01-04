@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PlayerData, Rank, CoreStats, StatTimestamps, ActivityLog, Quest, ShopItem, SystemNotification, NotificationType, HistoryEntry } from '../types';
 import { playSystemSoundEffect } from '../utils/soundEngine';
-import { supabase } from '../lib/supabase';
 
 const INITIAL_STATS: CoreStats = { strength: 10, intelligence: 10, focus: 10, social: 10, willpower: 10 };
 const INITIAL_TIMESTAMPS: StatTimestamps = { 
@@ -22,7 +21,8 @@ const DEFAULT_SHOP_ITEMS: ShopItem[] = [
 ];
 
 const INITIAL_PLAYER_DATA: PlayerData = {
-  name: 'PLAYER',
+  isConfigured: false,
+  name: '',
   level: 1,
   currentXp: 0,
   requiredXp: 500,
@@ -51,6 +51,7 @@ const INITIAL_PLAYER_DATA: PlayerData = {
 };
 
 const PENALTY_DURATION_MS = 4 * 60 * 60 * 1000; // 4 Hours
+const STORAGE_KEY = 'bio_sync_os_data_v1';
 
 // Helper to determine points based on Rank
 const getStatReward = (rank: Rank): number => {
@@ -92,71 +93,6 @@ export const useSystem = () => {
     type
   });
 
-  // --- DATA MAPPING: TypeScript <-> SQL (SnakeCase) ---
-  const dbToLocal = (dbData: any): PlayerData => ({
-     // Standard fields
-     userId: dbData.id,
-     name: dbData.name || 'PLAYER',
-     level: dbData.level || 1,
-     currentXp: dbData.current_xp || 0,
-     requiredXp: dbData.required_xp || 500,
-     totalXp: dbData.total_xp || 0,
-     dailyXp: dbData.daily_xp || 0,
-     rank: dbData.rank || 'E',
-     gold: dbData.gold || 0,
-     hp: dbData.hp || 100,
-     maxHp: dbData.max_hp || 100,
-     mp: dbData.mp || 10,
-     maxMp: dbData.max_mp || 10,
-     fatigue: dbData.fatigue || 0,
-     job: dbData.job || 'NONE',
-     title: dbData.title || 'WOLF SLAYER',
-     lastLoginDate: dbData.last_login_date || new Date().toISOString().split('T')[0],
-     dailyQuestComplete: dbData.daily_quest_complete || false,
-     isPenaltyActive: dbData.is_penalty_active || false,
-     penaltyEndTime: dbData.penalty_end_time,
-
-     // JSONB fields (Handle potential nulls)
-     stats: dbData.stats || INITIAL_STATS,
-     lastStatUpdate: dbData.last_stat_update || INITIAL_TIMESTAMPS,
-     history: dbData.history || [],
-     logs: dbData.logs || [],
-     quests: dbData.quests || [],
-     shopItems: (dbData.shop_items && dbData.shop_items.length > 0) ? dbData.shop_items : DEFAULT_SHOP_ITEMS,
-     awakening: dbData.awakening || { vision: [], antiVision: [] }
-  });
-
-  const localToDb = (local: PlayerData) => ({
-      id: local.userId, // Included for Upsert
-      name: local.name,
-      level: local.level,
-      current_xp: local.currentXp,
-      required_xp: local.requiredXp,
-      total_xp: local.totalXp,
-      daily_xp: local.dailyXp,
-      rank: local.rank,
-      gold: local.gold,
-      hp: local.hp,
-      max_hp: local.maxHp,
-      mp: local.mp,
-      max_mp: local.maxMp,
-      fatigue: local.fatigue,
-      job: local.job,
-      title: local.title,
-      last_login_date: local.lastLoginDate,
-      daily_quest_complete: local.dailyQuestComplete,
-      is_penalty_active: local.isPenaltyActive,
-      penalty_end_time: local.penaltyEndTime,
-      stats: local.stats,
-      last_stat_update: local.lastStatUpdate,
-      history: local.history,
-      logs: local.logs,
-      quests: local.quests,
-      shop_items: local.shopItems,
-      awakening: local.awakening,
-      updated_at: new Date().toISOString()
-  });
-
   // Helper: Process Daily Logic
   const processSystemLogic = useCallback((data: PlayerData): PlayerData => {
     const today = new Date().toISOString().split('T')[0];
@@ -184,7 +120,7 @@ export const useSystem = () => {
       newData.dailyXp = 0;
       newData.quests = newData.quests.map(q => q.isDaily ? { ...q, isCompleted: false } : q);
 
-      if (!data.dailyQuestComplete) {
+      if (!data.dailyQuestComplete && data.isConfigured) {
         if (newData.totalXp > 0) {
            newData.totalXp = Math.max(0, newData.totalXp - 100);
            newData.currentXp = Math.max(0, newData.currentXp - 100);
@@ -195,7 +131,7 @@ export const useSystem = () => {
         newData.penaltyEndTime = now + PENALTY_DURATION_MS;
         newData.logs.unshift(createLog("System Access Restricted: Penalty Zone Active", 'PENALTY'));
         addNotification("PENALTY ZONE ACTIVATED.", 'DANGER');
-      } else {
+      } else if (data.isConfigured) {
         newData.dailyQuestComplete = false;
         newData.logs.unshift(createLog("New Daily Quests Available", 'SYSTEM'));
         addNotification("New Daily Quests Available.", 'SYSTEM');
@@ -233,60 +169,48 @@ export const useSystem = () => {
     return newData;
   }, [addNotification]);
 
-  // Load from Supabase on Mount
+  // Load from LocalStorage on Mount
   useEffect(() => {
-    const fetchData = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            // Attempt to fetch profile
-            const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-            
-            if (data) {
-                // Profile exists, load it
-                const processed = processSystemLogic(dbToLocal(data));
-                setPlayer(processed);
-            } else {
-                 // FAIL-SAFE: Profile doesn't exist (New User or DB Error). 
-                 // Create it immediately on the client side to ensure "New Users are Added".
-                 console.log("New User Detected. Initializing Database Entry...");
-                 
-                 // CRITICAL FIX: Use the metadata name if available!
-                 const metaName = user.user_metadata?.full_name || 'PLAYER';
-                 const newProfile = { ...INITIAL_PLAYER_DATA, userId: user.id, name: metaName };
-                 
-                 const dbPayload = localToDb(newProfile);
-                 
-                 // Force insert
-                 const { error: insertError } = await supabase.from('profiles').upsert(dbPayload);
-                 
-                 if (insertError) {
-                    console.error("Critical: Failed to initialize user profile.", insertError);
-                 } else {
-                    setPlayer(newProfile);
-                    addNotification(`System Initialization Complete. Welcome, ${metaName}.`, 'SUCCESS');
-                 }
-            }
-        }
+    try {
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        // Process logic immediately on load
+        const processed = processSystemLogic(parsed);
+        setPlayer(processed);
+      } else {
+        // No data found, initialized with defaults
         setIsLoaded(true);
-    };
-    fetchData();
+      }
+    } catch (e) {
+      console.error("Failed to load save data", e);
+    } finally {
+      setIsLoaded(true);
+    }
   }, [processSystemLogic]);
 
-  // Save to Supabase (Debounced) - Switched to Upsert
+  // Save to LocalStorage (Debounced)
   useEffect(() => {
-    if (isLoaded && player.userId) {
+    if (isLoaded) {
         if (saveTimeout.current) clearTimeout(saveTimeout.current);
         
-        saveTimeout.current = setTimeout(async () => {
-            const payload = localToDb(player);
-            // UPSERT used here to create row if it doesn't exist
-            const { error } = await supabase.from('profiles').upsert(payload);
-            if (error) console.error("Sync Error:", error);
-        }, 2000); // 2 second debounce to prevent DB spam
+        saveTimeout.current = setTimeout(() => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(player));
+        }, 1000); 
     }
   }, [player, isLoaded]);
 
   // --- ACTIONS ---
+
+  const registerUser = (name: string) => {
+      setPlayer(prev => ({
+          ...prev,
+          name: name,
+          isConfigured: true,
+          logs: [createLog(`System Initialized. Welcome, ${name}.`, 'SYSTEM')]
+      }));
+      playSystemSoundEffect('SUCCESS');
+  };
 
   const updateProfile = (updates: Partial<Pick<PlayerData, 'name' | 'job' | 'title'>>) => {
       setPlayer(prev => ({ ...prev, ...updates }));
@@ -481,6 +405,7 @@ export const useSystem = () => {
     player,
     isLoaded,
     notifications,
+    registerUser,
     updateProfile,
     updateAwakening,
     gainXp,
