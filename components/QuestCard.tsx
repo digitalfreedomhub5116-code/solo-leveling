@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield } from 'lucide-react';
+import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield, Repeat } from 'lucide-react';
 import { Quest, CoreStats, Rank } from '../types';
 
 interface QuestCardProps {
@@ -52,6 +52,11 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onDelete }) =>
                     {quest.category}
                 </span>
                 <span className="text-[10px] text-system-neon font-mono">+{quest.xpReward} XP</span>
+                {quest.isDaily && (
+                    <span className="text-[10px] text-system-accent font-mono flex items-center gap-1 bg-system-accent/10 px-2 py-0.5 rounded border border-system-accent/20">
+                        <Repeat size={10} /> DAILY
+                    </span>
+                )}
              </div>
              <h3 className={`font-bold text-gray-200 ${quest.isCompleted ? 'line-through text-gray-600' : ''}`}>
                {quest.title}

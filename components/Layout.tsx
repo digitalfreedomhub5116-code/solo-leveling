@@ -1,14 +1,15 @@
 import React from 'react';
-import { Shield } from 'lucide-react';
+import { Shield, Flame } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface LayoutProps {
   children: React.ReactNode;
   navigation?: React.ReactNode;
   playerLevel?: number;
+  streak?: number;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, navigation, playerLevel = 1 }) => {
+const Layout: React.FC<LayoutProps> = ({ children, navigation, playerLevel = 1, streak = 0 }) => {
   const isShadowMonarch = playerLevel >= 10;
 
   return (
@@ -38,11 +39,21 @@ const Layout: React.FC<LayoutProps> = ({ children, navigation, playerLevel = 1 }
           
           {/* Top Bar Status */}
           <header className="flex justify-between items-center mb-8 py-2 border-b border-system-border/50 backdrop-blur-sm sticky top-0 z-30 bg-system-bg/80 px-2">
-             <div className="flex items-center gap-2">
-                <Shield className={`w-5 h-5 ${isShadowMonarch ? 'text-system-accent' : 'text-system-neon'} animate-pulse`} />
-                <span className={`font-mono text-xs ${isShadowMonarch ? 'text-system-accent' : 'text-system-neon'} tracking-widest`}>
-                  {isShadowMonarch ? 'SHADOW MONARCH' : 'SYSTEM ONLINE'}
-                </span>
+             <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                    <Shield className={`w-5 h-5 ${isShadowMonarch ? 'text-system-accent' : 'text-system-neon'} animate-pulse`} />
+                    <span className={`font-mono text-xs ${isShadowMonarch ? 'text-system-accent' : 'text-system-neon'} tracking-widest hidden sm:inline`}>
+                      {isShadowMonarch ? 'SHADOW MONARCH' : 'SYSTEM ONLINE'}
+                    </span>
+                </div>
+                
+                {/* Streak Counter */}
+                {streak > 0 && (
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-orange-900/20 border border-orange-500/30 text-orange-500">
+                     <Flame size={12} className="fill-orange-500 animate-pulse" />
+                     <span className="text-[10px] font-mono font-bold">{streak} DAY STREAK</span>
+                  </div>
+                )}
              </div>
              <div className="font-mono text-xs text-gray-500">
                 BIO-SYNC OS v1.0

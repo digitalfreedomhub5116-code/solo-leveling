@@ -134,7 +134,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0"
+              className="absolute inset-0 w-full h-full"
             >
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
@@ -175,7 +175,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0"
+              className="absolute inset-0 w-full h-full"
             >
                <div className="absolute top-0 left-0 text-[10px] text-gray-500 font-mono">XP GAINED (24H)</div>
                <ResponsiveContainer width="100%" height="100%">
@@ -197,7 +197,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
                initial={{ opacity: 0, x: 20 }}
                animate={{ opacity: 1, x: 0 }}
                exit={{ opacity: 0 }}
-               className="absolute inset-0"
+               className="absolute inset-0 w-full h-full"
              >
                 {weeklyData.length < 2 ? (
                    <div className="flex items-center justify-center h-full text-gray-600 text-xs font-mono">INSUFFICIENT DATA FOR TREND ANALYSIS</div>
@@ -232,7 +232,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
                initial={{ opacity: 0, x: 20 }}
                animate={{ opacity: 1, x: 0 }}
                exit={{ opacity: 0 }}
-               className="absolute inset-0"
+               className="absolute inset-0 w-full h-full"
              >
                  {monthlyData.length < 2 ? (
                    <div className="flex items-center justify-center h-full text-gray-600 text-xs font-mono">INSUFFICIENT DATA FOR TREND ANALYSIS</div>

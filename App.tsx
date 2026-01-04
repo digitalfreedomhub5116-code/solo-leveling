@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, Zap } from 'lucide-react';
 import Layout from './components/Layout';
-import SplashScreen from './components/SplashScreen';
+import WelcomeIntro from './components/WelcomeIntro'; // New Component
 import Navigation from './components/Navigation';
 import EvaluationMatrix from './components/StatsRadar';
 import QuestsView from './components/QuestsView';
@@ -11,7 +11,7 @@ import PenaltyZone from './components/PenaltyZone';
 import SystemMessage from './components/SystemMessage'; 
 import LevelUpCinematic from './components/LevelUpCinematic';
 import ProfileView from './components/ProfileView';
-import Onboarding from './components/Onboarding';
+import AuthView from './components/AuthView';
 import WelcomeCinematic from './components/WelcomeCinematic';
 import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab } from './types';
@@ -154,7 +154,10 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
                   <div className="flex justify-between items-end">
                       <div>
                         <div className="text-[10px] text-gray-500 mb-1 tracking-widest">CODENAME</div>
-                        <span className="text-2xl font-bold text-white tracking-tight drop-shadow-md">{player.name}</span>
+                        {/* UPDATED: Displays Username (Codename) instead of generic Name */}
+                        <span className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
+                          {player.username ? player.username.toUpperCase() : player.name.toUpperCase()}
+                        </span>
                       </div>
                       <div className="text-right">
                         <div className="flex flex-col items-end">
@@ -285,11 +288,10 @@ const SyncOverlay: React.FC = () => (
 );
 
 const App: React.FC = () => {
-  const [splashComplete, setSplashComplete] = useState(false);
+  const [introComplete, setIntroComplete] = useState(false);
   const [welcomeComplete, setWelcomeComplete] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
   
-  // Use new hook values
   const { 
     player, isLoaded, updateProfile, registerUser,
     gainXp, completeDaily, 
@@ -302,14 +304,9 @@ const App: React.FC = () => {
   // Cinematic State
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [prevLevel, setPrevLevel] = useState(1);
-
-  const handleSystemReady = () => {
-    setSplashComplete(true);
-  };
   
-  const handleOnboardingComplete = (name: string, userId: string) => {
-    registerUser(name, userId);
-    // welcomeComplete defaults to false, so WelcomeCinematic will show next
+  const handleAuthComplete = (profile: Partial<PlayerData>) => {
+    registerUser(profile);
   };
 
   const handleWelcomeComplete = () => {
@@ -333,17 +330,19 @@ const App: React.FC = () => {
       return <SyncOverlay />;
   }
 
-  // Splash Screen (First Load only)
-  if (!splashComplete) {
-    return <SplashScreen key="splash" onComplete={handleSystemReady} />;
-  }
-
-  // Onboarding (If no name configured)
+  // Auth Screen (If no user configured)
   if (!player.isConfigured) {
-    return <Onboarding onComplete={handleOnboardingComplete} />;
+    return (
+      <>
+        {!introComplete && <WelcomeIntro onComplete={() => setIntroComplete(true)} />}
+        <AuthView onLogin={handleAuthComplete} />
+      </>
+    );
   }
 
-  // Welcome Cinematic
+  // Welcome Cinematic (Only show if we just configured/logged in and haven't seen it in this session yet)
+  // Optimization: If user auto-logged in (no manual config), we might want to skip or show short version.
+  // Current logic: Shows welcome every time app reloads and user exists.
   return (
     <>
       <AnimatePresence>
@@ -360,6 +359,7 @@ const App: React.FC = () => {
         <Layout 
           navigation={<Navigation activeTab={activeTab} onTabChange={setActiveTab} />}
           playerLevel={player.level}
+          streak={player.streak}
         >
           
           {/* System Messages Overlay */}

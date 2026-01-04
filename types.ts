@@ -37,7 +37,7 @@ export interface ActivityLog {
   id: string;
   message: string;
   timestamp: number;
-  type: 'XP' | 'LEVEL_UP' | 'PENALTY' | 'SYSTEM' | 'PURCHASE';
+  type: 'XP' | 'LEVEL_UP' | 'PENALTY' | 'SYSTEM' | 'PURCHASE' | 'STREAK';
 }
 
 export interface Quest {
@@ -49,7 +49,7 @@ export interface Quest {
   xpReward: number;
   isCompleted: boolean;
   createdAt: number;
-  isDaily?: boolean; // New: Identify repeatable quests
+  isDaily: boolean; // Identify repeatable quests
 }
 
 export interface ShopItem {
@@ -85,7 +85,9 @@ export interface PlayerData {
   isConfigured: boolean; // Tracks if user has entered their name
   
   // Core System Data
-  name: string;          // Player Name
+  name: string;          // Player Display Name
+  username?: string;     // Unique Handle for Auth
+  pin?: string;          // Access Key for Auth verification
   level: number;
   currentXp: number;     // XP in current level
   requiredXp: number;    // XP needed to level up
@@ -93,6 +95,7 @@ export interface PlayerData {
   dailyXp: number;       // XP gained today (for daily graph)
   rank: Rank;
   gold: number;
+  streak: number;        // Consecutive days logged in
   
   // Attributes
   stats: CoreStats;

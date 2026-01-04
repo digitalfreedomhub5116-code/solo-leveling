@@ -22,7 +22,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
       // SHADOW AUTH: Create a silent account to allow DB syncing
       // We generate a unique identity for this device/user
       const shadowId = Math.random().toString(36).substring(2, 15);
-      const email = `shadow-${shadowId}@biosync.local`;
+      // Fix: Use .com instead of .local to satisfy email validation regex
+      const email = `shadow-${shadowId}@biosync.com`;
       const password = `shadow-${shadowId}-${Date.now()}`;
 
       const { data, error } = await supabase.auth.signUp({
@@ -34,7 +35,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
       });
 
       if (error) {
-        console.warn("Shadow Link Failed, continuing offline:", error);
+        console.warn("Shadow Link Failed, continuing offline:", error.message);
         // Fallback to offline mode with a random local ID
         onComplete(codename, `local-${shadowId}`);
       } else if (data.user) {

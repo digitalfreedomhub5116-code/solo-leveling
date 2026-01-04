@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Sparkles } from 'lucide-react';
+import { Plus, Sparkles, Repeat } from 'lucide-react';
 import { Quest, CoreStats, Rank } from '../types';
 import QuestCard from './QuestCard';
+import { playSystemSoundEffect } from '../utils/soundEngine';
 
 interface QuestsViewProps {
   quests: Quest[];
@@ -20,6 +21,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<keyof CoreStats>('strength');
   const [rank, setRank] = useState<Rank>('E');
+  const [isDaily, setIsDaily] = useState(false);
 
   // Logic: Filter Quests
   const filteredQuests = quests.filter(q => {
@@ -31,20 +33,54 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
   // Feature: Auto-Ranker Logic
   const handleAutoRank = () => {
     const text = (title + ' ' + description).toLowerCase();
+    playSystemSoundEffect('SYSTEM');
     
-    // 1. Guess Category
-    if (text.match(/run|walk|gym|lift|push|squat|muscle|train/)) setCategory('strength');
-    else if (text.match(/read|study|learn|code|write|solve|math/)) setCategory('intelligence');
-    else if (text.match(/meditate|focus|plan|organize|schedule/)) setCategory('focus');
-    else if (text.match(/call|meet|date|talk|party|social/)) setCategory('social');
-    else if (text.match(/resist|fast|cold|endure|discipline|wait/)) setCategory('willpower');
+    // Expanded Keyword Dictionaries
+    const categoryKeywords: Record<keyof CoreStats, string[]> = {
+       strength: ['run', 'gym', 'lift', 'squat', 'push', 'pull', 'muscle', 'train', 'sport', 'cardio', 'hike', 'swim', 'bike', 'yoga', 'stretch', 'physical', 'exercise', 'workout', 'sprint', 'jog'],
+       intelligence: ['study', 'read', 'learn', 'code', 'write', 'solve', 'math', 'science', 'history', 'language', 'exam', 'test', 'quiz', 'analyze', 'research', 'debug', 'skill', 'book', 'course', 'class'],
+       focus: ['meditate', 'plan', 'organize', 'schedule', 'focus', 'deep work', 'journal', 'reflect', 'clean', 'declutter', 'tidy', 'manage', 'goal', 'priority', 'mindfulness', 'breath'],
+       social: ['call', 'meet', 'date', 'talk', 'party', 'social', 'friend', 'family', 'network', 'email', 'text', 'message', 'event', 'gather', 'present', 'speak', 'listen', 'help'],
+       willpower: ['fast', 'cold', 'shower', 'resist', 'endure', 'wait', 'quit', 'stop', 'avoid', 'discipline', 'habit', 'wake', 'early', 'sleep', 'diet', 'no sugar', 'challenge']
+    };
 
-    // 2. Guess Rank
-    if (text.match(/impossible|god|marathon|project/)) setRank('S');
-    else if (text.match(/hard|long|intense|heavy|exam/)) setRank('A');
-    else if (text.match(/medium|hour|class/)) setRank('C');
-    else if (text.match(/easy|quick|small|chat/)) setRank('E');
-    else setRank('D'); // Default
+    const rankKeywords: Record<Rank, string[]> = {
+       'S': ['impossible', 'god', 'marathon', 'transformation', 'life-changing', 'mastery', 'perfect', '100%', 'insane', 'ultra', 'championship'],
+       'A': ['hard', 'intense', 'heavy', 'grueling', 'severe', 'complex', 'final', 'project', 'difficult', 'record', 'limit'],
+       'B': ['tough', 'significant', 'week', 'milestone', 'presentation', 'challenge', 'serious', 'hours'],
+       'C': ['medium', 'moderate', 'average', 'standard', 'session', 'routine', 'daily', 'chapter', 'lesson', 'hour'],
+       'D': ['basic', 'simple', 'prep', 'chore', 'task', 'maintenance', 'common', 'normal'],
+       'E': ['easy', 'quick', 'small', 'tiny', 'micro', 'chat', 'message', '5min', 'instant', 'lite']
+    };
+
+    // 1. Scoring System for Category
+    let detectedCategory: keyof CoreStats | null = null;
+    let maxScore = 0;
+
+    (Object.keys(categoryKeywords) as Array<keyof CoreStats>).forEach(cat => {
+       let score = 0;
+       categoryKeywords[cat].forEach(word => {
+          if (text.includes(word)) score++;
+       });
+       if (score > maxScore) {
+          maxScore = score;
+          detectedCategory = cat;
+       }
+    });
+
+    if (detectedCategory) setCategory(detectedCategory);
+
+    // 2. Hierarchy Check for Rank (S > A > E > B > C > D)
+    // We check extremes first.
+    let detectedRank: Rank = 'D'; // Default
+
+    if (rankKeywords.S.some(w => text.includes(w))) detectedRank = 'S';
+    else if (rankKeywords.A.some(w => text.includes(w))) detectedRank = 'A';
+    else if (rankKeywords.E.some(w => text.includes(w))) detectedRank = 'E'; // Check Easy specifically
+    else if (rankKeywords.B.some(w => text.includes(w))) detectedRank = 'B';
+    else if (rankKeywords.C.some(w => text.includes(w))) detectedRank = 'C';
+    
+    setRank(detectedRank);
   };
 
   const handleCreate = () => {
@@ -63,7 +99,8 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
       category,
       xpReward: xpMap[rank],
       isCompleted: false,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      isDaily: isDaily
     };
 
     addQuest(newQuest);
@@ -71,6 +108,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
     setTitle('');
     setDescription('');
     setRank('E');
+    setIsDaily(false);
   };
 
   return (
@@ -136,8 +174,8 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
               >
                  <div className="p-6 border-b border-system-border flex justify-between items-center">
                     <h3 className="text-lg font-bold text-white font-mono">NEW SYSTEM ASSIGNMENT</h3>
-                    <button onClick={() => handleAutoRank()} className="text-xs text-system-neon flex items-center gap-1 hover:underline">
-                       <Sparkles size={12} /> AUTO-ANALYZE
+                    <button onClick={() => handleAutoRank()} className="text-xs text-system-neon flex items-center gap-1 hover:underline group">
+                       <Sparkles size={12} className="group-hover:animate-spin" /> AUTO-ANALYZE
                     </button>
                  </div>
                  
@@ -192,6 +230,19 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                              ))}
                           </div>
                        </div>
+                    </div>
+
+                    {/* Daily Toggle */}
+                    <div className="flex items-center gap-3 pt-2">
+                         <button 
+                            onClick={() => setIsDaily(!isDaily)}
+                            className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isDaily ? 'bg-system-neon border-system-neon text-black' : 'bg-transparent border-gray-600'}`}
+                         >
+                            {isDaily && <Repeat size={14} />}
+                         </button>
+                         <span onClick={() => setIsDaily(!isDaily)} className="text-xs text-gray-400 font-mono cursor-pointer select-none">
+                            REPEAT DAILY (RESETS 24H)
+                         </span>
                     </div>
                  </div>
 

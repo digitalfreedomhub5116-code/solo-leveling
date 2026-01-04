@@ -21,9 +21,19 @@ const DEFAULT_SHOP_ITEMS: ShopItem[] = [
   { id: 'default_6', title: 'New Equipment', description: 'Purchase gym gear or tech.', cost: 1000, icon: 'shopping-bag' },
 ];
 
+const getLocalDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const INITIAL_PLAYER_DATA: PlayerData = {
   isConfigured: false,
   name: '',
+  username: '',
+  pin: '',
   level: 1,
   currentXp: 0,
   requiredXp: 500,
@@ -31,6 +41,7 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   dailyXp: 0,
   rank: 'E',
   gold: 0,
+  streak: 0,
   stats: INITIAL_STATS,
   lastStatUpdate: INITIAL_TIMESTAMPS,
   history: [],
@@ -41,7 +52,7 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   fatigue: 0,
   job: 'NONE',
   title: 'WOLF SLAYER',
-  lastLoginDate: new Date().toISOString().split('T')[0],
+  lastLoginDate: getLocalDate(),
   dailyQuestComplete: false,
   isPenaltyActive: false,
   penaltyEndTime: undefined,
@@ -51,10 +62,9 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   awakening: { vision: [], antiVision: [] }
 };
 
-const PENALTY_DURATION_MS = 4 * 60 * 60 * 1000; // 4 Hours
+const PENALTY_DURATION_MS = 4 * 60 * 60 * 1000; 
 const STORAGE_KEY = 'bio_sync_os_data_v1';
 
-// Helper to determine points based on Rank
 const getStatReward = (rank: Rank): number => {
   const points: Record<Rank, number> = { 'E': 1, 'D': 2, 'C': 5, 'B': 10, 'A': 20, 'S': 50 };
   return points[rank] || 1;
@@ -66,7 +76,6 @@ export const useSystem = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Notification Logic
   const addNotification = useCallback((message: string, type: NotificationType) => {
     const id = Math.random().toString(36).substring(2, 9);
     setNotifications(prev => [...prev, { id, message, type }]);
@@ -76,7 +85,6 @@ export const useSystem = () => {
     }, 5000);
   }, []);
 
-  // Helper: Calculate Rank
   const calculateRank = (xp: number): Rank => {
     if (xp >= 50000) return 'S';
     if (xp >= 25000) return 'A';
@@ -86,7 +94,6 @@ export const useSystem = () => {
     return 'E';
   };
 
-  // Helper: Create Log Entry
   const createLog = (message: string, type: ActivityLog['type']): ActivityLog => ({
     id: Math.random().toString(36).substr(2, 9),
     message,
@@ -94,10 +101,11 @@ export const useSystem = () => {
     type
   });
 
-  // Mapper: Local Data -> Database Format
   const localToDb = (local: PlayerData) => ({
       id: local.userId,
       name: local.name,
+      username: local.username,
+      pin: local.pin,
       level: local.level,
       current_xp: local.currentXp,
       required_xp: local.requiredXp,
@@ -105,6 +113,7 @@ export const useSystem = () => {
       daily_xp: local.dailyXp,
       rank: local.rank,
       gold: local.gold,
+      streak: local.streak,
       hp: local.hp,
       max_hp: local.maxHp,
       mp: local.mp,
@@ -126,22 +135,21 @@ export const useSystem = () => {
       updated_at: new Date().toISOString()
   });
 
-  // Helper: Process Daily Logic
   const processSystemLogic = useCallback((data: PlayerData): PlayerData => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDate();
     const lastLogin = data.lastLoginDate;
     const now = Date.now();
     let newData = { ...data };
     let hasChanges = false;
 
-    // Safety checks
     if (!newData.logs) newData.logs = [];
     if (!newData.quests) newData.quests = [];
     if (!newData.history) newData.history = [];
+    if (newData.streak === undefined) newData.streak = 1;
 
-    // 1. Daily Reset & Penalty Check
     if (today !== lastLogin) {
       hasChanges = true;
+      
       const historyEntry: HistoryEntry = {
         date: lastLogin,
         stats: { ...data.stats },
@@ -151,29 +159,65 @@ export const useSystem = () => {
       
       newData.history = [historyEntry, ...newData.history].slice(0, 30);
       newData.dailyXp = 0;
-      newData.quests = newData.quests.map(q => q.isDaily ? { ...q, isCompleted: false } : q);
+      
+      let resetCount = 0;
+      newData.quests = newData.quests.map(q => {
+        if (q.isDaily && q.isCompleted) {
+            resetCount++;
+            return { ...q, isCompleted: false };
+        }
+        return q;
+      });
+      if (resetCount > 0) {
+        newData.logs.unshift(createLog(`Daily Reset: ${resetCount} Quests Refreshed`, 'SYSTEM'));
+      }
+
+      const lastLoginDateObj = new Date(lastLogin);
+      const todayDateObj = new Date(today);
+      const diffTime = Math.abs(todayDateObj.getTime() - lastLoginDateObj.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 1) {
+          newData.streak += 1;
+          const streakGold = newData.streak * 20;
+          newData.gold += streakGold;
+          newData.logs.unshift(createLog(`Streak Active: ${newData.streak} Days. +${streakGold} Gold`, 'STREAK'));
+          addNotification(`Streak Active! +${streakGold} Gold`, 'SUCCESS');
+      } else if (diffDays > 1) {
+          if (newData.streak > 1) {
+             newData.logs.unshift(createLog(`Streak Broken. Reset to 1.`, 'PENALTY'));
+             addNotification("Streak Broken.", 'WARNING');
+          }
+          newData.streak = 1;
+      }
+      
+      const newMaxMp = 10 + Math.floor(newData.streak * 2);
+      if (newMaxMp > newData.maxMp) {
+          newData.maxMp = newMaxMp;
+          newData.logs.unshift(createLog(`Mana Capacity Increased: ${newMaxMp} MP`, 'SYSTEM'));
+      } else {
+          newData.maxMp = newMaxMp; 
+      }
+      newData.mp = newData.maxMp; 
 
       if (!data.dailyQuestComplete && data.isConfigured) {
         if (newData.totalXp > 0) {
            newData.totalXp = Math.max(0, newData.totalXp - 100);
            newData.currentXp = Math.max(0, newData.currentXp - 100);
-           newData.logs.unshift(createLog("[ERROR] Sync Failure: -100 XP", 'PENALTY'));
-           addNotification("Sync Failure Detected. XP Deducted.", 'DANGER');
+           newData.logs.unshift(createLog("[ERROR] Daily Failure: -100 XP", 'PENALTY'));
+           addNotification("Daily Failure. XP Deducted.", 'DANGER');
         }
         newData.isPenaltyActive = true;
         newData.penaltyEndTime = now + PENALTY_DURATION_MS;
-        newData.logs.unshift(createLog("System Access Restricted: Penalty Zone Active", 'PENALTY'));
-        addNotification("PENALTY ZONE ACTIVATED.", 'DANGER');
+        newData.logs.unshift(createLog("Penalty Zone Active", 'PENALTY'));
       } else if (data.isConfigured) {
         newData.dailyQuestComplete = false;
         newData.logs.unshift(createLog("New Daily Quests Available", 'SYSTEM'));
-        addNotification("New Daily Quests Available.", 'SYSTEM');
       }
       newData.lastLoginDate = today;
     }
 
-    // 2. Stat Decay
-    const DECAY_THRESHOLD = 172800000;
+    const DECAY_THRESHOLD = 172800000; // 48 Hours
     const statKeys = Object.keys(newData.stats) as (keyof CoreStats)[];
     statKeys.forEach((key) => {
       const lastActivity = newData.lastStatUpdate[key];
@@ -191,8 +235,8 @@ export const useSystem = () => {
     if (newData.isPenaltyActive && newData.penaltyEndTime && now > newData.penaltyEndTime) {
        newData.isPenaltyActive = false;
        newData.penaltyEndTime = undefined;
-       newData.logs.unshift(createLog("Penalty Duration Complete. Access Restored.", 'SYSTEM'));
-       addNotification("Penalty Served. Access Restored.", 'SUCCESS');
+       newData.logs.unshift(createLog("Penalty Duration Complete.", 'SYSTEM'));
+       addNotification("Penalty Served.", 'SUCCESS');
        hasChanges = true;
     }
 
@@ -202,58 +246,80 @@ export const useSystem = () => {
     return newData;
   }, [addNotification]);
 
-  // Load from LocalStorage on Mount
-  useEffect(() => {
-    try {
-      const savedData = localStorage.getItem(STORAGE_KEY);
-      if (savedData) {
-        const parsed = JSON.parse(savedData);
-        // Process logic immediately on load
-        const processed = processSystemLogic(parsed);
-        setPlayer(processed);
+  // Actions wrapped to use later
+  const registerUser = useCallback((profileOrName: Partial<PlayerData> | string, userId?: string) => {
+      let newProfileData: PlayerData;
+
+      if (typeof profileOrName === 'string') {
+         newProfileData = {
+            ...INITIAL_PLAYER_DATA,
+            name: profileOrName,
+            username: profileOrName.toLowerCase().replace(/[^a-z0-9]/g, ''),
+            userId: userId,
+            isConfigured: true,
+            streak: 1,
+            logs: [createLog(`System Initialized. Welcome, ${profileOrName}.`, 'SYSTEM')]
+         };
       } else {
-        // No data found, initialized with defaults
-        setIsLoaded(true);
+         const incoming = profileOrName as any;
+         newProfileData = {
+            ...INITIAL_PLAYER_DATA,
+            ...profileOrName,
+            isConfigured: true,
+            stats: incoming.stats || INITIAL_STATS,
+            quests: incoming.quests || [],
+            logs: incoming.logs || [],
+            history: incoming.history || [],
+            username: incoming.username || incoming.name?.toLowerCase().replace(/[^a-z0-9]/g, '') || '',
+            pin: incoming.pin || '',
+            userId: incoming.id || userId, 
+         };
+         newProfileData = processSystemLogic(newProfileData);
       }
-    } catch (e) {
-      console.error("Failed to load save data", e);
-    } finally {
-      setIsLoaded(true);
-    }
+      setPlayer(newProfileData);
+      // Removed generic sound here to avoid noise on auto-login
   }, [processSystemLogic]);
 
-  // Persistence (LocalStorage + Supabase)
+  // AUTH CHECK ON MOUNT
   useEffect(() => {
-    if (isLoaded) {
-        if (saveTimeout.current) clearTimeout(saveTimeout.current);
-        
-        saveTimeout.current = setTimeout(async () => {
-            // 1. Local Persistence
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(player));
+    const checkSession = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session && session.user) {
+                // Fetch profile
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                if (profile && !error) {
+                    registerUser(profile);
+                }
+            }
+        } catch (err) {
+            console.error("Auto-login failed:", err);
+        } finally {
+            setIsLoaded(true);
+        }
+    };
+    
+    checkSession();
+  }, [registerUser]);
 
-            // 2. Cloud Persistence (Sync Quest and other data)
-            // Ensure we have a valid userId that isn't a local fallback before syncing
+  // Persistence
+  useEffect(() => {
+    if (isLoaded && player.isConfigured) {
+        if (saveTimeout.current) clearTimeout(saveTimeout.current);
+        saveTimeout.current = setTimeout(async () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(player));
             if (player.userId && !player.userId.startsWith('local-')) {
                 const dbPayload = localToDb(player);
-                const { error } = await supabase.from('profiles').upsert(dbPayload);
-                if (error) console.error("Cloud Sync Error:", error.message);
+                await supabase.from('profiles').upsert(dbPayload);
             }
         }, 1000); 
     }
   }, [player, isLoaded]);
-
-  // --- ACTIONS ---
-
-  const registerUser = (name: string, userId: string) => {
-      setPlayer(prev => ({
-          ...prev,
-          name: name,
-          userId: userId, // Store the Supabase ID
-          isConfigured: true,
-          logs: [createLog(`System Initialized. Welcome, ${name}.`, 'SYSTEM')]
-      }));
-      playSystemSoundEffect('SUCCESS');
-  };
 
   const updateProfile = (updates: Partial<Pick<PlayerData, 'name' | 'job' | 'title'>>) => {
       setPlayer(prev => ({ ...prev, ...updates }));
