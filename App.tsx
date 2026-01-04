@@ -82,7 +82,7 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
   const isCloseToLevelUp = xpPercentage > 80;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-4 md:pb-0">
       {/* SYSTEM STATUS TICKER */}
       <div className="w-full bg-system-card/50 border-y border-system-border py-1 overflow-hidden relative">
          <div className="absolute inset-0 bg-system-neon/5 z-0" />
@@ -105,13 +105,13 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
       </div>
       
       {/* PERSONALIZED GREETING */}
-      <div className="max-w-lg mx-auto mb-2">
+      <div className="max-w-6xl mx-auto mb-2 px-2 md:px-0">
          <motion.div 
            initial={{ opacity: 0, y: 10 }}
            animate={{ opacity: 1, y: 0 }}
            className="text-left"
          >
-           <h1 className="text-2xl md:text-3xl font-bold text-white font-mono leading-tight">
+           <h1 className="text-2xl md:text-4xl font-bold text-white font-mono leading-tight">
              HELLO <span className="text-system-neon">{player.name.toUpperCase()}</span>.
            </h1>
            <p className="text-gray-500 font-mono text-xs md:text-sm mt-1">
@@ -120,13 +120,13 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
          </motion.div>
       </div>
 
-      <div className="flex justify-center">    
+      <div className="flex justify-center px-2 md:px-0">    
         {/* Player Status & Stats - Futuristic Container */}
         <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1, duration: 0.4 }}
-            className="w-full max-w-lg relative p-6 backdrop-blur-xl bg-system-card/40 rounded-lg border border-system-neon/20 shadow-[0_0_30px_rgba(0,0,0,0.5)] overflow-hidden group"
+            className="w-full max-w-6xl relative p-6 backdrop-blur-xl bg-system-card/40 rounded-lg border border-system-neon/20 shadow-[0_0_30px_rgba(0,0,0,0.5)] overflow-hidden group"
         >
             {/* Scanline Texture */}
             <div className="absolute inset-0 pointer-events-none opacity-10 z-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
@@ -150,118 +150,122 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
                 </div>
               </h2>
               
-              <div className="space-y-6 font-mono">
-                  {/* Name and Level Header */}
-                  <div className="flex justify-between items-end">
-                      <div>
-                        <div className="text-[10px] text-gray-500 mb-1 tracking-widest">CODENAME</div>
-                        {/* UPDATED: Displays Username (Codename) instead of generic Name */}
-                        <span className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
-                          {player.username ? player.username.toUpperCase() : player.name.toUpperCase()}
-                        </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 font-mono">
+                  
+                  {/* LEFT COLUMN */}
+                  <div className="space-y-6">
+                      {/* Name and Level Header */}
+                      <div className="flex justify-between items-end">
+                          <div>
+                            <div className="text-[10px] text-gray-500 mb-1 tracking-widest">CODENAME</div>
+                            <span className="text-2xl md:text-3xl font-bold text-white tracking-tight drop-shadow-md">
+                              {player.username ? player.username.toUpperCase() : player.name.toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex flex-col items-end">
+                               <span className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-system-neon to-system-accent leading-none filter drop-shadow-[0_0_10px_rgba(139,92,246,0.3)]">
+                                 {player.level}
+                               </span>
+                               <span className="text-[10px] text-system-accent font-bold tracking-[0.2em] mt-1">LEVEL</span>
+                            </div>
+                          </div>
                       </div>
-                      <div className="text-right">
-                        <div className="flex flex-col items-end">
-                           <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-system-neon to-system-accent leading-none filter drop-shadow-[0_0_10px_rgba(139,92,246,0.3)]">
-                             {player.level}
-                           </span>
-                           <span className="text-[10px] text-system-accent font-bold tracking-[0.2em] mt-1">LEVEL</span>
+                      
+                      {/* Grid Stats */}
+                      <div className="grid grid-cols-2 gap-4 bg-black/20 p-4 rounded border border-gray-800">
+                          <div>
+                              <div className="text-[10px] text-gray-500 tracking-wider">RANK</div>
+                              <div className={`text-lg font-bold ${player.rank === 'S' ? 'text-yellow-400' : 'text-white'}`}>{player.rank}-CLASS</div>
+                          </div>
+                          <div className="text-right">
+                              <div className="text-[10px] text-gray-500 tracking-wider">JOB</div>
+                              <div className="text-lg font-bold text-white">{player.job}</div>
+                          </div>
+                          <div>
+                              <div className="text-[10px] text-gray-500 tracking-wider">TITLE</div>
+                              <div className="text-xs font-bold text-system-neon">{player.title}</div>
+                          </div>
+                          <div className="text-right">
+                              <div className="text-[10px] text-gray-500 tracking-wider">GOLD</div>
+                              <div className="text-xs font-bold text-yellow-500">{player.gold.toLocaleString()} G</div>
+                          </div>
+                      </div>
+
+                      {/* Modern Stat Bars */}
+                      <div className="space-y-2 mt-6">
+                        <StatBar 
+                           label="HP (HEALTH)" 
+                           current={player.hp} 
+                           max={player.maxHp} 
+                           colorClass="bg-system-danger" 
+                           shadowColor="rgba(239, 68, 68, 0.4)" 
+                        />
+                        <StatBar 
+                           label="MP (MANA)" 
+                           current={player.mp} 
+                           max={player.maxMp} 
+                           colorClass="bg-blue-600" 
+                           shadowColor="rgba(37, 99, 235, 0.4)" 
+                        />
+                        <StatBar 
+                           label="FATIGUE" 
+                           current={player.fatigue} 
+                           max={100} 
+                           colorClass="bg-gray-500" 
+                           shadowColor="rgba(107, 114, 128, 0.4)" 
+                        />
+                        
+                        {/* XP Special Bar */}
+                        <div className="mt-6 pt-2 border-t border-dashed border-gray-800/50">
+                          <StatBar 
+                            label="XP (PROGRESS)" 
+                            current={player.currentXp} 
+                            max={player.requiredXp} 
+                            colorClass="bg-system-neon" 
+                            shadowColor="rgba(0, 210, 255, 0.5)"
+                            isGlitch={isCloseToLevelUp}
+                          />
+                          <div className="flex justify-between items-center mt-1 text-[8px] font-mono text-gray-500 uppercase tracking-widest px-0.5">
+                             <span>Next: Level {player.level + 1}</span>
+                             <span className="text-system-neon">{player.requiredXp - player.currentXp} XP REMAINING</span>
+                          </div>
                         </div>
                       </div>
                   </div>
-                  
-                  {/* Grid Stats */}
-                  <div className="grid grid-cols-2 gap-4 bg-black/20 p-3 rounded border border-gray-800">
-                      <div>
-                          <div className="text-[10px] text-gray-500 tracking-wider">RANK</div>
-                          <div className={`text-lg font-bold ${player.rank === 'S' ? 'text-yellow-400' : 'text-white'}`}>{player.rank}-CLASS</div>
+
+                  {/* RIGHT COLUMN */}
+                  <div className="flex flex-col justify-between">
+                      {/* Statistics Evaluation Matrix */}
+                      <div className="relative flex-1 min-h-[300px] flex items-center justify-center">
+                        <div className="w-full max-w-[350px] aspect-square relative z-10">
+                           <EvaluationMatrix stats={player.stats} history={player.history} dailyXp={player.dailyXp || 0} />
+                        </div>
                       </div>
-                      <div className="text-right">
-                          <div className="text-[10px] text-gray-500 tracking-wider">JOB</div>
-                          <div className="text-lg font-bold text-white">{player.job}</div>
-                      </div>
-                      <div>
-                          <div className="text-[10px] text-gray-500 tracking-wider">TITLE</div>
-                          <div className="text-xs font-bold text-system-neon">{player.title}</div>
-                      </div>
-                      <div className="text-right">
-                          <div className="text-[10px] text-gray-500 tracking-wider">GOLD</div>
-                          <div className="text-xs font-bold text-yellow-500">{player.gold.toLocaleString()} G</div>
+
+                      {/* System Logs */}
+                      <div className="border-t border-system-border pt-4 mt-6">
+                        <h3 className="text-[10px] text-gray-600 font-mono mb-3 flex items-center gap-2 uppercase tracking-widest">
+                          <Zap size={10} /> Recent Logs
+                        </h3>
+                        <div className="space-y-2 pl-2 border-l border-gray-800">
+                          {player.logs && player.logs.slice(0, 4).map((log) => (
+                            <div key={log.id} className="text-[10px] font-mono flex gap-3 items-start opacity-90">
+                              <span className="text-gray-600 whitespace-nowrap">
+                                {new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </span>
+                              <span className={
+                                log.type === 'PENALTY' ? "text-red-400" : 
+                                log.type === 'LEVEL_UP' ? "text-system-neon" :
+                                "text-gray-400"
+                              }>
+                                {log.message}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                   </div>
-
-                  {/* Modern Stat Bars */}
-                  <div className="space-y-2 mt-6">
-                    <StatBar 
-                       label="HP (HEALTH)" 
-                       current={player.hp} 
-                       max={player.maxHp} 
-                       colorClass="bg-system-danger" 
-                       shadowColor="rgba(239, 68, 68, 0.4)" 
-                    />
-                    <StatBar 
-                       label="MP (MANA)" 
-                       current={player.mp} 
-                       max={player.maxMp} 
-                       colorClass="bg-blue-600" 
-                       shadowColor="rgba(37, 99, 235, 0.4)" 
-                    />
-                    <StatBar 
-                       label="FATIGUE" 
-                       current={player.fatigue} 
-                       max={100} 
-                       colorClass="bg-gray-500" 
-                       shadowColor="rgba(107, 114, 128, 0.4)" 
-                    />
-                    
-                    {/* XP Special Bar */}
-                    <div className="mt-6 pt-2 border-t border-dashed border-gray-800/50">
-                      <StatBar 
-                        label="XP (PROGRESS)" 
-                        current={player.currentXp} 
-                        max={player.requiredXp} 
-                        colorClass="bg-system-neon" 
-                        shadowColor="rgba(0, 210, 255, 0.5)"
-                        isGlitch={isCloseToLevelUp}
-                      />
-                      <div className="flex justify-between items-center mt-1 text-[8px] font-mono text-gray-500 uppercase tracking-widest px-0.5">
-                         <span>Next: Level {player.level + 1}</span>
-                         <span className="text-system-neon">{player.requiredXp - player.currentXp} XP REMAINING</span>
-                      </div>
-                    </div>
-                  </div>
-              </div>
-
-              {/* Statistics Evaluation Matrix */}
-              <div className="mt-8 relative">
-                <div className="flex justify-center relative z-10">
-                   <div className="w-full max-w-[350px] aspect-square">
-                     <EvaluationMatrix stats={player.stats} history={player.history} dailyXp={player.dailyXp || 0} />
-                   </div>
-                </div>
-              </div>
-
-              {/* System Logs */}
-              <div className="border-t border-system-border pt-4 mt-6">
-                <h3 className="text-[10px] text-gray-600 font-mono mb-3 flex items-center gap-2 uppercase tracking-widest">
-                  <Zap size={10} /> Recent Logs
-                </h3>
-                <div className="space-y-2 pl-2 border-l border-gray-800">
-                  {player.logs && player.logs.slice(0, 3).map((log) => (
-                    <div key={log.id} className="text-[10px] font-mono flex gap-3 items-start opacity-90">
-                      <span className="text-gray-600 whitespace-nowrap">
-                        {new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </span>
-                      <span className={
-                        log.type === 'PENALTY' ? "text-red-400" : 
-                        log.type === 'LEVEL_UP' ? "text-system-neon" :
-                        "text-gray-400"
-                      }>
-                        {log.message}
-                      </span>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
         </motion.div>
