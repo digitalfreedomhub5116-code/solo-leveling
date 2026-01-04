@@ -232,7 +232,8 @@ export const useSystem = () => {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(player));
 
             // 2. Cloud Persistence (Sync Quest and other data)
-            if (player.userId) {
+            // Ensure we have a valid userId that isn't a local fallback before syncing
+            if (player.userId && !player.userId.startsWith('local-')) {
                 const dbPayload = localToDb(player);
                 const { error } = await supabase.from('profiles').upsert(dbPayload);
                 if (error) console.error("Cloud Sync Error:", error.message);

@@ -346,11 +346,6 @@ const App: React.FC = () => {
   // Welcome Cinematic
   return (
     <>
-      <InitialCheck 
-         isConfigured={player.isConfigured} 
-         setWelcomeComplete={setWelcomeComplete} 
-      />
-
       <AnimatePresence>
         {!welcomeComplete && player.isConfigured && (
           <motion.div exit={{ opacity: 0 }} key="welcome-cinematic">
@@ -422,25 +417,6 @@ const App: React.FC = () => {
       )}
     </>
   );
-};
-
-// Helper component to avoid hooks in conditions
-const InitialCheck = ({ isConfigured, setWelcomeComplete }: { isConfigured: boolean, setWelcomeComplete: (v: boolean) => void }) => {
-   useEffect(() => {
-      // If user was already configured when app loaded, skip cinematic
-   }, []);
-   
-   const mounted = React.useRef(false);
-   useEffect(() => {
-      if (!mounted.current) {
-          if (isConfigured) {
-              setWelcomeComplete(true);
-          }
-          mounted.current = true;
-      }
-   }, [isConfigured, setWelcomeComplete]);
-
-   return null;
 };
 
 export default App;
