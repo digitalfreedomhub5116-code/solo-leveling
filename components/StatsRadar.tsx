@@ -49,11 +49,11 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
 
   // Prepare Radar Data
   const radarData = [
-    { subject: 'STR', value: stats.strength, fullMark: 100 },
-    { subject: 'INT', value: stats.intelligence, fullMark: 100 },
-    { subject: 'FOC', value: stats.focus, fullMark: 100 },
-    { subject: 'SOC', value: stats.social, fullMark: 100 },
-    { subject: 'WIL', value: stats.willpower, fullMark: 100 },
+    { subject: 'STRENGTH', value: stats.strength, fullMark: 100 },
+    { subject: 'INTELLIGENCE', value: stats.intelligence, fullMark: 100 },
+    { subject: 'FOCUS', value: stats.focus, fullMark: 100 },
+    { subject: 'SOCIAL', value: stats.social, fullMark: 100 },
+    { subject: 'WILLPOWER', value: stats.willpower, fullMark: 100 },
   ];
 
   // Prepare Graph Data
@@ -137,7 +137,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
               className="absolute inset-0 w-full h-full"
             >
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
                   <defs>
                     <linearGradient id="radarGradient" x1="0" y1="0" x2="1" y2="1">
                       <stop offset="5%" stopColor="#00d2ff" stopOpacity={0.4}/>
@@ -147,7 +147,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
                   <PolarGrid stroke="#333" strokeDasharray="3 3" />
                   <PolarAngleAxis 
                     dataKey="subject" 
-                    tick={{ fill: '#9ca3af', fontSize: 10, fontFamily: 'JetBrains Mono', fontWeight: 'bold' }} 
+                    tick={{ fill: '#9ca3af', fontSize: 9, fontFamily: 'JetBrains Mono', fontWeight: 'bold' }} 
                   />
                   <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                   <Radar
