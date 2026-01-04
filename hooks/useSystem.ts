@@ -70,6 +70,16 @@ const getStatReward = (rank: Rank): number => {
   return points[rank] || 1;
 };
 
+// Moved outside to be static and accessible
+const calculateRank = (level: number): Rank => {
+  if (level >= 200) return 'S';
+  if (level > 130) return 'A'; // 131 - 199
+  if (level > 100) return 'B'; // 101 - 130
+  if (level > 60) return 'C';  // 61 - 100
+  if (level > 20) return 'D';  // 21 - 60
+  return 'E';                  // 1 - 20
+};
+
 export const useSystem = () => {
   const [player, setPlayer] = useState<PlayerData>(INITIAL_PLAYER_DATA);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
@@ -84,15 +94,6 @@ export const useSystem = () => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 5000);
   }, []);
-
-  const calculateRank = (xp: number): Rank => {
-    if (xp >= 50000) return 'S';
-    if (xp >= 25000) return 'A';
-    if (xp >= 10000) return 'B';
-    if (xp >= 3000) return 'C';
-    if (xp >= 1000) return 'D';
-    return 'E';
-  };
 
   const createLog = (message: string, type: ActivityLog['type']): ActivityLog => ({
     id: Math.random().toString(36).substr(2, 9),
@@ -216,27 +217,30 @@ export const useSystem = () => {
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       if (diffDays === 1) {
+          // Streak Continues
           newData.streak += 1;
           const streakGold = newData.streak * 20;
+          
           newData.gold += streakGold;
-          newData.logs.unshift(createLog(`Streak Active: ${newData.streak} Days. +${streakGold} Gold`, 'STREAK'));
-          addNotification(`Streak Active! +${streakGold} Gold`, 'SUCCESS');
+          // Calculate new Max MP based on Streak
+          const newMaxMp = 10 + (newData.streak * 2);
+          newData.maxMp = newMaxMp;
+          newData.mp = newMaxMp; // Refill MP on new day
+          
+          newData.logs.unshift(createLog(`Streak Active: ${newData.streak} Days. +${streakGold} Gold. Max MP Upgraded.`, 'STREAK'));
+          addNotification(`Daily Streak! +${streakGold} Gold, Max MP Increased`, 'SUCCESS');
       } else if (diffDays > 1) {
+          // Streak Broken
           if (newData.streak > 1) {
              newData.logs.unshift(createLog(`Streak Broken. Reset to 1.`, 'PENALTY'));
-             addNotification("Streak Broken.", 'WARNING');
+             addNotification("Streak Broken. Stats Recalibrating...", 'WARNING');
           }
           newData.streak = 1;
+          // Reset Max MP to base + streak calculation
+          newData.maxMp = 10 + (newData.streak * 2);
+          newData.mp = newData.maxMp;
       }
-      
-      const newMaxMp = 10 + Math.floor(newData.streak * 2);
-      if (newMaxMp > newData.maxMp) {
-          newData.maxMp = newMaxMp;
-          newData.logs.unshift(createLog(`Mana Capacity Increased: ${newMaxMp} MP`, 'SYSTEM'));
-      } else {
-          newData.maxMp = newMaxMp; 
-      }
-      newData.mp = newData.maxMp; 
+      // If diffDays === 0, it's the same day, no changes to streak.
 
       newData.lastLoginDate = today;
     }
@@ -264,7 +268,7 @@ export const useSystem = () => {
        hasChanges = true;
     }
 
-    if (hasChanges) newData.rank = calculateRank(newData.totalXp);
+    if (hasChanges) newData.rank = calculateRank(newData.level);
     if (newData.logs.length > 20) newData.logs = newData.logs.slice(0, 20);
 
     return newData;
@@ -406,7 +410,7 @@ export const useSystem = () => {
         totalXp: nextTotalXp,
         dailyXp: nextDailyXp,
         requiredXp: nextRequired,
-        rank: calculateRank(nextTotalXp),
+        rank: calculateRank(nextLevel),
         gold: nextGold,
         hp: prev.hp, 
         mp: prev.mp,

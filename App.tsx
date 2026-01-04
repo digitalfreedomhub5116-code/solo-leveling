@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, Zap } from 'lucide-react';
 import Layout from './components/Layout';
-import WelcomeIntro from './components/WelcomeIntro'; // New Component
+import WelcomeIntro from './components/WelcomeIntro';
 import Navigation from './components/Navigation';
 import EvaluationMatrix from './components/StatsRadar';
 import QuestsView from './components/QuestsView';
@@ -13,6 +13,8 @@ import LevelUpCinematic from './components/LevelUpCinematic';
 import ProfileView from './components/ProfileView';
 import AuthView from './components/AuthView';
 import WelcomeCinematic from './components/WelcomeCinematic';
+import SplashScreen from './components/SplashScreen';
+import AwakeningView from './components/AwakeningView';
 import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab } from './types';
 import { supabase } from './lib/supabase';
@@ -196,7 +198,7 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
                       <div className="space-y-2 mt-6">
                         {/* HP and Fatigue Removed as requested */}
                         <StatBar 
-                           label="MP (MANA)" 
+                           label={`MP (MANA) ${player.streak > 1 ? `[+${Math.floor(player.streak * 2)} BONUS]` : ''}`}
                            current={player.mp} 
                            max={player.maxMp} 
                            colorClass="bg-blue-600" 
@@ -261,181 +263,145 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
   );
 };
 
-const SyncOverlay: React.FC = () => (
-    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 backdrop-blur-md">
-        <div className="w-64 space-y-4">
-            <div className="flex justify-between text-system-neon text-xs font-mono tracking-widest">
-                <span className="animate-pulse">SYNCING BIO-DATA...</span>
-                <Loader2 className="animate-spin" size={14} />
-            </div>
-            <div className="h-1 w-full bg-system-card rounded-full overflow-hidden border border-system-border">
-                <motion.div 
-                    className="h-full bg-system-neon shadow-[0_0_10px_#00d2ff]" 
-                    animate={{ x: ["-100%", "100%"] }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                />
-            </div>
-        </div>
-    </div>
-);
-
 const App: React.FC = () => {
-  const [introComplete, setIntroComplete] = useState(false);
-  const [welcomeComplete, setWelcomeComplete] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
-  
   const { 
-    player, isLoaded, updateProfile, registerUser,
-    gainXp, completeDaily, 
-    addQuest, completeQuest, deleteQuest, 
-    reducePenalty, clearPenalty, 
-    purchaseItem, addShopItem, removeShopItem,
-    notifications, removeNotification
+    player, 
+    notifications, 
+    registerUser, 
+    updateProfile,
+    updateAwakening,
+    gainXp, 
+    completeDaily, 
+    addQuest, 
+    completeQuest, 
+    deleteQuest, 
+    clearPenalty, 
+    reducePenalty, 
+    purchaseItem, 
+    addShopItem, 
+    removeShopItem,
+    removeNotification 
   } = useSystem();
 
-  // Cinematic State
+  const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
+  const [showSplash, setShowSplash] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
-  const [prevLevel, setPrevLevel] = useState<number | null>(null);
+  const [prevLevel, setPrevLevel] = useState(1);
 
-  // AUTH STATE LISTENER
   useEffect(() => {
-    // Corrected method: onAuthStateChange (not onAuthStateChanged)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session)) {
-            // User detected - bypass intro
-            setIntroComplete(true);
-            setWelcomeComplete(true);
-            
-            // Re-fetch profile to ensure latest data
-            if (session?.user) {
-                supabase.from('profiles').select('*').eq('id', session.user.id).single()
-                .then(({ data }) => {
-                   if(data) registerUser(data);
-                });
-            }
-        }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [registerUser]);
-  
-  const handleAuthComplete = (profile: Partial<PlayerData>) => {
-    registerUser(profile);
-    setIntroComplete(true); // Ensure intro is marked complete
-  };
-
-  const handleWelcomeComplete = () => {
-    setWelcomeComplete(true);
-  };
-
-  // Detect Level Up
-  useEffect(() => {
-    if (isLoaded) {
-      if (prevLevel === null) {
-        // Initial Sync: Set prevLevel to current level without animation
-        setPrevLevel(player.level);
-      } else if (player.level > prevLevel) {
-        // Actual Level Up during session
-        setShowLevelUp(true);
-        setPrevLevel(player.level);
-      } else if (player.level !== prevLevel) {
-        // Handle rare downgrade or re-sync
-        setPrevLevel(player.level);
-      }
+    if (player.level > prevLevel && prevLevel > 0) {
+      setShowLevelUp(true);
     }
-  }, [player.level, prevLevel, isLoaded]);
+    setPrevLevel(player.level);
+  }, [player.level, prevLevel]);
 
-  // Loading State
-  if (!isLoaded) {
-      return <SyncOverlay />;
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
 
-  // Auth Screen (If no user configured)
   if (!player.isConfigured) {
     return (
-      <>
-        {!introComplete && <WelcomeIntro onComplete={() => setIntroComplete(true)} />}
-        {introComplete && <AuthView onLogin={handleAuthComplete} />}
-      </>
+      <AuthView onLogin={(profile) => {
+        registerUser(profile);
+        setShowWelcome(true);
+      }} />
     );
   }
 
-  // Welcome Cinematic (Only show if we just configured manually and not auto-logged in via onAuthStateChanged bypass)
-  // Logic tweak: If welcomeComplete is false (manual login flow), show cinematic.
-  return (
-    <>
-      <AnimatePresence>
-        {!welcomeComplete && player.isConfigured && (
-          <motion.div exit={{ opacity: 0 }} key="welcome-cinematic">
-             <WelcomeCinematic username={player.name} onComplete={handleWelcomeComplete} />
-          </motion.div>
-        )}
+  if (showWelcome) {
+    return <WelcomeCinematic username={player.username || player.name} onComplete={() => setShowWelcome(false)} />;
+  }
 
-        {showLevelUp && <LevelUpCinematic key="levelup" level={player.level} onComplete={() => setShowLevelUp(false)} />}
+  if (player.isPenaltyActive && player.penaltyEndTime) {
+    return (
+      <PenaltyZone 
+        endTime={player.penaltyEndTime} 
+        onSurvive={clearPenalty} 
+        reducePenalty={reducePenalty}
+      />
+    );
+  }
+
+  return (
+    <Layout 
+      playerLevel={player.level} 
+      streak={player.streak}
+      navigation={<Navigation activeTab={activeTab} onTabChange={setActiveTab} />}
+    >
+      <SystemMessage notifications={notifications} removeNotification={removeNotification} />
+
+      <AnimatePresence>
+        {showLevelUp && (
+          <LevelUpCinematic level={player.level} onComplete={() => setShowLevelUp(false)} />
+        )}
       </AnimatePresence>
 
-      {welcomeComplete && player.isConfigured && (
-        <Layout 
-          navigation={<Navigation activeTab={activeTab} onTabChange={setActiveTab} />}
-          playerLevel={player.level}
-          streak={player.streak}
-        >
-          
-          {/* System Messages Overlay */}
-          <SystemMessage notifications={notifications} removeNotification={removeNotification} />
-
-          <AnimatePresence mode="wait">
+      <div className="pb-20 md:pb-0">
+        <AnimatePresence mode='wait'>
+          {activeTab === 'DASHBOARD' && (
             <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
+              key="dashboard"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
             >
-              {activeTab === 'DASHBOARD' && (
-                <div className="relative">
-                   <Dashboard player={player} gainXp={gainXp} completeDaily={completeDaily} />
-                </div>
-              )}
-              {activeTab === 'QUESTS' && (
-                 <QuestsView 
-                    quests={player.quests || []} 
-                    addQuest={addQuest} 
-                    completeQuest={completeQuest} 
-                    deleteQuest={deleteQuest} 
-                 />
-              )}
-              {activeTab === 'SHOP' && (
-                <ShopView 
-                   gold={player.gold}
-                   items={player.shopItems}
-                   purchaseItem={purchaseItem}
-                   addItem={addShopItem}
-                   removeItem={removeShopItem}
-                />
-              )}
-              {activeTab === 'PROFILE' && (
-                <ProfileView 
-                   player={player}
-                   onUpdate={updateProfile}
-                />
-              )}
+              <Dashboard player={player} gainXp={gainXp} completeDaily={completeDaily} />
             </motion.div>
-          </AnimatePresence>
-        </Layout>
-      )}
+          )}
+          
+          {activeTab === 'QUESTS' && (
+            <motion.div
+              key="quests"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+            >
+              <QuestsView 
+                quests={player.quests} 
+                addQuest={addQuest} 
+                completeQuest={completeQuest} 
+                deleteQuest={deleteQuest}
+              />
+            </motion.div>
+          )}
 
-      {/* Penalty Overlay (Only if logged in/configured) */}
-      {player.isConfigured && player.isPenaltyActive && (
-         <div className="fixed inset-0 z-[200]">
-           <PenaltyZone 
-             endTime={player.penaltyEndTime || Date.now() + 10000} 
-             onSurvive={clearPenalty} 
-             reducePenalty={reducePenalty}
-           />
-         </div>
-      )}
-    </>
+          {activeTab === 'SHOP' && (
+            <motion.div
+              key="shop"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ShopView 
+                gold={player.gold} 
+                items={player.shopItems} 
+                purchaseItem={purchaseItem} 
+                addItem={addShopItem}
+                removeItem={removeShopItem}
+              />
+            </motion.div>
+          )}
+
+          {activeTab === 'PROFILE' && (
+            <motion.div
+              key="profile"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-12"
+            >
+               <ProfileView player={player} onUpdate={updateProfile} />
+               <AwakeningView data={player.awakening} updateData={updateAwakening} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </Layout>
   );
 };
 
