@@ -15,6 +15,7 @@ import AuthView from './components/AuthView';
 import WelcomeCinematic from './components/WelcomeCinematic';
 import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab } from './types';
+import { supabase } from './lib/supabase';
 
 // Helper: Modern Continuous Stat Bar
 const StatBar: React.FC<{ 
@@ -272,8 +273,8 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
 const SyncOverlay: React.FC = () => (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 backdrop-blur-md">
         <div className="w-64 space-y-4">
-            <div className="flex justify-between text-system-neon text-xs font-mono">
-                <span>SYNCING DATABASE...</span>
+            <div className="flex justify-between text-system-neon text-xs font-mono tracking-widest">
+                <span className="animate-pulse">SYNCING BIO-DATA...</span>
                 <Loader2 className="animate-spin" size={14} />
             </div>
             <div className="h-1 w-full bg-system-card rounded-full overflow-hidden border border-system-border">
@@ -304,9 +305,32 @@ const App: React.FC = () => {
   // Cinematic State
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [prevLevel, setPrevLevel] = useState(1);
+
+  // AUTH STATE LISTENER
+  useEffect(() => {
+    // Corrected method: onAuthStateChange (not onAuthStateChanged)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session)) {
+            // User detected - bypass intro
+            setIntroComplete(true);
+            setWelcomeComplete(true);
+            
+            // Re-fetch profile to ensure latest data
+            if (session?.user) {
+                supabase.from('profiles').select('*').eq('id', session.user.id).single()
+                .then(({ data }) => {
+                   if(data) registerUser(data);
+                });
+            }
+        }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [registerUser]);
   
   const handleAuthComplete = (profile: Partial<PlayerData>) => {
     registerUser(profile);
+    setIntroComplete(true); // Ensure intro is marked complete
   };
 
   const handleWelcomeComplete = () => {
@@ -335,14 +359,13 @@ const App: React.FC = () => {
     return (
       <>
         {!introComplete && <WelcomeIntro onComplete={() => setIntroComplete(true)} />}
-        <AuthView onLogin={handleAuthComplete} />
+        {introComplete && <AuthView onLogin={handleAuthComplete} />}
       </>
     );
   }
 
-  // Welcome Cinematic (Only show if we just configured/logged in and haven't seen it in this session yet)
-  // Optimization: If user auto-logged in (no manual config), we might want to skip or show short version.
-  // Current logic: Shows welcome every time app reloads and user exists.
+  // Welcome Cinematic (Only show if we just configured manually and not auto-logged in via onAuthStateChanged bypass)
+  // Logic tweak: If welcomeComplete is false (manual login flow), show cinematic.
   return (
     <>
       <AnimatePresence>
