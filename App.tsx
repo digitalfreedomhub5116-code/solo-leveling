@@ -15,6 +15,7 @@ import AuthView from './components/AuthView'; // Import Auth
 import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab } from './types';
 import { supabase } from './lib/supabase';
+import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
 // Helper: Modern Continuous Stat Bar
 const StatBar: React.FC<{ 
@@ -269,7 +270,7 @@ const SyncOverlay: React.FC = () => (
 );
 
 const App: React.FC = () => {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [splashComplete, setSplashComplete] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
   
@@ -279,7 +280,7 @@ const App: React.FC = () => {
     gainXp, completeDaily, 
     addQuest, completeQuest, deleteQuest, 
     reducePenalty, clearPenalty, 
-    purchaseItem, addShopItem, updateAwakening,
+    purchaseItem, addShopItem,
     notifications, removeNotification
   } = useSystem();
 
@@ -295,7 +296,7 @@ const App: React.FC = () => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setSession(session);
     });
 

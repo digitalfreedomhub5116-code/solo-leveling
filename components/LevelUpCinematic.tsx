@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpCircle, Zap } from 'lucide-react';
+import { ArrowUpCircle } from 'lucide-react';
 
 interface LevelUpCinematicProps {
   level: number;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield, Zap } from 'lucide-react';
+import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield } from 'lucide-react';
 import { Quest, CoreStats, Rank } from '../types';
 
 interface QuestCardProps {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { PlayerData, Rank, CoreStats, StatTimestamps, ActivityLog, Quest, ShopItem, SystemNotification, NotificationType, HistoryEntry, AwakeningData } from '../types';
+import { PlayerData, Rank, CoreStats, StatTimestamps, ActivityLog, Quest, ShopItem, SystemNotification, NotificationType, HistoryEntry } from '../types';
 import { playSystemSoundEffect } from '../utils/soundEngine';
 import { supabase } from '../lib/supabase';
 
@@ -63,11 +63,6 @@ export const useSystem = () => {
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Sound Integration
-  const playSystemSound = (type: NotificationType) => {
-    playSystemSoundEffect(type);
-  };
 
   // Notification Logic
   const addNotification = useCallback((message: string, type: NotificationType) => {
@@ -244,7 +239,7 @@ export const useSystem = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
             // Attempt to fetch profile
-            const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+            const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
             
             if (data) {
                 // Profile exists, load it

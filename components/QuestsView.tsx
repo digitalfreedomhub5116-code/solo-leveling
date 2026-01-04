@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Filter, Sparkles, Brain } from 'lucide-react';
+import { Plus, Sparkles } from 'lucide-react';
 import { Quest, CoreStats, Rank } from '../types';
 import QuestCard from './QuestCard';
 
