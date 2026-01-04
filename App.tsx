@@ -194,26 +194,13 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
 
                       {/* Modern Stat Bars */}
                       <div className="space-y-2 mt-6">
-                        <StatBar 
-                           label="HP (HEALTH)" 
-                           current={player.hp} 
-                           max={player.maxHp} 
-                           colorClass="bg-system-danger" 
-                           shadowColor="rgba(239, 68, 68, 0.4)" 
-                        />
+                        {/* HP and Fatigue Removed as requested */}
                         <StatBar 
                            label="MP (MANA)" 
                            current={player.mp} 
                            max={player.maxMp} 
                            colorClass="bg-blue-600" 
                            shadowColor="rgba(37, 99, 235, 0.4)" 
-                        />
-                        <StatBar 
-                           label="FATIGUE" 
-                           current={player.fatigue} 
-                           max={100} 
-                           colorClass="bg-gray-500" 
-                           shadowColor="rgba(107, 114, 128, 0.4)" 
                         />
                         
                         {/* XP Special Bar */}
@@ -308,7 +295,7 @@ const App: React.FC = () => {
 
   // Cinematic State
   const [showLevelUp, setShowLevelUp] = useState(false);
-  const [prevLevel, setPrevLevel] = useState(1);
+  const [prevLevel, setPrevLevel] = useState<number | null>(null);
 
   // AUTH STATE LISTENER
   useEffect(() => {
@@ -344,10 +331,15 @@ const App: React.FC = () => {
   // Detect Level Up
   useEffect(() => {
     if (isLoaded) {
-      if (player.level > prevLevel) {
+      if (prevLevel === null) {
+        // Initial Sync: Set prevLevel to current level without animation
+        setPrevLevel(player.level);
+      } else if (player.level > prevLevel) {
+        // Actual Level Up during session
         setShowLevelUp(true);
         setPrevLevel(player.level);
-      } else if (player.level < prevLevel) {
+      } else if (player.level !== prevLevel) {
+        // Handle rare downgrade or re-sync
         setPrevLevel(player.level);
       }
     }

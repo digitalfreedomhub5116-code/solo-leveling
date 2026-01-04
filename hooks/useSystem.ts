@@ -425,7 +425,7 @@ export const useSystem = () => {
         return { ...prev, dailyQuestComplete: true, logs: newLogs };
       });
       gainXp(200);
-      addNotification("Daily Quest Complete. Rewards Distributed.", 'SUCCESS');
+      addNotification("Daily Quest Complete. +200 XP Rewards Distributed.", 'SUCCESS');
     }
   };
 
@@ -474,7 +474,8 @@ export const useSystem = () => {
       newLogs.unshift(createLog(`Quest Complete: ${quest.title} (+${quest.xpReward} XP, +${statPoints} ${quest.category.toUpperCase()})`, 'SYSTEM'));
       return { ...prev, logs: newLogs };
     });
-    addNotification(`Quest Completed: ${quest.title} (+${statPoints} ${quest.category.substring(0,3).toUpperCase()})`, 'SUCCESS');
+    // Explicitly showing XP in the notification
+    addNotification(`Quest Completed: ${quest.title} (+${quest.xpReward} XP, +${statPoints} ${quest.category.substring(0,3).toUpperCase()})`, 'SUCCESS');
   };
 
   const deleteQuest = (questId: string) => {
