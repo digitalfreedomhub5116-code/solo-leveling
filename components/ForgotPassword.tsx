@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldAlert, Terminal, Lock, CheckCircle, Loader2, ArrowRight, X, ScanFace, Database, AlertTriangle } from 'lucide-react';
+import { ShieldAlert, Lock, CheckCircle, ArrowRight, X, ScanFace, Database, AlertTriangle, Key } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import ShadowLoading from './ShadowLoading';
 
 interface ForgotPasswordProps {
   onCancel: () => void;
@@ -11,8 +12,24 @@ interface ForgotPasswordProps {
 interface RecoveryQuestion {
   id: string;
   question: string;
-  answer_text: string; // Changed from 'answer' to 'answer_text'
+  answer_text: string;
 }
+
+const glitchVariants = {
+  hidden: { opacity: 0, x: -20, skewX: 10 },
+  visible: { 
+    opacity: 1, 
+    x: 0, 
+    skewX: 0,
+    transition: { type: "spring", stiffness: 300, damping: 20 }
+  },
+  exit: { 
+    opacity: 0, 
+    x: 20, 
+    skewX: -10,
+    transition: { duration: 0.2 }
+  }
+};
 
 const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) => {
   const [step, setStep] = useState<'IDENTITY' | 'VERIFICATION' | 'RESET'>('IDENTITY');
@@ -24,9 +41,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string>('');
 
-  // Step 1: Find User
   const handleIdentitySearch = async () => {
     if (!username.trim()) {
         setError("ENTER CODENAME TO INITIATE SEARCH");
@@ -34,10 +49,8 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
     }
     setLoading(true);
     setError(null);
-    setStatus('SEARCHING DATABASE...');
 
     try {
-        // Find user by username
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('id')
@@ -50,8 +63,6 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
 
         setUserId(profile.id);
 
-        // Fetch Questions
-        setStatus('RETRIEVING MEMORY FRAGMENTS...');
         const { data: qData, error: qError } = await supabase
             .from('recovery_questions')
             .select('*')
@@ -68,15 +79,12 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
         setError("IDENTITY VERIFICATION FAILED. ACCESS DENIED.");
     } finally {
         setLoading(false);
-        setStatus('');
     }
   };
 
-  // Step 2: Verify Answers (2/3 Logic)
   const handleVerification = () => {
     setLoading(true);
     setError(null);
-    setStatus('ANALYZING RESPONSES...');
 
     setTimeout(() => {
         let correctCount = 0;
@@ -95,11 +103,9 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
             setError(`VERIFICATION FAILED. ${correctCount}/3 MATCHES. 2 REQUIRED.`);
         }
         setLoading(false);
-        setStatus('');
-    }, 1500); // Cinematic delay
+    }, 1500); 
   };
 
-  // Step 3: Reset PIN
   const handleReset = async () => {
     if (!newPin || newPin.length < 4) {
         setError("INVALID PIN FORMAT");
@@ -109,7 +115,6 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
 
     setLoading(true);
     setError(null);
-    setStatus('OVERWRITING SECURITY PROTOCOLS...');
 
     try {
         const { error } = await supabase
@@ -119,7 +124,6 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
 
         if (error) throw error;
 
-        setStatus('SYNCHRONIZATION RESTORED.');
         setTimeout(() => {
             onSuccess();
         }, 1000);
@@ -131,15 +135,20 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
   };
 
   return (
-    <div className="w-full max-w-md bg-system-card border border-system-border rounded-xl p-8 relative overflow-hidden shadow-2xl">
+    <div className="w-full max-w-md bg-[#050505]/90 border border-system-danger/30 backdrop-blur-xl rounded-xl p-8 relative overflow-hidden shadow-[0_0_50px_rgba(220,38,38,0.2)]">
        {/* Background Animation */}
        <div className="absolute inset-0 bg-system-danger/5 pointer-events-none" />
        
+       {/* Loading Overlay */}
+       <AnimatePresence>
+          {loading && <ShadowLoading />}
+       </AnimatePresence>
+
        <div className="relative z-10">
           <div className="flex justify-between items-start mb-6 border-b border-system-border pb-4">
              <div>
                 <h2 className="text-xl font-bold text-white font-mono flex items-center gap-2">
-                    <ShieldAlert className="text-system-danger" size={20} />
+                    <ShieldAlert className="text-system-danger animate-pulse" size={20} />
                     RECOVERY MODE
                 </h2>
                 <p className="text-[10px] text-system-danger/70 font-mono tracking-widest mt-1">
@@ -157,47 +166,41 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
                  initial={{ height: 0, opacity: 0 }}
                  animate={{ height: 'auto', opacity: 1 }}
                  exit={{ height: 0, opacity: 0 }}
-                 className="bg-red-950/30 border border-red-500/50 text-red-400 p-3 rounded mb-4 text-xs font-mono flex items-center gap-2"
+                 className="bg-black/50 border-l-2 border-system-danger text-system-danger p-3 rounded mb-4 text-xs font-mono flex items-center gap-2"
                >
                  <AlertTriangle size={14} /> {error}
                </motion.div>
             )}
           </AnimatePresence>
 
-          {loading && (
-             <div className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center">
-                <Loader2 className="text-system-danger animate-spin mb-2" size={32} />
-                <span className="text-system-danger font-mono text-xs animate-pulse tracking-widest">{status}</span>
-             </div>
-          )}
-
           <AnimatePresence mode="wait">
             {/* STEP 1: FIND USER */}
             {step === 'IDENTITY' && (
                 <motion.div
                    key="identity"
-                   initial={{ opacity: 0, x: 20 }}
-                   animate={{ opacity: 1, x: 0 }}
-                   exit={{ opacity: 0, x: -20 }}
+                   variants={glitchVariants}
+                   initial="hidden"
+                   animate="visible"
+                   exit="exit"
                    className="space-y-4"
                 >
                    <div>
-                      <label className="text-[10px] text-gray-500 font-mono tracking-widest block mb-1">TARGET CODENAME</label>
-                      <div className="relative">
-                         <ScanFace className="absolute left-3 top-3 text-gray-600" size={18} />
+                      <label className="text-[10px] text-system-danger font-mono tracking-widest block mb-2 font-bold">TARGET CODENAME</label>
+                      <div className="relative group">
+                         <ScanFace className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-danger transition-colors" size={18} />
                          <input 
                             value={username}
                             onChange={e => setUsername(e.target.value.toUpperCase())}
-                            className="w-full bg-black border border-system-border rounded p-3 pl-10 text-white font-mono focus:border-system-danger focus:outline-none uppercase"
+                            className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white font-mono focus:border-system-danger focus:shadow-[0_0_15px_rgba(220,38,38,0.2)] focus:outline-none uppercase placeholder:text-gray-800 transition-all"
                             placeholder="ENTER USERNAME"
                          />
                       </div>
                    </div>
                    <button 
                       onClick={handleIdentitySearch}
-                      className="w-full py-3 bg-system-danger text-black font-bold font-mono rounded hover:bg-white transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-3 bg-system-danger/10 border border-system-danger/50 text-system-danger font-bold font-mono rounded hover:bg-system-danger hover:text-black hover:shadow-[0_0_20px_rgba(220,38,38,0.5)] transition-all flex items-center justify-center gap-2 group"
                    >
-                      INITIATE SCAN <ArrowRight size={16} />
+                      INITIATE SCAN <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                    </button>
                 </motion.div>
             )}
@@ -206,12 +209,16 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
             {step === 'VERIFICATION' && (
                 <motion.div
                    key="verification"
-                   initial={{ opacity: 0, x: 20 }}
-                   animate={{ opacity: 1, x: 0 }}
-                   exit={{ opacity: 0, x: -20 }}
+                   variants={glitchVariants}
+                   initial="hidden"
+                   animate="visible"
+                   exit="exit"
                    className="space-y-4"
                 >
-                   <div className="text-[10px] text-gray-500 font-mono mb-2">ANSWER 2 OF 3 SECURITY QUESTIONS TO RESTORE ACCESS</div>
+                   <div className="text-[10px] text-gray-500 font-mono mb-2 flex items-center gap-2">
+                       <Database size={12} className="text-system-danger" /> 
+                       ANSWER 2 OF 3 SECURITY QUESTIONS
+                   </div>
                    
                    {questions.map((q, idx) => (
                       <div key={q.id}>
@@ -223,7 +230,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
                                 newAnswers[idx] = e.target.value;
                                 setAnswers(newAnswers);
                             }}
-                            className="w-full bg-black border border-system-border rounded p-2 text-sm text-white font-mono focus:border-system-danger focus:outline-none"
+                            className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-2 text-sm text-white font-mono focus:border-system-danger focus:shadow-[0_0_10px_rgba(220,38,38,0.15)] focus:outline-none transition-all placeholder:text-gray-800"
                             placeholder="Enter answer..."
                          />
                       </div>
@@ -231,9 +238,9 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
 
                    <button 
                       onClick={handleVerification}
-                      className="w-full py-3 bg-system-danger text-black font-bold font-mono rounded hover:bg-white transition-colors flex items-center justify-center gap-2 mt-4"
+                      className="w-full py-3 bg-system-danger/10 border border-system-danger/50 text-system-danger font-bold font-mono rounded hover:bg-system-danger hover:text-black hover:shadow-[0_0_20px_rgba(220,38,38,0.5)] transition-all flex items-center justify-center gap-2 mt-4"
                    >
-                      VERIFY IDENTITY <Database size={16} />
+                      VERIFY IDENTITY <ScanFace size={16} />
                    </button>
                 </motion.div>
             )}
@@ -242,9 +249,10 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
             {step === 'RESET' && (
                 <motion.div
                    key="reset"
-                   initial={{ opacity: 0, x: 20 }}
-                   animate={{ opacity: 1, x: 0 }}
-                   exit={{ opacity: 0, x: -20 }}
+                   variants={glitchVariants}
+                   initial="hidden"
+                   animate="visible"
+                   exit="exit"
                    className="space-y-4"
                 >
                    <div className="p-3 bg-system-success/10 border border-system-success/30 rounded text-system-success text-xs font-mono flex items-center gap-2">
@@ -252,15 +260,15 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
                    </div>
                    
                    <div>
-                      <label className="text-[10px] text-gray-500 font-mono tracking-widest block mb-1">SET NEW ACCESS KEY (PIN)</label>
-                      <div className="relative">
-                         <Lock className="absolute left-3 top-3 text-gray-600" size={18} />
+                      <label className="text-[10px] text-system-success font-mono tracking-widest block mb-2 font-bold">SET NEW ACCESS KEY</label>
+                      <div className="relative group">
+                         <Lock className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-success transition-colors" size={18} />
                          <input 
                             type="password"
                             maxLength={6}
                             value={newPin}
                             onChange={e => { if (/^\d*$/.test(e.target.value)) setNewPin(e.target.value); }}
-                            className="w-full bg-black border border-system-border rounded p-3 pl-10 text-white font-mono text-lg tracking-[0.5em] focus:border-system-success focus:outline-none"
+                            className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white font-mono text-lg tracking-[0.5em] focus:border-system-success focus:shadow-[0_0_15px_rgba(16,185,129,0.2)] focus:outline-none transition-all placeholder:text-gray-800"
                             placeholder="••••"
                          />
                       </div>
@@ -268,9 +276,9 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
 
                    <button 
                       onClick={handleReset}
-                      className="w-full py-3 bg-system-success text-black font-bold font-mono rounded hover:bg-white transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-3 bg-system-success/10 border border-system-success/50 text-system-success font-bold font-mono rounded hover:bg-system-success hover:text-black hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-all flex items-center justify-center gap-2 group"
                    >
-                      UPDATE PROTOCOLS <Terminal size={16} />
+                      UPDATE PROTOCOLS <Key size={16} className="group-hover:rotate-45 transition-transform" />
                    </button>
                 </motion.div>
             )}

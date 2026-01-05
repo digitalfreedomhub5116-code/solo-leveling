@@ -14,6 +14,7 @@ import AuthView from './components/AuthView';
 import WelcomeCinematic from './components/WelcomeCinematic';
 import SplashScreen from './components/SplashScreen';
 import AwakeningView from './components/AwakeningView';
+import HealthView from './components/HealthView';
 import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab } from './types';
 
@@ -282,7 +283,9 @@ const App: React.FC = () => {
     purchaseItem, 
     addShopItem, 
     removeShopItem,
-    removeNotification 
+    removeNotification,
+    saveHealthProfile,
+    completeWorkoutSession
   } = useSystem();
 
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
@@ -361,6 +364,22 @@ const App: React.FC = () => {
             >
               <Dashboard player={player} gainXp={gainXp} completeDaily={completeDaily} />
             </motion.div>
+          )}
+
+          {activeTab === 'HEALTH' && (
+             <motion.div
+               key="health"
+               initial={{ opacity: 0, y: 10 }}
+               animate={{ opacity: 1, y: 0 }}
+               exit={{ opacity: 0, y: -10 }}
+               transition={{ duration: 0.3 }}
+             >
+                <HealthView 
+                   healthProfile={player.healthProfile} 
+                   onSaveProfile={saveHealthProfile} 
+                   onCompleteWorkout={completeWorkoutSession}
+                />
+             </motion.div>
           )}
           
           {activeTab === 'QUESTS' && (

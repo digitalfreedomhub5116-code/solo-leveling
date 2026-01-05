@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, PolarRadiusAxis, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Calendar, BarChart3, Hexagon } from 'lucide-react';
+import { Activity, Calendar, BarChart3, Hexagon, TrendingUp } from 'lucide-react';
 import { CoreStats, HistoryEntry } from '../types';
 
 interface EvaluationMatrixProps {
@@ -13,13 +13,35 @@ interface EvaluationMatrixProps {
 // Custom Tooltip for Radar
 const RadarTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const value = payload[0].value;
+    const data = payload[0].payload;
+    const value = data.value;
+    const growth = data.growth;
+
     return (
-      <div className="bg-black/90 border border-system-neon/50 backdrop-blur-md p-3 rounded shadow-[0_0_15px_rgba(0,210,255,0.3)]">
-        <p className="text-system-neon font-mono text-xs font-bold tracking-widest uppercase mb-1">{label}</p>
-        <div className="flex items-end gap-2">
-            <span className="text-white font-mono text-xl font-bold leading-none">{value}</span>
-            <span className="text-[10px] text-gray-400 font-mono">/ 100</span>
+      <div className="bg-black/95 border border-system-neon/50 backdrop-blur-xl p-4 rounded-lg shadow-[0_0_30px_rgba(0,210,255,0.2)] z-50 pointer-events-none min-w-[140px]">
+        <div className="flex items-center justify-between border-b border-gray-800 pb-2 mb-2">
+            <p className="text-system-neon font-mono text-xs font-bold tracking-[0.2em] uppercase">{label}</p>
+        </div>
+        
+        <div className="flex items-baseline gap-2">
+            <span className="text-white font-mono text-3xl font-black leading-none tracking-tighter drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+              {value}
+            </span>
+            <span className="text-[10px] text-gray-600 font-mono font-bold">/ 100</span>
+        </div>
+        
+        <div className="mt-3 pt-2 border-t border-gray-800/50 flex items-center justify-between">
+           <span className="text-[9px] text-gray-500 font-mono tracking-wider">GROWTH</span>
+           {growth > 0 ? (
+             <div className="text-[10px] font-mono text-system-success font-bold flex items-center gap-1 bg-system-success/10 px-2 py-0.5 rounded border border-system-success/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                <TrendingUp size={10} />
+                <span>+{growth}%</span>
+             </div>
+           ) : (
+             <div className="text-[10px] font-mono text-gray-600 flex items-center gap-1 px-2 py-0.5">
+                <span>--%</span>
+             </div>
+           )}
         </div>
       </div>
     );
@@ -31,11 +53,12 @@ const RadarTooltip = ({ active, payload, label }: any) => {
 const GraphTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-black/90 border border-system-accent/50 p-2 rounded text-xs font-mono">
-        <p className="text-gray-400 mb-1">{label}</p>
+      <div className="bg-black/90 border border-system-accent/50 p-2 rounded text-xs font-mono shadow-lg backdrop-blur-sm">
+        <p className="text-gray-400 mb-1 font-bold border-b border-gray-800 pb-1">{label}</p>
         {payload.map((entry: any, index: number) => (
-          <p key={index} style={{ color: entry.color }}>
-            {entry.name}: {entry.value}
+          <p key={index} style={{ color: entry.color }} className="flex items-center gap-2 mt-1">
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+            <span>{entry.name}: {entry.value}</span>
           </p>
         ))}
       </div>
@@ -47,17 +70,30 @@ const GraphTooltip = ({ active, payload, label }: any) => {
 const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dailyXp }) => {
   const [view, setView] = useState<'CURRENT' | 'DAILY' | 'WEEKLY' | 'MONTHLY'>('CURRENT');
 
+  // Calculate Growth based on history
+  // History is stored Newest -> Oldest, so the last element is the oldest recorded entry
+  const oldestEntry = history.length > 0 ? history[history.length - 1] : null;
+  
+  const getGrowth = (statKey: keyof CoreStats) => {
+      if (!oldestEntry) return 0;
+      const oldVal = oldestEntry.stats[statKey];
+      const currentVal = stats[statKey];
+      if (oldVal === 0) return 0;
+      // Calculate percentage increase
+      return Math.round(((currentVal - oldVal) / oldVal) * 100);
+  };
+
   // Prepare Radar Data
   const radarData = [
-    { subject: 'STRENGTH', value: stats.strength, fullMark: 100 },
-    { subject: 'INTELLIGENCE', value: stats.intelligence, fullMark: 100 },
-    { subject: 'FOCUS', value: stats.focus, fullMark: 100 },
-    { subject: 'SOCIAL', value: stats.social, fullMark: 100 },
-    { subject: 'WILLPOWER', value: stats.willpower, fullMark: 100 },
+    { subject: 'STRENGTH', value: stats.strength, fullMark: 100, growth: getGrowth('strength') },
+    { subject: 'INTELLIGENCE', value: stats.intelligence, fullMark: 100, growth: getGrowth('intelligence') },
+    { subject: 'FOCUS', value: stats.focus, fullMark: 100, growth: getGrowth('focus') },
+    { subject: 'SOCIAL', value: stats.social, fullMark: 100, growth: getGrowth('social') },
+    { subject: 'WILLPOWER', value: stats.willpower, fullMark: 100, growth: getGrowth('willpower') },
   ];
 
   // Prepare Graph Data
-  // Reverse history to show oldest to newest (History stored Newest -> Oldest in hook)
+  // Reverse history to show oldest to newest for charts
   const sortedHistory = [...history].reverse();
 
   // Weekly: Last 7 days
@@ -68,16 +104,13 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
     int: entry.stats.intelligence
   }));
   
-  // If not enough data, pad it for visual (Optional, skipping for raw honesty of system)
-
   // Monthly: Last 30 days (Aggregate or raw)
   const monthlyData = sortedHistory.slice(-30).map(entry => ({
     name: entry.date.split('-').slice(1).join('/'),
     xp: entry.totalXp,
   }));
 
-  // Daily: Just Today vs Yesterday (Bar Chart)
-  // We use history[0] (Yesterday) vs dailyXp (Today)
+  // Daily: Just Yesterday vs Today
   const yesterdayXp = history.length > 0 ? history[0].dailyXp : 0;
   const dailyData = [
     { name: 'YESTERDAY', xp: yesterdayXp },

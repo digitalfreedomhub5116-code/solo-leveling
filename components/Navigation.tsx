@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Sword, ShoppingCart, User } from 'lucide-react';
+import { LayoutDashboard, Sword, ShoppingCart, User, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Tab, NavItem } from '../types';
 
@@ -11,6 +11,7 @@ interface NavigationProps {
 const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
   const navItems: NavItem[] = [
     { id: 'DASHBOARD', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+    { id: 'HEALTH', label: 'Health', icon: <Activity size={20} /> },
     { id: 'QUESTS', label: 'Quests', icon: <Sword size={20} /> },
     { id: 'SHOP', label: 'Shop', icon: <ShoppingCart size={20} /> },
     { id: 'PROFILE', label: 'ID Card', icon: <User size={20} /> },

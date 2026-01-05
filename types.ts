@@ -7,7 +7,7 @@ export enum SystemState {
   LOCKED = 'LOCKED'
 }
 
-export type Tab = 'DASHBOARD' | 'QUESTS' | 'SHOP' | 'PROFILE';
+export type Tab = 'DASHBOARD' | 'QUESTS' | 'SHOP' | 'PROFILE' | 'HEALTH';
 
 export interface NavItem {
   label: string;
@@ -37,7 +37,7 @@ export interface ActivityLog {
   id: string;
   message: string;
   timestamp: number;
-  type: 'XP' | 'LEVEL_UP' | 'PENALTY' | 'SYSTEM' | 'PURCHASE' | 'STREAK';
+  type: 'XP' | 'LEVEL_UP' | 'PENALTY' | 'SYSTEM' | 'PURCHASE' | 'STREAK' | 'WORKOUT';
 }
 
 export interface Quest {
@@ -80,6 +80,49 @@ export interface HistoryEntry {
   dailyXp: number;
 }
 
+// Health & Biometrics Types
+export interface Exercise {
+  name: string;
+  sets: number;
+  reps: string;
+  duration: number; // Estimated minutes to complete
+  completed: boolean;
+  type: 'COMPOUND' | 'ACCESSORY' | 'CARDIO' | 'STRETCH';
+}
+
+export interface WorkoutDay {
+  day: string;
+  focus: string; // Push, Pull, Legs, Cardio, Rest
+  exercises: Exercise[];
+  isRecovery?: boolean;
+  totalDuration: number;
+}
+
+export interface HealthProfile {
+  gender: 'MALE' | 'FEMALE';
+  age: number;
+  height: number; // cm
+  weight: number; // kg
+  neck?: number;
+  waist?: number;
+  hip?: number;
+  activityLevel: 'SEDENTARY' | 'LIGHT' | 'MODERATE' | 'VERY_ACTIVE';
+  goal: 'LOSE_WEIGHT' | 'BUILD_MUSCLE' | 'ENDURANCE';
+  equipment: 'GYM' | 'HOME_DUMBBELLS' | 'BODYWEIGHT';
+  sessionDuration: number; // 30, 45, 60, 90, 120
+  injuries: string[];
+  
+  // Calculated
+  bmi: number;
+  bmr: number;
+  bodyFat?: number;
+  category: string;
+  
+  workoutPlan: WorkoutDay[];
+  macros: { protein: number; carbs: number; fats: number; calories: number };
+  lastWorkoutDate?: string;
+}
+
 export interface PlayerData {
   userId?: string; 
   isConfigured: boolean; // Tracks if user has entered their name
@@ -120,4 +163,7 @@ export interface PlayerData {
   quests: Quest[];
   shopItems: ShopItem[];
   awakening: AwakeningData;
+  
+  // New Health Integration
+  healthProfile?: HealthProfile;
 }

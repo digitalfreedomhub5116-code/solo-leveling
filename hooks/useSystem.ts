@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { PlayerData, Rank, CoreStats, StatTimestamps, ActivityLog, Quest, ShopItem, SystemNotification, NotificationType, HistoryEntry } from '../types';
+import { PlayerData, Rank, CoreStats, StatTimestamps, ActivityLog, Quest, ShopItem, SystemNotification, NotificationType, HistoryEntry, HealthProfile } from '../types';
 import { playSystemSoundEffect } from '../utils/soundEngine';
 import { supabase } from '../lib/supabase';
 
@@ -351,6 +351,33 @@ export const useSystem = () => {
                 
                 if (profile && !error) {
                     registerUser(profile);
+                    // Load Health Data
+                    const { data: healthData } = await supabase.from('health_profiles').select('*').eq('id', session.user.id).single();
+                    if (healthData) {
+                        setPlayer(prev => ({
+                            ...prev,
+                            healthProfile: {
+                                gender: healthData.gender,
+                                age: healthData.age,
+                                height: healthData.height,
+                                weight: healthData.weight,
+                                neck: healthData.neck,
+                                waist: healthData.waist,
+                                hip: healthData.hip,
+                                activityLevel: healthData.activity_level,
+                                goal: healthData.goal,
+                                equipment: healthData.equipment,
+                                injuries: healthData.injuries || [],
+                                bmi: healthData.biometrics?.bmi,
+                                bmr: healthData.biometrics?.bmr,
+                                bodyFat: healthData.biometrics?.bodyFat,
+                                category: healthData.biometrics?.category,
+                                workoutPlan: healthData.workout_plan,
+                                macros: healthData.nutrition_plan,
+                                lastWorkoutDate: healthData.last_workout_date
+                            }
+                        }));
+                    }
                 }
             }
         } catch (err) {
@@ -387,6 +414,66 @@ export const useSystem = () => {
       ...prev,
       awakening: { ...prev.awakening, [type]: items }
     }));
+  };
+
+  const saveHealthProfile = async (profile: HealthProfile) => {
+    setPlayer(prev => ({ ...prev, healthProfile: profile }));
+    
+    if (player.userId && !player.userId.startsWith('local-')) {
+        const payload = {
+            id: player.userId,
+            gender: profile.gender,
+            age: profile.age,
+            height: profile.height,
+            weight: profile.weight,
+            neck: profile.neck,
+            waist: profile.waist,
+            hip: profile.hip,
+            activity_level: profile.activityLevel,
+            goal: profile.goal,
+            equipment: profile.equipment,
+            biometrics: { bmi: profile.bmi, bmr: profile.bmr, bodyFat: profile.bodyFat, category: profile.category },
+            workout_plan: profile.workoutPlan,
+            nutrition_plan: profile.macros,
+            injuries: profile.injuries,
+            last_workout_date: profile.lastWorkoutDate
+        };
+        await supabase.from('health_profiles').upsert(payload);
+    }
+    addNotification("Biometric Data Synchronized.", 'SYSTEM');
+  };
+
+  const completeWorkoutSession = (exercisesCompleted: number, total: number, isRecovery: boolean) => {
+      if (player.isPenaltyActive) return;
+      
+      const completionRate = exercisesCompleted / total;
+      
+      // RPG Sync Logic
+      let xpGain = Math.floor((isRecovery ? 100 : 300) * completionRate);
+      let strengthGain = isRecovery ? 0 : Math.floor(2 * completionRate);
+      let vitalityGain = isRecovery ? 2 : Math.floor(1 * completionRate);
+      let agilityGain = Math.floor(1 * completionRate);
+
+      setPlayer(prev => {
+          const newStats = { ...prev.stats };
+          newStats.strength = Math.min(100, newStats.strength + strengthGain);
+          newStats.willpower = Math.min(100, newStats.willpower + vitalityGain); // Map VIT to Willpower/Focus conceptually
+          
+          // Also boost focus for completing a plan
+          newStats.focus = Math.min(100, newStats.focus + agilityGain);
+
+          const newLogs = [...prev.logs];
+          newLogs.unshift(createLog(`Workout Complete. +${xpGain} XP`, 'WORKOUT'));
+
+          return {
+              ...prev,
+              stats: newStats,
+              logs: newLogs
+          };
+      });
+      
+      gainXp(xpGain);
+      addNotification(`Workout Sync Complete. +${strengthGain} STR, +${vitalityGain} WIL`, 'SUCCESS');
   };
 
   const gainXp = (amount: number) => {
@@ -656,6 +743,8 @@ export const useSystem = () => {
     purchaseItem,
     addShopItem,
     removeShopItem,
-    removeNotification
+    removeNotification,
+    saveHealthProfile,
+    completeWorkoutSession
   };
 };
