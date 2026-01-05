@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Heart, Zap, Scale, Ruler, Utensils, AlertTriangle, CheckCircle, Brain, Target, Shield, Dumbbell, Clock, Timer } from 'lucide-react';
+import { Activity, Heart, Zap, Scale, Utensils, AlertTriangle, CheckCircle, Brain, Target, Shield, Dumbbell, Clock } from 'lucide-react';
 import { HealthProfile, WorkoutDay, Exercise } from '../types';
 
 interface HealthViewProps {

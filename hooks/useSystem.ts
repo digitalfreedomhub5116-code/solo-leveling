@@ -374,7 +374,8 @@ export const useSystem = () => {
                                 category: healthData.biometrics?.category,
                                 workoutPlan: healthData.workout_plan,
                                 macros: healthData.nutrition_plan,
-                                lastWorkoutDate: healthData.last_workout_date
+                                lastWorkoutDate: healthData.last_workout_date,
+                                sessionDuration: healthData.session_duration || 60
                             }
                         }));
                     }
@@ -436,7 +437,8 @@ export const useSystem = () => {
             workout_plan: profile.workoutPlan,
             nutrition_plan: profile.macros,
             injuries: profile.injuries,
-            last_workout_date: profile.lastWorkoutDate
+            last_workout_date: profile.lastWorkoutDate,
+            session_duration: profile.sessionDuration
         };
         await supabase.from('health_profiles').upsert(payload);
     }
@@ -468,7 +470,13 @@ export const useSystem = () => {
           return {
               ...prev,
               stats: newStats,
-              logs: newLogs
+              logs: newLogs,
+              // Ensure healthProfile is carried over correctly if modified, 
+              // though here we are only modifying stats/logs.
+              healthProfile: prev.healthProfile ? {
+                  ...prev.healthProfile,
+                  sessionDuration: prev.healthProfile.sessionDuration || 60
+              } : undefined
           };
       });
       
