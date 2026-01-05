@@ -499,11 +499,64 @@ export const useSystem = () => {
   };
 
   const resetQuest = (questId: string) => {
-    setPlayer(prev => ({
-      ...prev,
-      quests: prev.quests.map(q => q.id === questId ? { ...q, isCompleted: false } : q)
-    }));
-    addNotification("Quest Reset.", 'SYSTEM');
+    // Only proceed if quest is actually completed
+    const quest = player.quests.find(q => q.id === questId);
+    if (!quest || !quest.isCompleted) return;
+
+    setPlayer(prev => {
+      const questXp = quest.xpReward;
+      const questGold = Math.floor(questXp * 0.5);
+      const statPoints = getStatReward(quest.rank);
+      
+      let nextXp = Number(prev.currentXp) - questXp;
+      let nextTotalXp = Math.max(0, Number(prev.totalXp) - questXp);
+      let nextDailyXp = Math.max(0, (Number(prev.dailyXp) || 0) - questXp);
+      let nextGold = Math.max(0, Number(prev.gold) - questGold);
+      
+      let nextLevel = Number(prev.level);
+      let nextRequired = Number(prev.requiredXp);
+      
+      // Reverse Level Up Logic: Downgrade level if XP falls below zero
+      while (nextXp < 0 && nextLevel > 1) {
+          nextLevel--;
+          // Calculate capacity of the lower level we are entering
+          // Formula mirrors gainXp: requiredXp = level * 500
+          const prevLevelCapacity = nextLevel * 500;
+          
+          nextXp += prevLevelCapacity;
+          nextRequired = prevLevelCapacity;
+      }
+      
+      if (nextXp < 0) nextXp = 0;
+
+      // Stats Reversion
+      const currentStatVal = prev.stats[quest.category];
+      const nextStatVal = Math.max(0, currentStatVal - statPoints);
+      
+      const newStats = {
+          ...prev.stats,
+          [quest.category]: nextStatVal
+      };
+
+      const newLogs = [...(prev.logs || [])];
+      newLogs.unshift(createLog(`Quest Reset: ${quest.title}. Rewards Reversed.`, 'SYSTEM'));
+      if (newLogs.length > 20) newLogs.length = 20;
+
+      return {
+          ...prev,
+          quests: prev.quests.map(q => q.id === questId ? { ...q, isCompleted: false } : q),
+          currentXp: nextXp,
+          totalXp: nextTotalXp,
+          dailyXp: nextDailyXp,
+          level: nextLevel,
+          requiredXp: nextRequired,
+          gold: nextGold,
+          stats: newStats,
+          rank: calculateRank(nextLevel),
+          logs: newLogs
+      };
+    });
+    addNotification("Quest Reset. Rewards Revoked.", 'SYSTEM');
   };
 
   const deleteQuest = (questId: string) => {
