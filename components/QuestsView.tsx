@@ -9,11 +9,12 @@ interface QuestsViewProps {
   quests: Quest[];
   addQuest: (quest: Quest) => void;
   completeQuest: (id: string) => void;
+  failQuest: (id: string) => void;
   resetQuest: (id: string) => void;
   deleteQuest: (id: string) => void;
 }
 
-const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest, resetQuest, deleteQuest }) => {
+const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest, failQuest, resetQuest, deleteQuest }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filter, setFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ACTIVE');
   
@@ -151,6 +152,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                 key={quest.id} 
                 quest={quest} 
                 onComplete={completeQuest} 
+                onFail={failQuest}
                 onReset={resetQuest}
                 onDelete={deleteQuest} 
               />

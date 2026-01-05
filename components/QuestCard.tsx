@@ -1,11 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield, Repeat, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield, Repeat, RotateCcw, AlertOctagon } from 'lucide-react';
 import { Quest, CoreStats, Rank } from '../types';
 
 interface QuestCardProps {
   quest: Quest;
   onComplete: (id: string) => void;
+  onFail: (id: string) => void;
   onReset: (id: string) => void;
   onDelete: (id: string) => void;
 }
@@ -27,7 +28,7 @@ const statIcons: Record<keyof CoreStats, React.ReactNode> = {
   willpower: <Shield size={14} />,
 };
 
-const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onReset, onDelete }) => {
+const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onReset, onDelete }) => {
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -68,12 +69,21 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onReset, onDel
 
        <div className="flex gap-2 w-full md:w-auto z-10">
           {!quest.isCompleted ? (
-            <button 
-                onClick={() => onComplete(quest.id)}
-                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded bg-system-neon/10 text-system-neon border border-system-neon/20 hover:bg-system-neon hover:text-black transition-all font-mono text-xs font-bold active:scale-95"
-            >
-                <CheckCircle size={14} /> COMPLETE
-            </button>
+            <>
+                <button 
+                    onClick={() => onComplete(quest.id)}
+                    className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded bg-system-neon/10 text-system-neon border border-system-neon/20 hover:bg-system-neon hover:text-black transition-all font-mono text-xs font-bold active:scale-95"
+                >
+                    <CheckCircle size={14} /> COMPLETE
+                </button>
+                <button 
+                    onClick={() => onFail(quest.id)}
+                    className="flex items-center justify-center gap-2 px-3 py-2 rounded bg-system-danger/10 text-system-danger border border-system-danger/20 hover:bg-system-danger hover:text-black hover:animate-[shake_0.5s_ease-in-out] transition-all font-mono text-xs font-bold active:scale-95 group"
+                    title="Admit Failure (Triggers Penalty)"
+                >
+                    <AlertOctagon size={14} className="group-hover:animate-pulse" /> I FAILED
+                </button>
+            </>
           ) : (
             <button 
                 onClick={() => onReset(quest.id)}
@@ -92,6 +102,13 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onReset, onDel
              <XCircle size={16} />
           </button>
        </div>
+       <style>{`
+         @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+         }
+       `}</style>
     </motion.div>
   );
 };

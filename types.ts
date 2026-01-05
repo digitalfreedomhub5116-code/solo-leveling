@@ -123,6 +123,13 @@ export interface HealthProfile {
   lastWorkoutDate?: string;
 }
 
+export interface PenaltyTask {
+  title: string;
+  description: string;
+  type: 'TIME' | 'PHYSICAL';
+  duration?: number;
+}
+
 export interface PlayerData {
   userId?: string; 
   isConfigured: boolean; // Tracks if user has entered their name
@@ -159,6 +166,7 @@ export interface PlayerData {
   dailyQuestComplete: boolean;
   isPenaltyActive: boolean;
   penaltyEndTime?: number; // Timestamp when penalty expires
+  penaltyTask?: PenaltyTask; // Specific penalty assignment
   logs: ActivityLog[];
   quests: Quest[];
   shopItems: ShopItem[];

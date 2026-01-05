@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { PlayerData, Rank, CoreStats, StatTimestamps, ActivityLog, Quest, ShopItem, SystemNotification, NotificationType, HistoryEntry, HealthProfile } from '../types';
+import { PlayerData, Rank, CoreStats, StatTimestamps, ActivityLog, Quest, ShopItem, SystemNotification, NotificationType, HistoryEntry, HealthProfile, PenaltyTask } from '../types';
 import { playSystemSoundEffect } from '../utils/soundEngine';
 import { supabase } from '../lib/supabase';
 
@@ -19,6 +19,12 @@ const DEFAULT_SHOP_ITEMS: ShopItem[] = [
   { id: 'default_4', title: 'Social Night', description: 'Night out with friends.', cost: 200, icon: 'users' },
   { id: 'default_5', title: 'Rest Day', description: 'Complete recovery day. No quests.', cost: 500, icon: 'moon' },
   { id: 'default_6', title: 'New Equipment', description: 'Purchase gym gear or tech.', cost: 1000, icon: 'shopping-bag' },
+];
+
+const PENALTY_TASKS: PenaltyTask[] = [
+  { title: 'THE DESERT RUN', description: 'Walk 2,000 steps immediately.', type: 'PHYSICAL' },
+  { title: 'THE BURPEE GAUNTLET', description: 'Perform 50 burpees.', type: 'PHYSICAL' },
+  { title: 'THE FOCUS TRIAL', description: 'No phone/app access for 1 hour.', type: 'TIME', duration: 60 * 60 * 1000 }
 ];
 
 const getLocalDate = () => {
@@ -126,6 +132,7 @@ export const useSystem = () => {
       daily_quest_complete: local.dailyQuestComplete,
       is_penalty_active: local.isPenaltyActive,
       penalty_end_time: local.penaltyEndTime,
+      penalty_task: local.penaltyTask,
       stats: local.stats,
       last_stat_update: local.lastStatUpdate,
       history: local.history,
@@ -153,7 +160,7 @@ export const useSystem = () => {
            newData.logs.unshift(createLog(`Daily Quests Incomplete. -${loss} XP Penalty Applied.`, 'PENALTY'));
            addNotification(`Daily Quests Failed. -${loss} XP`, 'DANGER');
         } else {
-           // Penalty Zone Logic
+           // Penalty Zone Logic (Standard)
            newData.isPenaltyActive = true;
            newData.penaltyEndTime = now + PENALTY_DURATION_MS;
            
@@ -260,9 +267,11 @@ export const useSystem = () => {
       }
     });
 
+    // Check penalty expiry only if it's a Time-based penalty
     if (newData.isPenaltyActive && newData.penaltyEndTime && now > newData.penaltyEndTime) {
        newData.isPenaltyActive = false;
        newData.penaltyEndTime = undefined;
+       newData.penaltyTask = undefined;
        newData.logs.unshift(createLog("Penalty Duration Complete.", 'SYSTEM'));
        addNotification("Penalty Served.", 'SUCCESS');
        hasChanges = true;
@@ -304,6 +313,7 @@ export const useSystem = () => {
             dailyQuestComplete: incoming.daily_quest_complete ?? incoming.dailyQuestComplete ?? INITIAL_PLAYER_DATA.dailyQuestComplete,
             isPenaltyActive: incoming.is_penalty_active ?? incoming.isPenaltyActive ?? INITIAL_PLAYER_DATA.isPenaltyActive,
             penaltyEndTime: incoming.penalty_end_time ?? incoming.penaltyEndTime ?? INITIAL_PLAYER_DATA.penaltyEndTime,
+            penaltyTask: incoming.penalty_task ?? incoming.penaltyTask ?? INITIAL_PLAYER_DATA.penaltyTask,
             shopItems: incoming.shop_items ?? incoming.shopItems ?? INITIAL_PLAYER_DATA.shopItems,
 
             isConfigured: true,
@@ -459,9 +469,8 @@ export const useSystem = () => {
       setPlayer(prev => {
           const newStats = { ...prev.stats };
           newStats.strength = Math.min(100, newStats.strength + strengthGain);
-          newStats.willpower = Math.min(100, newStats.willpower + vitalityGain); // Map VIT to Willpower/Focus conceptually
+          newStats.willpower = Math.min(100, newStats.willpower + vitalityGain); 
           
-          // Also boost focus for completing a plan
           newStats.focus = Math.min(100, newStats.focus + agilityGain);
 
           const newLogs = [...prev.logs];
@@ -471,8 +480,6 @@ export const useSystem = () => {
               ...prev,
               stats: newStats,
               logs: newLogs,
-              // Ensure healthProfile is carried over correctly if modified, 
-              // though here we are only modifying stats/logs.
               healthProfile: prev.healthProfile ? {
                   ...prev.healthProfile,
                   sessionDuration: prev.healthProfile.sessionDuration || 60
@@ -593,6 +600,38 @@ export const useSystem = () => {
     addNotification(`Quest Completed: ${quest.title} (+${quest.xpReward} XP, +${statPoints} ${quest.category.substring(0,3).toUpperCase()})`, 'SUCCESS');
   };
 
+  const failQuest = (questId: string) => {
+    // 1. Mark Quest Failed (Here we just remove it to simulate failure/deletion)
+    // 2. Select Random Penalty
+    const randomTask = PENALTY_TASKS[Math.floor(Math.random() * PENALTY_TASKS.length)];
+    
+    setPlayer(prev => {
+        // 3. Stat Penalty (5% reduction to Willpower)
+        const reducedWillpower = Math.floor(prev.stats.willpower * 0.95);
+        const newStats = { ...prev.stats, willpower: reducedWillpower };
+        
+        // 4. Set Penalty State
+        const now = Date.now();
+        const endTime = randomTask.type === 'TIME' ? now + (randomTask.duration || 3600000) : undefined;
+
+        const newLogs = [...prev.logs];
+        newLogs.unshift(createLog(`QUEST FAILED. PENALTY ASSIGNED: ${randomTask.title}`, 'PENALTY'));
+        newLogs.unshift(createLog(`STAT DECAY: -${prev.stats.willpower - reducedWillpower} WILLPOWER`, 'PENALTY'));
+
+        return {
+            ...prev,
+            quests: prev.quests.filter(q => q.id !== questId), // Remove the failed quest
+            stats: newStats,
+            isPenaltyActive: true,
+            penaltyEndTime: endTime,
+            penaltyTask: randomTask,
+            logs: newLogs
+        };
+    });
+    
+    addNotification("FAILURE DETECTED. PENALTY SYSTEM ACTIVATED.", 'DANGER');
+  };
+
   const resetQuest = (questId: string) => {
     // Only proceed if quest is actually completed
     const quest = player.quests.find(q => q.id === questId);
@@ -698,14 +737,14 @@ export const useSystem = () => {
        if (newEndTime <= now) {
           const newLogs = [...prev.logs];
           newLogs.unshift(createLog("Penalty Zone Cleared. Synchronization Restored.", 'SYSTEM'));
-          return { ...prev, isPenaltyActive: false, penaltyEndTime: undefined, logs: newLogs };
+          return { ...prev, isPenaltyActive: false, penaltyEndTime: undefined, penaltyTask: undefined, logs: newLogs };
        }
        return { ...prev, penaltyEndTime: newEndTime };
     });
   };
 
   const clearPenalty = () => {
-    setPlayer(prev => ({ ...prev, isPenaltyActive: false, penaltyEndTime: undefined }));
+    setPlayer(prev => ({ ...prev, isPenaltyActive: false, penaltyEndTime: undefined, penaltyTask: undefined }));
     addNotification("Penalty Override Executed.", 'SYSTEM');
   };
 
@@ -744,6 +783,7 @@ export const useSystem = () => {
     updateStatValue,
     addQuest,
     completeQuest,
+    failQuest,
     resetQuest,
     deleteQuest,
     clearPenalty,

@@ -1,28 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Timer, Skull, Flame } from 'lucide-react';
+import { AlertTriangle, Timer, Skull, Flame, CheckCircle, Lock } from 'lucide-react';
+import { PenaltyTask } from '../types';
 
 interface PenaltyZoneProps {
-  endTime: number;
-  onSurvive: () => void; // Clears penalty instantly (dev/debug) or callback
+  endTime?: number;
+  task?: PenaltyTask;
+  onSurvive: () => void; // Clears penalty instantly (for physical task completion or dev)
   reducePenalty: (ms: number) => void;
 }
 
-const PenaltyZone: React.FC<PenaltyZoneProps> = ({ endTime, reducePenalty }) => {
+const PenaltyZone: React.FC<PenaltyZoneProps> = ({ endTime, task, onSurvive, reducePenalty }) => {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [clickCount, setClickCount] = useState(0);
 
-  const TOTAL_DURATION = 4 * 60 * 60 * 1000; // 4 Hours base
+  const TOTAL_DURATION = task?.duration || 4 * 60 * 60 * 1000; 
 
   useEffect(() => {
+    if (!endTime) return;
+
     const timer = setInterval(() => {
       const remaining = Math.max(0, endTime - Date.now());
       setTimeLeft(remaining);
-      
-      // Auto-refresh logic handled in parent loop, but visual update needs this
-      if (remaining <= 0) {
-        // Trigger generic check in parent via prop if needed, or wait for re-render
-      }
     }, 1000);
 
     // Initial calc
@@ -39,8 +38,6 @@ const PenaltyZone: React.FC<PenaltyZoneProps> = ({ endTime, reducePenalty }) => 
   };
 
   // Calculate Progress (0 to 100%)
-  // If remaining is full duration, progress is 0%. If remaining is 0, progress is 100%.
-  // We estimate 'Start Time' by taking EndTime - TotalDuration.
   const progress = Math.min(100, Math.max(0, (1 - (timeLeft / TOTAL_DURATION)) * 100));
 
   const handleSuffer = () => {
@@ -69,52 +66,73 @@ const PenaltyZone: React.FC<PenaltyZoneProps> = ({ endTime, reducePenalty }) => 
             PENALTY ZONE
          </h1>
          
-         <p className="text-lg md:text-xl text-red-400 mb-8 max-w-lg border-l-2 border-red-800 pl-4 py-2 bg-red-950/20">
-            The System has detected your lethargy. Access is restricted. 
-            <br/>
-            Survive the duration to restore synchronization.
-         </p>
-
-         {/* Timer Display */}
-         <div className="mb-10 p-6 border border-red-600/50 bg-black rounded-lg shadow-[0_0_30px_rgba(220,38,38,0.2)] w-full">
-            <div className="flex items-center justify-center gap-4 text-4xl md:text-6xl font-bold tracking-widest text-red-500">
-               <Timer className="w-8 h-8 md:w-12 md:h-12 animate-spin-slow" />
-               {formatTime(timeLeft)}
-            </div>
-            <div className="text-xs text-red-800 mt-2 uppercase tracking-[0.5em]">Time Remaining</div>
+         <div className="text-xl text-red-400 mb-8 max-w-lg border-l-2 border-red-800 pl-4 py-4 bg-red-950/20 w-full text-left">
+            <div className="text-xs text-red-600 uppercase tracking-widest mb-2 font-bold">MANDATORY TASK</div>
+            <div className="text-2xl font-bold text-white mb-1">{task?.title || "SYSTEM LOCKOUT"}</div>
+            <p className="text-red-300 text-sm">{task?.description || "Survive the duration to restore synchronization."}</p>
          </div>
 
-         {/* Survival Progress */}
-         <div className="w-full mb-8">
-            <div className="flex justify-between text-xs text-red-500 mb-1">
-               <span>SURVIVAL PROGRESS</span>
-               <span>{progress.toFixed(1)}%</span>
-            </div>
-            <div className="h-4 bg-red-950 rounded-full overflow-hidden border border-red-900">
-               <motion.div 
-                  className="h-full bg-red-600 shadow-[0_0_15px_#dc2626]"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ type: "spring", stiffness: 50 }}
-               />
-            </div>
-         </div>
+         {/* Timer Display - Only if Time Based */}
+         {(!task || task.type === 'TIME') && (
+             <div className="mb-10 p-6 border border-red-600/50 bg-black rounded-lg shadow-[0_0_30px_rgba(220,38,38,0.2)] w-full">
+                <div className="flex items-center justify-center gap-4 text-4xl md:text-6xl font-bold tracking-widest text-red-500">
+                   <Timer className="w-8 h-8 md:w-12 md:h-12 animate-spin-slow" />
+                   {formatTime(timeLeft)}
+                </div>
+                <div className="text-xs text-red-800 mt-2 uppercase tracking-[0.5em]">Time Remaining</div>
+             </div>
+         )}
 
-         {/* Suffer Button */}
-         <button 
-           onClick={handleSuffer}
-           className="group relative px-8 py-4 bg-red-950 border border-red-600 rounded hover:bg-red-900 transition-all active:scale-95 overflow-hidden"
-         >
-            <div className="absolute inset-0 bg-red-600/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-            <span className="relative z-10 flex items-center gap-3 text-red-500 font-bold text-xl group-hover:text-white">
-               <Flame className={clickCount % 2 === 0 ? "text-orange-500" : "text-red-500"} />
-               SUFFER {-1} MIN
-               <Skull size={20} />
-            </span>
-         </button>
+         {/* Survival Progress - Only if Time Based */}
+         {(!task || task.type === 'TIME') && (
+             <div className="w-full mb-8">
+                <div className="flex justify-between text-xs text-red-500 mb-1">
+                   <span>SURVIVAL PROGRESS</span>
+                   <span>{progress.toFixed(1)}%</span>
+                </div>
+                <div className="h-4 bg-red-950 rounded-full overflow-hidden border border-red-900">
+                   <motion.div 
+                      className="h-full bg-red-600 shadow-[0_0_15px_#dc2626]"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress}%` }}
+                      transition={{ type: "spring", stiffness: 50 }}
+                   />
+                </div>
+                
+                {/* Suffer Button for Time */}
+                <button 
+                   onClick={handleSuffer}
+                   className="mt-6 group relative px-8 py-4 bg-red-950 border border-red-600 rounded hover:bg-red-900 transition-all active:scale-95 overflow-hidden w-full"
+                 >
+                    <div className="absolute inset-0 bg-red-600/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                    <span className="relative z-10 flex items-center justify-center gap-3 text-red-500 font-bold text-xl group-hover:text-white">
+                       <Flame className={clickCount % 2 === 0 ? "text-orange-500" : "text-red-500"} />
+                       SUFFER {-1} MIN
+                       <Skull size={20} />
+                    </span>
+                 </button>
+             </div>
+         )}
+
+         {/* Physical Task Completion */}
+         {task?.type === 'PHYSICAL' && (
+             <div className="w-full">
+                 <div className="p-4 bg-red-900/10 border border-red-800/50 rounded mb-6 text-sm text-red-400">
+                    Warning: False reporting will destabilize your mental synchronization. Perform the penalty with integrity.
+                 </div>
+                 
+                 <button 
+                   onClick={onSurvive}
+                   className="w-full py-5 bg-red-600 text-black font-bold text-xl rounded shadow-[0_0_20px_#dc2626] hover:bg-white hover:text-red-600 transition-all active:scale-95 flex items-center justify-center gap-3"
+                 >
+                    <CheckCircle size={24} />
+                    I HAVE COMPLETED THE PENALTY
+                 </button>
+             </div>
+         )}
          
-         <p className="mt-4 text-xs text-red-900/80">
-            Effort exerted: {clickCount} units
+         <p className="mt-8 text-xs text-red-900/80 flex items-center gap-2">
+            <Lock size={12} /> SYSTEM ACCESS RESTRICTED
          </p>
 
       </motion.div>

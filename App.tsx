@@ -276,6 +276,7 @@ const App: React.FC = () => {
     completeDaily, 
     addQuest, 
     completeQuest, 
+    failQuest,
     resetQuest,
     deleteQuest, 
     clearPenalty, 
@@ -328,10 +329,11 @@ const App: React.FC = () => {
     return <WelcomeCinematic username={player.username || player.name} onComplete={() => setShowWelcome(false)} />;
   }
 
-  if (player.isPenaltyActive && player.penaltyEndTime) {
+  if (player.isPenaltyActive) {
     return (
       <PenaltyZone 
-        endTime={player.penaltyEndTime} 
+        endTime={player.penaltyEndTime}
+        task={player.penaltyTask}
         onSurvive={clearPenalty} 
         reducePenalty={reducePenalty}
       />
@@ -394,6 +396,7 @@ const App: React.FC = () => {
                 quests={player.quests} 
                 addQuest={addQuest} 
                 completeQuest={completeQuest} 
+                failQuest={failQuest}
                 resetQuest={resetQuest}
                 deleteQuest={deleteQuest}
               />
