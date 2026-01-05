@@ -265,6 +265,7 @@ const App: React.FC = () => {
   const { 
     player, 
     notifications, 
+    isLoaded,
     registerUser, 
     updateProfile,
     updateAwakening,
@@ -272,6 +273,7 @@ const App: React.FC = () => {
     completeDaily, 
     addQuest, 
     completeQuest, 
+    resetQuest,
     deleteQuest, 
     clearPenalty, 
     reducePenalty, 
@@ -285,14 +287,24 @@ const App: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
-  const [prevLevel, setPrevLevel] = useState(1);
+  const [prevLevel, setPrevLevel] = useState<number | null>(null);
 
   useEffect(() => {
-    if (player.level > prevLevel && prevLevel > 0) {
+    // Wait for system data to fully load before checking levels
+    if (!isLoaded) return;
+
+    // Initial load: sync state without triggering animation
+    if (prevLevel === null) {
+      setPrevLevel(player.level);
+      return;
+    }
+
+    // Subsequent updates: check for level increase
+    if (player.level > prevLevel) {
       setShowLevelUp(true);
     }
     setPrevLevel(player.level);
-  }, [player.level, prevLevel]);
+  }, [player.level, isLoaded, prevLevel]);
 
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
@@ -361,6 +373,7 @@ const App: React.FC = () => {
                 quests={player.quests} 
                 addQuest={addQuest} 
                 completeQuest={completeQuest} 
+                resetQuest={resetQuest}
                 deleteQuest={deleteQuest}
               />
             </motion.div>

@@ -320,6 +320,22 @@ export const useSystem = () => {
       setPlayer(newProfileData);
   }, [processSystemLogic]);
 
+  // AUTOMATIC MIDNIGHT CHECK
+  useEffect(() => {
+    const checkMidnight = () => {
+      const systemDate = getLocalDate();
+      // If the local date has changed since the last update (e.g. crossing midnight while app is open)
+      if (player.isConfigured && systemDate !== player.lastLoginDate) {
+         // Trigger the daily processing logic
+         setPlayer(prev => processSystemLogic(prev));
+      }
+    };
+
+    // Check every minute
+    const interval = setInterval(checkMidnight, 60000);
+    return () => clearInterval(interval);
+  }, [player.isConfigured, player.lastLoginDate, processSystemLogic]);
+
   // AUTH CHECK ON MOUNT
   useEffect(() => {
     const checkSession = async () => {
@@ -482,6 +498,14 @@ export const useSystem = () => {
     addNotification(`Quest Completed: ${quest.title} (+${quest.xpReward} XP, +${statPoints} ${quest.category.substring(0,3).toUpperCase()})`, 'SUCCESS');
   };
 
+  const resetQuest = (questId: string) => {
+    setPlayer(prev => ({
+      ...prev,
+      quests: prev.quests.map(q => q.id === questId ? { ...q, isCompleted: false } : q)
+    }));
+    addNotification("Quest Reset.", 'SYSTEM');
+  };
+
   const deleteQuest = (questId: string) => {
     setPlayer(prev => ({ ...prev, quests: prev.quests.filter(q => q.id !== questId) }));
   };
@@ -572,6 +596,7 @@ export const useSystem = () => {
     updateStatValue,
     addQuest,
     completeQuest,
+    resetQuest,
     deleteQuest,
     clearPenalty,
     reducePenalty,

@@ -1,11 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield, Repeat } from 'lucide-react';
+import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield, Repeat, RotateCcw } from 'lucide-react';
 import { Quest, CoreStats, Rank } from '../types';
 
 interface QuestCardProps {
   quest: Quest;
   onComplete: (id: string) => void;
+  onReset: (id: string) => void;
   onDelete: (id: string) => void;
 }
 
@@ -26,14 +27,14 @@ const statIcons: Record<keyof CoreStats, React.ReactNode> = {
   willpower: <Shield size={14} />,
 };
 
-const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onDelete }) => {
+const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onReset, onDelete }) => {
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, height: 0 }}
       className={`relative border bg-system-card/80 backdrop-blur-sm p-4 rounded-lg flex flex-col md:flex-row gap-4 items-start md:items-center justify-between group overflow-hidden ${
-        quest.isCompleted ? 'border-system-success/30 opacity-50' : 'border-system-border hover:border-system-neon/50 transition-colors'
+        quest.isCompleted ? 'border-system-success/30 opacity-75' : 'border-system-border hover:border-system-neon/50 transition-colors'
       }`}
     >
        {/* Background Glow Effect */}
@@ -66,12 +67,20 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onDelete }) =>
        </div>
 
        <div className="flex gap-2 w-full md:w-auto z-10">
-          {!quest.isCompleted && (
+          {!quest.isCompleted ? (
             <button 
                 onClick={() => onComplete(quest.id)}
                 className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded bg-system-neon/10 text-system-neon border border-system-neon/20 hover:bg-system-neon hover:text-black transition-all font-mono text-xs font-bold active:scale-95"
             >
                 <CheckCircle size={14} /> COMPLETE
+            </button>
+          ) : (
+            <button 
+                onClick={() => onReset(quest.id)}
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded bg-gray-800 text-gray-400 border border-gray-700 hover:bg-gray-700 hover:text-white transition-all font-mono text-xs font-bold active:scale-95"
+                title="Reset Quest status to incomplete"
+            >
+                <RotateCcw size={14} /> RESET
             </button>
           )}
           
