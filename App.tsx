@@ -26,7 +26,9 @@ const StatBar: React.FC<{
   label: string;
   isGlitch?: boolean;
 }> = ({ current, max, colorClass, shadowColor, label, isGlitch }) => {
-  const percentage = Math.min(100, Math.max(0, (current / max) * 100));
+  const safeCurrent = Number(current) || 0;
+  const safeMax = Number(max) || 1;
+  const percentage = Math.min(100, Math.max(0, (safeCurrent / safeMax) * 100));
 
   return (
     <div className="mb-5 last:mb-0 group">
@@ -35,7 +37,7 @@ const StatBar: React.FC<{
             {label}
         </span>
         <span className="text-gray-400 font-medium group-hover:text-white transition-colors">
-            {Math.floor(current)} <span className="text-gray-700 text-[8px] mx-0.5">/</span> {max}
+            {Math.floor(safeCurrent)} <span className="text-gray-700 text-[8px] mx-0.5">/</span> {safeMax}
         </span>
       </div>
       
@@ -46,7 +48,7 @@ const StatBar: React.FC<{
 
         {/* Fill */}
         <motion.div 
-          initial={{ width: 0 }}
+          initial={{ width: "0%" }}
           animate={{ width: `${percentage}%` }}
           transition={{ type: "spring", stiffness: 60, damping: 15 }}
           className={`h-full relative ${colorClass}`}

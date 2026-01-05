@@ -396,12 +396,12 @@ export const useSystem = () => {
     }
 
     setPlayer(prev => {
-      let nextXp = prev.currentXp + amount;
-      let nextTotalXp = prev.totalXp + amount;
-      let nextDailyXp = (prev.dailyXp || 0) + amount;
-      let nextLevel = prev.level;
-      let nextRequired = prev.requiredXp;
-      let nextGold = prev.gold + Math.floor(amount * 0.5);
+      let nextXp = Number(prev.currentXp) + amount;
+      let nextTotalXp = Number(prev.totalXp) + amount;
+      let nextDailyXp = (Number(prev.dailyXp) || 0) + amount;
+      let nextLevel = Number(prev.level);
+      let nextRequired = Number(prev.requiredXp);
+      let nextGold = Number(prev.gold) + Math.floor(amount * 0.5);
       const newLogs = [...(prev.logs || [])];
       
       newLogs.unshift(createLog(`Gained +${amount} XP`, 'XP'));
