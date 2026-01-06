@@ -11,18 +11,11 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-interface UserSummary {
-    id: string;
-    username: string;
-    level: number;
-    healthProfile?: any; // Simplified for dashboard view
-}
-
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { updateExerciseDatabase } = useSystem();
   
   // --- STATE ---
-  const [activeTab, setActiveTab] = useState<'ASSETS' | 'PREVIEW' | 'USERS'>('ASSETS'); 
+  const [activeTab, setActiveTab] = useState<'ASSETS' | 'PREVIEW'>('ASSETS'); 
   const [exercises, setExercises] = useState<AdminExercise[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
