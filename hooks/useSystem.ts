@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { PlayerData, Rank, CoreStats, StatTimestamps, ActivityLog, Quest, ShopItem, SystemNotification, NotificationType, HistoryEntry, HealthProfile, PenaltyTask, AdminExercise } from '../types';
+import { PlayerData, Rank, CoreStats, StatTimestamps, ActivityLog, Quest, ShopItem, SystemNotification, NotificationType, HistoryEntry, HealthProfile, AdminExercise } from '../types';
 import { playSystemSoundEffect } from '../utils/soundEngine';
 import { supabase } from '../lib/supabase';
 

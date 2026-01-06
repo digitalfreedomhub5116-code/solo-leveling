@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, Database, Save, X, Search, RefreshCw, Video, Image as ImageIcon, CheckCircle, AlertCircle, Link, Calendar } from 'lucide-react';
+import { LogOut, Database, Save, X, Search, RefreshCw, Video, Image as ImageIcon, CheckCircle, AlertCircle, Link } from 'lucide-react';
 import { AdminExercise } from '../types';
 import { useSystem } from '../hooks/useSystem';
 import { supabase } from '../lib/supabase';
@@ -11,11 +11,18 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
+interface UserSummary {
+    id: string;
+    username: string;
+    level: number;
+    healthProfile?: any; // Simplified for dashboard view
+}
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { updateExerciseDatabase } = useSystem();
   
   // --- STATE ---
-  const [activeTab, setActiveTab] = useState<'ASSETS' | 'PREVIEW'>('ASSETS'); // Tab State
+  const [activeTab, setActiveTab] = useState<'ASSETS' | 'PREVIEW' | 'USERS'>('ASSETS'); 
   const [exercises, setExercises] = useState<AdminExercise[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -275,7 +282,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
            )}
        </main>
 
-       {/* --- EDIT MODAL (Only relevant for Assets tab logic but kept global for simplicity) --- */}
+       {/* --- EDIT MODAL --- */}
        <AnimatePresence>
            {editingExercise && (
                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">

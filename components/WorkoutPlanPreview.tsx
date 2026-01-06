@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Dumbbell, Home, Building2, ChevronRight, Activity, X, Maximize2, Layers, Wrench } from 'lucide-react';
+import { RefreshCw, Dumbbell, Home, Building2, Activity, X, Maximize2, Layers, Wrench } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Types for our data structure

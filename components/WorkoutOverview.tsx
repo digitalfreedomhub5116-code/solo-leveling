@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Flame, Dumbbell, Zap, Play, Activity, HeartPulse, ChevronRight } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Clock, Flame, Dumbbell, Zap, Activity, HeartPulse, ChevronRight } from 'lucide-react';
 import { WorkoutDay, Exercise } from '../types';
 
 interface WorkoutOverviewProps {

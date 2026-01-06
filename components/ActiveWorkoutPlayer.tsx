@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, X, ChevronRight, Zap, AlertOctagon, RefreshCw, Activity, Film, Image as ImageIcon } from 'lucide-react';
+import { Play, Pause, X, AlertOctagon, RefreshCw, Activity, Film } from 'lucide-react';
 import { WorkoutDay } from '../types';
 import { SpeechService } from '../utils/speechService';
 import { playSystemSoundEffect } from '../utils/soundEngine';

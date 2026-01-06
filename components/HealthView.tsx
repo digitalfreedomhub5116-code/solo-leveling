@@ -79,7 +79,6 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
   const [selectedIdentity, setSelectedIdentity] = useState<string>('');
 
   // Determine "Completed Days" based on streak or logged data
-  // For this version, we'll approximate using the streak if no explicit "days_completed" field exists
   const completedDays = Math.max(0, playerData.streak - 1); 
 
   // Form State
@@ -118,15 +117,16 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
     { id: 'IDENTITY', title: 'AFFIRM IDENTITY', icon: <Fingerprint /> },
   ];
 
-  // --- 7-DAY SPLIT ARCHITECT (UPDATED) ---
+  // --- 4-WEEK SPLIT ARCHITECT ---
   const generatePlan = (): WorkoutDay[] => {
       // Dynamic Day Generation: Day 1 is TODAY
       const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
       const todayIndex = new Date().getDay(); // 0 (Sun) - 6 (Sat)
       
       const plan: WorkoutDay[] = [];
+      const TOTAL_DAYS = 28; // 4 Weeks
       
-      // Strict Schedule Map: Day Index -> Focus
+      // Strict Schedule Map: Day Index (0-6) -> Focus
       const scheduleMap: Record<number, string> = {
           1: 'CHEST',      // Monday
           2: 'BACK',       // Tuesday
@@ -137,7 +137,7 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
           0: 'REST'        // Sunday
       };
 
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < TOTAL_DAYS; i++) {
           // Calculate the specific day of week index for this slot
           const targetDayIndex = (todayIndex + i) % 7;
           const dayLabel = dayNames[targetDayIndex];
@@ -147,9 +147,17 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
           
           if (focus === 'REST') {
               exercises = [{name: 'Active Recovery', sets: 1, reps: '30 min', duration: 30, completed: false, type: 'STRETCH'}];
-              plan.push({ day: dayLabel, focus, exercises, isRecovery: true, totalDuration: 30 });
+              plan.push({ 
+                  day: `DAY ${i+1} (${dayLabel})`, 
+                  focus, 
+                  exercises, 
+                  isRecovery: true, 
+                  totalDuration: 30 
+              });
           } else {
               // Use generator for specific body part logic
+              // IMPORTANT: Using formData as HealthProfile to generate. 
+              // We generate exercises *now* so they are baked into the plan.
               exercises = generateDailyWorkout(
                   formData as HealthProfile, 
                   focus, 
@@ -158,7 +166,7 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
               
               // Use the user's selected duration
               plan.push({ 
-                  day: dayLabel, 
+                  day: `DAY ${i+1} (${dayLabel})`, 
                   focus, 
                   exercises, 
                   isRecovery: false, 
@@ -172,15 +180,17 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
   const handleFinishOnboarding = () => {
       const h = (formData.height || 175) / 100;
       const bmi = (formData.weight || 70) / (h * h);
+      
+      // Generate the full 4-week plan
       const plan = generatePlan();
       
       const profile: HealthProfile = {
           ...formData as HealthProfile,
           startingWeight: formData.weight,
           bmi,
-          bmr: 2000,
+          bmr: 2000, // Simplified BMR
           category: bmi < 25 ? 'OPTIMAL' : 'OVERWEIGHT',
-          workoutPlan: plan,
+          workoutPlan: plan, // Save the generated plan
           macros: { protein: 180, carbs: 200, fats: 60, calories: 2500 }
       };
       
@@ -220,45 +230,23 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
 
   // --- RECOVERY LOGIC ---
   const getMuscleStatus = () => {
-      // Logic: Simulate fatigue based on the generated schedule relative to "Today".
-      // Status = 100% (Recovered) -> Drops to 55% after training -> Recovers over 48h.
-      
       const status = { UPPER: 100, LOWER: 100, CORE: 100, CARDIO: 100 };
       if (!healthProfile) return status;
 
-      const todayIndex = new Date().getDay(); // 0-6 (Sun-Sat)
+      // We now look at the actual completed exercises from history if available, 
+      // but for simplicity we'll check the plan against the current day index (completedDays)
+      // completedDays = index of today in the plan
       
-      // Look back 2 days
-      const checkFatigue = (categoryKeywords: string[]) => {
-          // Check Yesterday (1 day ago)
-          const yesterdayIndex = (todayIndex + 6) % 7; // Wrap around
-          // Find the workout plan entry that corresponds to yesterday's day name
-          // NOTE: generatePlan creates a 7 day array starting from "Today". 
-          // But healthProfile.workoutPlan is fixed when created.
-          // We need to match current weekday to plan days.
-          
-          // Simplified approach: Iterate plan to find matching weekday
-          const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-          const yesterdayLabel = dayNames[yesterdayIndex];
-          const twoDaysAgoLabel = dayNames[(todayIndex + 5) % 7];
-
-          const yesterdayWorkout = healthProfile.workoutPlan.find(d => d.day === yesterdayLabel);
-          const twoDaysAgoWorkout = healthProfile.workoutPlan.find(d => d.day === twoDaysAgoLabel);
-
-          if (yesterdayWorkout && categoryKeywords.some(k => yesterdayWorkout.focus.includes(k))) {
-              return 55; // High Fatigue
+      if (completedDays > 0) {
+          const yesterdayPlan = healthProfile.workoutPlan[completedDays - 1];
+          if (yesterdayPlan && !yesterdayPlan.isRecovery) {
+              const focus = yesterdayPlan.focus;
+              if (['CHEST', 'BACK', 'ARMS', 'SHOULDERS'].some(k => focus.includes(k))) status.UPPER = 55;
+              if (['LEGS', 'SQUAT'].some(k => focus.includes(k))) status.LOWER = 55;
+              if (['CORE', 'ABS'].some(k => focus.includes(k))) status.CORE = 55;
           }
-          if (twoDaysAgoWorkout && categoryKeywords.some(k => twoDaysAgoWorkout.focus.includes(k))) {
-              return 85; // Recovering
-          }
-          return 100; // Ready
-      };
-
-      status.UPPER = checkFatigue(['CHEST', 'BACK', 'ARMS', 'SHOULDERS', 'UPPER']);
-      status.LOWER = checkFatigue(['LEGS', 'LOWER', 'SQUAT']);
-      status.CORE = checkFatigue(['ABS', 'CORE']);
-      status.CARDIO = checkFatigue(['CARDIO', 'HIIT', 'RUN']);
-
+      }
+      
       return status;
   };
 
@@ -501,15 +489,8 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
   
   if (!healthProfile) return null;
   
-  const rawPlan = healthProfile.workoutPlan[activeDayIndex % 7];
-  
-  // Dynamic Override: Re-fetch exercises for the specific day focus from global DB
-  const dynamicExercises = generateDailyWorkout(healthProfile, rawPlan.focus, playerData.exerciseDatabase);
-  
-  const todaysPlan: WorkoutDay = {
-      ...rawPlan,
-      exercises: dynamicExercises
-  };
+  // Safe access for workout plan (handle potential empty or legacy 7-day plans gracefully)
+  const todaysPlan = healthProfile.workoutPlan[activeDayIndex] || { day: 'REST', focus: 'REST', exercises: [], totalDuration: 0 };
 
   // Graph Data
   const graphData = [
@@ -668,8 +649,12 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
                     className="space-y-3"
                 >
                     {healthProfile.workoutPlan.map((dayPlan, index) => {
+                        // Pagination for performance (display current week only + context)
+                        const currentWeek = Math.floor(completedDays / 7);
+                        const itemWeek = Math.floor(index / 7);
+                        if (itemWeek !== currentWeek && index !== completedDays) return null;
+
                         const isLocked = index > completedDays;
-                        const isCompleted = index < completedDays;
                         const isToday = index === completedDays;
                         
                         return (
@@ -720,7 +705,7 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
                                                 )}
 
                                                 <div className={`space-y-3 ${isLocked ? 'opacity-30 blur-[1px]' : ''}`}>
-                                                    {generateDailyWorkout(healthProfile, dayPlan.focus, playerData.exerciseDatabase).map((ex, i) => (
+                                                    {dayPlan.exercises.map((ex, i) => (
                                                         <div key={i} className="flex justify-between items-center border-b border-gray-800/50 pb-2 last:border-0 last:pb-0">
                                                             <div className="flex flex-col">
                                                                 <span className="text-xs font-bold text-gray-300">{ex.name}</span>
@@ -746,6 +731,9 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
                             </div>
                         );
                     })}
+                    <div className="text-center text-[10px] text-gray-600 font-mono pt-2">
+                        SHOWING CURRENT WEEK OF 4-WEEK CYCLE
+                    </div>
                 </motion.div>
             )}
         </AnimatePresence>
