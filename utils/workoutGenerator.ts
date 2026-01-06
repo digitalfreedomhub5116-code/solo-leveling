@@ -114,8 +114,6 @@ export const generateSystemProtocol = (userProfile: HealthProfile): WorkoutDay[]
             const muscleMatch = ex.muscleGroup.toLowerCase() === targetGroup.toLowerCase() || 
                                 (targetGroup === 'Arms' && (ex.muscleGroup === 'Biceps' || ex.muscleGroup === 'Triceps'));
             
-            const equipMatch = !ex.environment || allowedEnvs.includes(ex.environment) || allowedEnvs.includes('Gym'); // Fallback for 'Gym' tag if strictly equipment based check needed
-            
             // Strict equipment check based on 'equipmentNeeded' if available
             let strictEquipMatch = true;
             if (userProfile.equipment === 'BODYWEIGHT') {
@@ -234,4 +232,4 @@ export const generateSystemProtocol = (userProfile: HealthProfile): WorkoutDay[]
 };
 
 // Fallback legacy export if needed by other components temporarily
-export const generateDailyWorkout = () => []; 
+export const generateDailyWorkout = () => [];

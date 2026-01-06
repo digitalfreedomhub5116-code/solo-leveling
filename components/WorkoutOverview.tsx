@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, Flame, Dumbbell, Zap, Activity, HeartPulse, ChevronRight, Crosshair, Fingerprint, ScanLine, Video, Image as ImageIcon } from 'lucide-react';
+import { Clock, Flame, Dumbbell, Zap, Activity, HeartPulse, ChevronRight, Fingerprint, ScanLine, Video } from 'lucide-react';
 import { WorkoutDay, Exercise } from '../types';
 
 interface WorkoutOverviewProps {

@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, Database, Save, X, Search, RefreshCw, Video, Image as ImageIcon, CheckCircle, AlertCircle, Link, Map, Target, Play, AlertTriangle, Code } from 'lucide-react';
+import { LogOut, Database, Save, X, Search, RefreshCw, Video, Image as ImageIcon, CheckCircle, AlertCircle, Link, Map, AlertTriangle, Code } from 'lucide-react';
 import { AdminExercise } from '../types';
 import { useSystem } from '../hooks/useSystem';
 import { supabase } from '../lib/supabase';
