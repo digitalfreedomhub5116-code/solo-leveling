@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Sparkles, Repeat } from 'lucide-react';
+import { Plus, Sparkles, Repeat, Link, BatteryLow } from 'lucide-react';
 import { Quest, CoreStats, Rank } from '../types';
 import QuestCard from './QuestCard';
 import { playSystemSoundEffect } from '../utils/soundEngine';
@@ -8,7 +9,7 @@ import { playSystemSoundEffect } from '../utils/soundEngine';
 interface QuestsViewProps {
   quests: Quest[];
   addQuest: (quest: Quest) => void;
-  completeQuest: (id: string) => void;
+  completeQuest: (id: string, asMini?: boolean) => void;
   failQuest: (id: string) => void;
   resetQuest: (id: string) => void;
   deleteQuest: (id: string) => void;
@@ -24,6 +25,8 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
   const [category, setCategory] = useState<keyof CoreStats>('strength');
   const [rank, setRank] = useState<Rank>('E');
   const [isDaily, setIsDaily] = useState(false);
+  const [trigger, setTrigger] = useState('');
+  const [miniQuest, setMiniQuest] = useState('');
 
   // Logic: Filter Quests
   const filteredQuests = quests.filter(q => {
@@ -102,13 +105,17 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
       xpReward: xpMap[rank],
       isCompleted: false,
       createdAt: Date.now(),
-      isDaily: isDaily
+      isDaily: isDaily,
+      trigger: trigger.trim() || undefined,
+      miniQuest: miniQuest.trim() || undefined
     };
 
     addQuest(newQuest);
     setIsModalOpen(false);
     setTitle('');
     setDescription('');
+    setTrigger('');
+    setMiniQuest('');
     setRank('E');
     setIsDaily(false);
   };
@@ -174,7 +181,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-system-card border border-system-border w-full max-w-lg rounded-xl shadow-2xl overflow-hidden"
+                className="bg-system-card border border-system-border w-full max-w-lg rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
               >
                  <div className="p-6 border-b border-system-border flex justify-between items-center">
                     <h3 className="text-lg font-bold text-white font-mono">NEW SYSTEM ASSIGNMENT</h3>
@@ -191,6 +198,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                          onChange={e => setTitle(e.target.value)}
                          placeholder="e.g. Run 5km"
                          className="w-full bg-system-bg border border-system-border rounded p-2 text-white focus:border-system-neon focus:outline-none"
+                         autoFocus
                        />
                     </div>
                     
@@ -200,8 +208,33 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                          value={description}
                          onChange={e => setDescription(e.target.value)}
                          placeholder="Additional details..."
-                         className="w-full bg-system-bg border border-system-border rounded p-2 text-white focus:border-system-neon focus:outline-none h-20"
+                         className="w-full bg-system-bg border border-system-border rounded p-2 text-white focus:border-system-neon focus:outline-none h-16"
                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                           <label className="block text-xs text-system-accent mb-1 font-mono flex items-center gap-1">
+                             <Link size={10} /> TRIGGER (ANCHOR)
+                           </label>
+                           <input 
+                             value={trigger}
+                             onChange={e => setTrigger(e.target.value)}
+                             placeholder="e.g. After coffee..."
+                             className="w-full bg-system-bg border border-system-accent/30 rounded p-2 text-white focus:border-system-accent focus:outline-none placeholder:text-gray-700 text-xs"
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-xs text-yellow-500 mb-1 font-mono flex items-center gap-1">
+                             <BatteryLow size={10} /> MINI-QUEST (ACTIVATION)
+                           </label>
+                           <input 
+                             value={miniQuest}
+                             onChange={e => setMiniQuest(e.target.value)}
+                             placeholder="e.g. Just put on shoes"
+                             className="w-full bg-system-bg border border-yellow-500/30 rounded p-2 text-white focus:border-yellow-500 focus:outline-none placeholder:text-gray-700 text-xs"
+                           />
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

@@ -1,20 +1,21 @@
+
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Zap } from 'lucide-react';
+import { Zap, TrendingUp } from 'lucide-react';
 import Layout from './components/Layout';
 import Navigation from './components/Navigation';
 import EvaluationMatrix from './components/StatsRadar';
 import QuestsView from './components/QuestsView';
 import ShopView from './components/ShopView';
-import PenaltyZone from './components/PenaltyZone'; 
 import SystemMessage from './components/SystemMessage'; 
-import LevelUpCinematic from './components/LevelUpCinematic';
 import ProfileView from './components/ProfileView';
 import AuthView from './components/AuthView';
 import WelcomeCinematic from './components/WelcomeCinematic';
 import SplashScreen from './components/SplashScreen';
 import AwakeningView from './components/AwakeningView';
 import HealthView from './components/HealthView';
+import AdminLogin from './components/AdminLogin'; // New Import
+import AdminDashboard from './components/AdminDashboard'; // New Import
 import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab } from './types';
 
@@ -45,7 +46,7 @@ const StatBar: React.FC<{
       {/* Track */}
       <div className="relative h-2 w-full bg-[#0a0a0a] border border-gray-800/60 rounded-[1px] overflow-hidden">
         {/* Subtle grid pattern in background */}
-        <div className="absolute inset-0 opacity-20 bg-[linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:4px_100%]" />
+        <div className="absolute inset-0 opacity-20 bg-[linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:4px_100%]" />
 
         {/* Fill */}
         <motion.div 
@@ -84,6 +85,19 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
   const xpPercentage = Math.min(100, (player.currentXp / player.requiredXp) * 100);
   const isCloseToLevelUp = xpPercentage > 80;
 
+  // Calculate Awakening Progress based on weight
+  let weightProgress = 0;
+  if (player.healthProfile && player.healthProfile.startingWeight && player.healthProfile.targetWeight) {
+      const start = player.healthProfile.startingWeight;
+      const target = player.healthProfile.targetWeight;
+      const current = player.healthProfile.weight;
+      const totalLoss = start - target;
+      const currentLoss = start - current;
+      if (totalLoss > 0) {
+          weightProgress = Math.min(100, Math.max(0, (currentLoss / totalLoss) * 100));
+      }
+  }
+
   return (
     <div className="space-y-6 pb-4 md:pb-0">
       {/* SYSTEM STATUS TICKER */}
@@ -115,7 +129,7 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
            className="text-left"
          >
            <h1 className="text-2xl md:text-4xl font-bold text-white font-mono leading-tight">
-             HELLO <span className="text-system-neon">{player.name.toUpperCase()}</span>.
+             HELLO <span className="text-system-neon">{player.identity ? player.identity.toUpperCase() : player.name.toUpperCase()}</span>.
            </h1>
            <p className="text-gray-500 font-mono text-xs md:text-sm mt-1">
              SYSTEM READY. WHAT IS YOUR COMMAND?
@@ -221,6 +235,25 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
                              <span className="text-system-neon">{player.requiredXp - player.currentXp} XP REMAINING</span>
                           </div>
                         </div>
+
+                        {/* Awakening Progress (Only if Profile Exists) */}
+                        {player.healthProfile && (
+                            <div className="mt-4">
+                                <div className="flex justify-between items-end mb-1">
+                                    <span className="text-[10px] text-gray-500 font-mono tracking-widest uppercase flex items-center gap-2">
+                                        <TrendingUp size={10} /> AWAKENING PROGRESS
+                                    </span>
+                                    <span className="text-[10px] font-bold text-system-accent">{Math.round(weightProgress)}%</span>
+                                </div>
+                                <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                                    <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${weightProgress}%` }}
+                                        className="h-full bg-system-accent shadow-[0_0_8px_#8b5cf6]"
+                                    />
+                                </div>
+                            </div>
+                        )}
                       </div>
                   </div>
 
@@ -267,175 +300,149 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
 const App: React.FC = () => {
   const { 
     player, 
+    isLoaded, 
     notifications, 
-    isLoaded,
     registerUser, 
-    updateProfile,
+    updateProfile, 
     updateAwakening,
     gainXp, 
     completeDaily, 
     addQuest, 
     completeQuest, 
     failQuest,
-    resetQuest,
+    failWorkout,
+    resetQuest, 
     deleteQuest, 
-    clearPenalty, 
-    reducePenalty, 
     purchaseItem, 
     addShopItem, 
-    removeShopItem,
+    removeShopItem, 
     removeNotification,
     saveHealthProfile,
     completeWorkoutSession
   } = useSystem();
 
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
+  const [adminMode, setAdminMode] = useState<'NONE' | 'LOGIN' | 'DASHBOARD'>('NONE');
   const [showSplash, setShowSplash] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [showLevelUp, setShowLevelUp] = useState(false);
-  const [prevLevel, setPrevLevel] = useState<number | null>(null);
 
+  // Handle Splash Screen
   useEffect(() => {
-    // Wait for system data to fully load before checking levels
-    if (!isLoaded) return;
+    // Splash screen handles its own timer and calls onComplete
+  }, []);
 
-    // Initial load: sync state without triggering animation
-    if (prevLevel === null) {
-      setPrevLevel(player.level);
-      return;
-    }
-
-    // Subsequent updates: check for level increase
-    if (player.level > prevLevel) {
-      setShowLevelUp(true);
-    }
-    setPrevLevel(player.level);
-  }, [player.level, isLoaded, prevLevel]);
+  // Handle Welcome Cinematic trigger
+  useEffect(() => {
+     // Show welcome if it's a new user (level 1, no XP) and hasn't seen it in this session/local storage
+     if (!showSplash && player.isConfigured && player.level === 1 && player.currentXp === 0 && !localStorage.getItem('welcome_shown')) {
+         setShowWelcome(true);
+         localStorage.setItem('welcome_shown', 'true');
+     }
+  }, [showSplash, player.isConfigured, player.level, player.currentXp]);
 
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
 
+  if (!isLoaded) {
+      return (
+          <div className="min-h-screen bg-black flex items-center justify-center text-system-neon font-mono">
+              LOADING SYSTEM...
+          </div>
+      );
+  }
+
+  // --- ADMIN VIEW ROUTING ---
+  if (adminMode === 'LOGIN') {
+      return (
+          <AdminLogin 
+            onLoginSuccess={() => setAdminMode('DASHBOARD')}
+            onBack={() => setAdminMode('NONE')}
+          />
+      );
+  }
+
+  if (adminMode === 'DASHBOARD') {
+      return (
+          <AdminDashboard 
+            onLogout={() => setAdminMode('NONE')}
+          />
+      );
+  }
+
   if (!player.isConfigured) {
-    return (
-      <AuthView onLogin={(profile) => {
-        registerUser(profile);
-        setShowWelcome(true);
-      }} />
-    );
+    return <AuthView onLogin={registerUser} onAdminAccess={() => setAdminMode('LOGIN')} />;
   }
 
   if (showWelcome) {
-    return <WelcomeCinematic username={player.username || player.name} onComplete={() => setShowWelcome(false)} />;
-  }
-
-  if (player.isPenaltyActive) {
-    return (
-      <PenaltyZone 
-        endTime={player.penaltyEndTime}
-        task={player.penaltyTask}
-        onSurvive={clearPenalty} 
-        reducePenalty={reducePenalty}
-      />
-    );
+     return <WelcomeCinematic username={player.username || player.name} onComplete={() => setShowWelcome(false)} />;
   }
 
   return (
     <Layout 
-      playerLevel={player.level} 
-      streak={player.streak}
-      navigation={<Navigation activeTab={activeTab} onTabChange={setActiveTab} />}
+       playerLevel={player.level} 
+       streak={player.streak}
+       navigation={<Navigation activeTab={activeTab} onTabChange={setActiveTab} />}
     >
       <SystemMessage notifications={notifications} removeNotification={removeNotification} />
-
-      <AnimatePresence>
-        {showLevelUp && (
-          <LevelUpCinematic level={player.level} onComplete={() => setShowLevelUp(false)} />
+      
+      <AnimatePresence mode="wait">
+        {activeTab === 'DASHBOARD' && (
+          <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+             <Dashboard player={player} gainXp={gainXp} completeDaily={completeDaily} />
+          </motion.div>
         )}
-      </AnimatePresence>
-
-      <div className="pb-20 md:pb-0">
-        <AnimatePresence mode='wait'>
-          {activeTab === 'DASHBOARD' && (
-            <motion.div
-              key="dashboard"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Dashboard player={player} gainXp={gainXp} completeDaily={completeDaily} />
+        
+        {activeTab === 'HEALTH' && (
+            <motion.div key="health" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+               <HealthView 
+                  healthProfile={player.healthProfile} 
+                  onSaveProfile={saveHealthProfile}
+                  onCompleteWorkout={completeWorkoutSession}
+                  onFailWorkout={failWorkout}
+                  playerData={player}
+               />
             </motion.div>
-          )}
+        )}
 
-          {activeTab === 'HEALTH' && (
-             <motion.div
-               key="health"
-               initial={{ opacity: 0, y: 10 }}
-               animate={{ opacity: 1, y: 0 }}
-               exit={{ opacity: 0, y: -10 }}
-               transition={{ duration: 0.3 }}
-             >
-                <HealthView 
-                   healthProfile={player.healthProfile} 
-                   onSaveProfile={saveHealthProfile} 
-                   onCompleteWorkout={completeWorkoutSession}
-                />
-             </motion.div>
-          )}
-          
-          {activeTab === 'QUESTS' && (
-            <motion.div
-              key="quests"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-            >
-              <QuestsView 
+        {activeTab === 'QUESTS' && (
+          <motion.div key="quests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+             <QuestsView 
                 quests={player.quests} 
                 addQuest={addQuest} 
                 completeQuest={completeQuest} 
                 failQuest={failQuest}
                 resetQuest={resetQuest}
-                deleteQuest={deleteQuest}
-              />
-            </motion.div>
-          )}
+                deleteQuest={deleteQuest} 
+             />
+          </motion.div>
+        )}
 
-          {activeTab === 'SHOP' && (
-            <motion.div
-              key="shop"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-            >
-              <ShopView 
+        {activeTab === 'SHOP' && (
+          <motion.div key="shop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+             <ShopView 
                 gold={player.gold} 
                 items={player.shopItems} 
                 purchaseItem={purchaseItem} 
                 addItem={addShopItem}
-                removeItem={removeShopItem}
-              />
-            </motion.div>
-          )}
+                removeItem={removeShopItem} 
+             />
+          </motion.div>
+        )}
 
-          {activeTab === 'PROFILE' && (
-            <motion.div
-              key="profile"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-12"
-            >
-               <ProfileView player={player} onUpdate={updateProfile} />
-               <AwakeningView data={player.awakening} updateData={updateAwakening} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+        {activeTab === 'PROFILE' && (
+           <motion.div key="profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <ProfileView 
+                      player={player} 
+                      onUpdate={updateProfile} 
+                      onAdminRequest={() => setAdminMode('LOGIN')} // Pass the admin trigger here
+                  />
+                  <AwakeningView data={player.awakening} updateData={updateAwakening} />
+              </div>
+           </motion.div>
+        )}
+      </AnimatePresence>
     </Layout>
   );
 };

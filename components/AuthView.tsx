@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Shield, Lock, AlertTriangle, User, Eye, ArrowRight, Database, Key, Cpu } from 'lucide-react';
@@ -8,6 +9,7 @@ import ShadowLoading from './ShadowLoading';
 
 interface AuthViewProps {
   onLogin: (profile: Partial<PlayerData>) => void;
+  onAdminAccess?: () => void;
 }
 
 const PIN_SALT = "biosync-v1"; 
@@ -38,7 +40,7 @@ const glitchVariants = {
   }
 };
 
-const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
+const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
   const [mode, setMode] = useState<'LOGIN' | 'AWAKENING' | 'RECOVERY'>('LOGIN');
   
   const [regStep, setRegStep] = useState<number>(1);
@@ -469,8 +471,16 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
             </div>
         </div>
         
-        <div className="mt-6 text-center text-[10px] text-gray-800 font-mono">
-            SECURE CONNECTION v2.0.1 // SHADOW PROTOCOL ENABLED
+        <div className="mt-6 text-center text-[10px] text-gray-800 font-mono flex flex-col items-center gap-2">
+            <span>SECURE CONNECTION v2.0.1 // SHADOW PROTOCOL ENABLED</span>
+            {onAdminAccess && (
+                <button 
+                    onClick={onAdminAccess}
+                    className="text-[9px] text-gray-900 hover:text-system-danger transition-colors opacity-50 hover:opacity-100 tracking-widest uppercase"
+                >
+                    [ ADMIN ACCESS ]
+                </button>
+            )}
         </div>
       </div>
     </div>

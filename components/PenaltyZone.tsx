@@ -1,16 +1,19 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Timer, Skull, Flame, CheckCircle, Lock } from 'lucide-react';
+import { AlertTriangle, Timer, Skull, Flame, CheckCircle, Lock, Coins } from 'lucide-react';
 import { PenaltyTask } from '../types';
 
 interface PenaltyZoneProps {
   endTime?: number;
   task?: PenaltyTask;
+  gold: number;
   onSurvive: () => void; // Clears penalty instantly (for physical task completion or dev)
   reducePenalty: (ms: number) => void;
+  onSacrifice: () => void;
 }
 
-const PenaltyZone: React.FC<PenaltyZoneProps> = ({ endTime, task, onSurvive, reducePenalty }) => {
+const PenaltyZone: React.FC<PenaltyZoneProps> = ({ endTime, task, gold, onSurvive, reducePenalty, onSacrifice }) => {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [clickCount, setClickCount] = useState(0);
 
@@ -45,6 +48,8 @@ const PenaltyZone: React.FC<PenaltyZoneProps> = ({ endTime, task, onSurvive, red
     reducePenalty(60 * 1000);
     setClickCount(prev => prev + 1);
   };
+
+  const canAffordSacrifice = gold >= 500;
 
   return (
     <div className="min-h-screen bg-black text-red-600 font-mono flex flex-col items-center justify-center p-8 text-center relative overflow-hidden selection:bg-red-900 selection:text-white">
@@ -116,7 +121,7 @@ const PenaltyZone: React.FC<PenaltyZoneProps> = ({ endTime, task, onSurvive, red
 
          {/* Physical Task Completion */}
          {task?.type === 'PHYSICAL' && (
-             <div className="w-full">
+             <div className="w-full mb-8">
                  <div className="p-4 bg-red-900/10 border border-red-800/50 rounded mb-6 text-sm text-red-400">
                     Warning: False reporting will destabilize your mental synchronization. Perform the penalty with integrity.
                  </div>
@@ -130,9 +135,35 @@ const PenaltyZone: React.FC<PenaltyZoneProps> = ({ endTime, task, onSurvive, red
                  </button>
              </div>
          )}
+
+         {/* DIVINE OFFER / SAFETY NET */}
+         <div className="w-full border-t border-red-900/50 pt-6 mt-4">
+             <div className="flex justify-between items-center mb-4">
+                 <span className="text-[10px] text-yellow-600 font-bold tracking-widest uppercase flex items-center gap-2">
+                    <Lock size={12} /> DIVINE INTERVENTION
+                 </span>
+                 <span className="text-[10px] text-yellow-600 font-bold tracking-widest uppercase flex items-center gap-2">
+                    BALANCE: <span className={canAffordSacrifice ? "text-white" : "text-red-500"}>{gold} G</span>
+                 </span>
+             </div>
+             
+             <button 
+                onClick={onSacrifice}
+                disabled={!canAffordSacrifice}
+                className={`w-full py-4 rounded-lg border flex items-center justify-center gap-3 transition-all font-mono font-bold
+                    ${canAffordSacrifice 
+                        ? 'bg-yellow-900/20 border-yellow-600/50 text-yellow-500 hover:bg-yellow-500 hover:text-black shadow-[0_0_15px_rgba(234,179,8,0.2)]' 
+                        : 'bg-gray-900/50 border-gray-800 text-gray-600 cursor-not-allowed'
+                    }
+                `}
+             >
+                <Coins size={20} />
+                {canAffordSacrifice ? 'SACRIFICE 500 GOLD TO SKIP' : 'INSUFFICIENT FUNDS FOR SACRIFICE (500 G)'}
+             </button>
+         </div>
          
          <p className="mt-8 text-xs text-red-900/80 flex items-center gap-2">
-            <Lock size={12} /> SYSTEM ACCESS RESTRICTED
+            SYSTEM ACCESS RESTRICTED
          </p>
 
       </motion.div>

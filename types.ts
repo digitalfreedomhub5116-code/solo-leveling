@@ -1,3 +1,4 @@
+
 // Fix: Import React to support React.ReactNode type usage
 import React from 'react';
 
@@ -50,6 +51,9 @@ export interface Quest {
   isCompleted: boolean;
   createdAt: number;
   isDaily: boolean; // Identify repeatable quests
+  trigger?: string; // The "When" condition/anchor for the habit
+  miniQuest?: string; // The "Activation Energy" version (e.g., Just do 5 reps)
+  completedAsMini?: boolean; // Track if completed in safe mode
 }
 
 export interface ShopItem {
@@ -80,6 +84,19 @@ export interface HistoryEntry {
   dailyXp: number;
 }
 
+// --- ADMIN / DATABASE TYPES ---
+export interface AdminExercise {
+  id: string;
+  name: string;
+  muscleGroup: string; // 'Chest', 'Back', 'Legs', 'Shoulders', 'Triceps', 'Biceps', 'Abs', 'Cardio', 'Arms', 'Core'
+  difficulty: string; // 'Beginner', 'Intermediate', 'Advanced'
+  equipmentNeeded?: string; // 'Bodyweight', 'Dumbbell', 'Barbell', 'Machine'
+  environment?: string; // 'Home', 'Dumbbells', 'Gym'
+  imageUrl: string;
+  videoUrl: string;
+  caloriesBurn: number;
+}
+
 // Health & Biometrics Types
 export interface Exercise {
   name: string;
@@ -88,6 +105,9 @@ export interface Exercise {
   duration: number; // Estimated minutes to complete
   completed: boolean;
   type: 'COMPOUND' | 'ACCESSORY' | 'CARDIO' | 'STRETCH';
+  notes?: string; // For techniques like Drop-sets
+  videoUrl?: string;
+  imageUrl?: string;
 }
 
 export interface WorkoutDay {
@@ -103,6 +123,8 @@ export interface HealthProfile {
   age: number;
   height: number; // cm
   weight: number; // kg
+  startingWeight?: number; // Track initial weight for progress
+  targetWeight?: number; // Goal
   neck?: number;
   waist?: number;
   hip?: number;
@@ -110,6 +132,7 @@ export interface HealthProfile {
   goal: 'LOSE_WEIGHT' | 'BUILD_MUSCLE' | 'ENDURANCE';
   equipment: 'GYM' | 'HOME_DUMBBELLS' | 'BODYWEIGHT';
   sessionDuration: number; // 30, 45, 60, 90, 120
+  intensity: 'LIGHT' | 'MODERATE' | 'HIGH';
   injuries: string[];
   
   // Calculated
@@ -137,6 +160,7 @@ export interface PlayerData {
   // Core System Data
   name: string;          // Player Display Name
   username?: string;     // Unique Handle for Auth
+  identity?: string;     // The "Affirmed Identity" (e.g. "Disciplined Hunter")
   pin?: string;          // Access Key for Auth verification
   level: number;
   currentXp: number;     // XP in current level
@@ -171,7 +195,11 @@ export interface PlayerData {
   quests: Quest[];
   shopItems: ShopItem[];
   awakening: AwakeningData;
+  personalBests: Record<string, number>; // Map Exercise Name -> Max Reps/Weight (Simplified to number for now)
   
   // New Health Integration
   healthProfile?: HealthProfile;
+  
+  // Global Database (Mock Backend)
+  exerciseDatabase: AdminExercise[];
 }

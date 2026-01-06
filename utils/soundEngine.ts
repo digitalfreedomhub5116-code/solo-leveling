@@ -1,3 +1,4 @@
+
 // AudioContext singleton to prevent multiple contexts
 let audioCtx: AudioContext | null = null;
 
@@ -22,12 +23,13 @@ export const speakSystemMessage = (text: string) => {
              msg.pitch = 1;
              msg.volume = 1;
              
-             // Try to get a decent voice
+             // Try to get a decent female voice
              const voices = window.speechSynthesis.getVoices();
              const bestVoice = voices.find(v => 
-                v.name.includes("Google US English") || 
-                v.name.includes("Samantha") ||
-                v.lang === "en-US"
+                v.name.includes("Samantha") || 
+                v.name.includes("Google US English") ||
+                v.name.includes("Zira") ||
+                (v.lang === "en-US" && v.name.includes("Female"))
              );
              
              if (bestVoice) msg.voice = bestVoice;
@@ -63,6 +65,18 @@ export const playSystemSoundEffect = (type: string) => {
         
         // Sound profiles based on NotificationType
         switch (type) {
+            case 'TICK':
+                // Countdown Tick: Short, high-pitch blip
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now); // A5
+                
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                
+                osc.start(now);
+                osc.stop(now + 0.05);
+                break;
+
             case 'SUCCESS': 
                 // Quest Complete: Uplifting major third chime
                 osc.type = 'sine';

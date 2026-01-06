@@ -1,5 +1,6 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { PlayerData, Rank, CoreStats, StatTimestamps, ActivityLog, Quest, ShopItem, SystemNotification, NotificationType, HistoryEntry, HealthProfile, PenaltyTask } from '../types';
+import { PlayerData, Rank, CoreStats, StatTimestamps, ActivityLog, Quest, ShopItem, SystemNotification, NotificationType, HistoryEntry, HealthProfile, PenaltyTask, AdminExercise } from '../types';
 import { playSystemSoundEffect } from '../utils/soundEngine';
 import { supabase } from '../lib/supabase';
 
@@ -12,6 +13,22 @@ const INITIAL_TIMESTAMPS: StatTimestamps = {
   willpower: Date.now() 
 };
 
+// Initial Mock DB for exercises so the app isn't empty on first load
+const INITIAL_EXERCISE_DB: AdminExercise[] = [
+    { id: '1', name: 'Barbell Bench Press', muscleGroup: 'Chest', difficulty: 'Intermediate', imageUrl: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=500&q=80', videoUrl: '', caloriesBurn: 10 },
+    { id: '2', name: 'Incline Dumbbell Press', muscleGroup: 'Chest', difficulty: 'Intermediate', imageUrl: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=500&q=80', videoUrl: '', caloriesBurn: 8 },
+    { id: '3', name: 'Cable Flys', muscleGroup: 'Chest', difficulty: 'Beginner', imageUrl: '', videoUrl: '', caloriesBurn: 6 },
+    { id: '4', name: 'Push-Ups', muscleGroup: 'Chest', difficulty: 'Beginner', imageUrl: 'https://images.unsplash.com/photo-1598971639058-211a74a96aea?auto=format&fit=crop&w=500&q=80', videoUrl: '', caloriesBurn: 5 },
+    { id: '5', name: 'Tricep Rope Pushdown', muscleGroup: 'Triceps', difficulty: 'Beginner', imageUrl: '', videoUrl: '', caloriesBurn: 5 },
+    { id: '6', name: 'Skullcrushers', muscleGroup: 'Triceps', difficulty: 'Intermediate', imageUrl: '', videoUrl: '', caloriesBurn: 7 },
+    { id: '7', name: 'Deadlift', muscleGroup: 'Back', difficulty: 'Advanced', imageUrl: '', videoUrl: '', caloriesBurn: 15 },
+    { id: '8', name: 'Pull-Ups', muscleGroup: 'Back', difficulty: 'Intermediate', imageUrl: '', videoUrl: '', caloriesBurn: 10 },
+    { id: '9', name: 'Dumbbell Rows', muscleGroup: 'Back', difficulty: 'Beginner', imageUrl: '', videoUrl: '', caloriesBurn: 8 },
+    { id: '10', name: 'Face Pulls', muscleGroup: 'Shoulders', difficulty: 'Beginner', imageUrl: '', videoUrl: '', caloriesBurn: 6 },
+    { id: '11', name: 'Barbell Squat', muscleGroup: 'Legs', difficulty: 'Advanced', imageUrl: '', videoUrl: '', caloriesBurn: 12 },
+    { id: '12', name: 'Leg Extensions', muscleGroup: 'Legs', difficulty: 'Beginner', imageUrl: '', videoUrl: '', caloriesBurn: 6 },
+];
+
 const DEFAULT_SHOP_ITEMS: ShopItem[] = [
   { id: 'default_1', title: '1 Hour Gaming', description: 'Uninterrupted gaming session.', cost: 100, icon: 'gamepad' },
   { id: 'default_2', title: 'Cheat Meal', description: 'One guilt-free meal of choice.', cost: 300, icon: 'pizza' },
@@ -19,12 +36,6 @@ const DEFAULT_SHOP_ITEMS: ShopItem[] = [
   { id: 'default_4', title: 'Social Night', description: 'Night out with friends.', cost: 200, icon: 'users' },
   { id: 'default_5', title: 'Rest Day', description: 'Complete recovery day. No quests.', cost: 500, icon: 'moon' },
   { id: 'default_6', title: 'New Equipment', description: 'Purchase gym gear or tech.', cost: 1000, icon: 'shopping-bag' },
-];
-
-const PENALTY_TASKS: PenaltyTask[] = [
-  { title: 'THE DESERT RUN', description: 'Walk 2,000 steps immediately.', type: 'PHYSICAL' },
-  { title: 'THE BURPEE GAUNTLET', description: 'Perform 50 burpees.', type: 'PHYSICAL' },
-  { title: 'THE FOCUS TRIAL', description: 'No phone/app access for 1 hour.', type: 'TIME', duration: 60 * 60 * 1000 }
 ];
 
 const getLocalDate = () => {
@@ -39,6 +50,7 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   isConfigured: false,
   name: '',
   username: '',
+  identity: '', // Default empty
   pin: '',
   level: 1,
   currentXp: 0,
@@ -53,7 +65,7 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   history: [],
   hp: 100,
   maxHp: 100,
-  mp: 10,
+  mp: 0, // Zero-Mana Economy: Starts at 0
   maxMp: 10,
   fatigue: 0,
   job: 'NONE',
@@ -65,10 +77,11 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   logs: [],
   quests: [],
   shopItems: DEFAULT_SHOP_ITEMS,
-  awakening: { vision: [], antiVision: [] }
+  awakening: { vision: [], antiVision: [] },
+  personalBests: {},
+  exerciseDatabase: INITIAL_EXERCISE_DB
 };
 
-const PENALTY_DURATION_MS = 4 * 60 * 60 * 1000; 
 const STORAGE_KEY = 'bio_sync_os_data_v1';
 
 const getStatReward = (rank: Rank): number => {
@@ -112,6 +125,7 @@ export const useSystem = () => {
       id: local.userId,
       name: local.name,
       username: local.username,
+      identity: local.identity, // Store Identity
       pin: local.pin,
       level: local.level,
       current_xp: local.currentXp,
@@ -140,33 +154,29 @@ export const useSystem = () => {
       quests: local.quests,
       shop_items: local.shopItems,
       awakening: local.awakening,
+      personal_bests: local.personalBests,
+      exercise_database: local.exerciseDatabase, // Persist DB
       updated_at: new Date().toISOString()
   });
 
   const checkDailyQuests = (playerData: PlayerData): PlayerData => {
     const newData = { ...playerData };
-    const now = Date.now();
-
+    
     if (newData.isConfigured) {
       if (!newData.dailyQuestComplete) {
-        // Daily Failure Logic
-        if (newData.currentXp > 100) {
-           // XP Deduction Logic
-           const deduction = 200;
-           const loss = Math.min(newData.currentXp, deduction); // Don't go below 0 on current
-           newData.currentXp -= loss;
-           newData.totalXp = Math.max(0, newData.totalXp - loss);
-           
-           newData.logs.unshift(createLog(`Daily Quests Incomplete. -${loss} XP Penalty Applied.`, 'PENALTY'));
-           addNotification(`Daily Quests Failed. -${loss} XP`, 'DANGER');
-        } else {
-           // Penalty Zone Logic (Standard)
-           newData.isPenaltyActive = true;
-           newData.penaltyEndTime = now + PENALTY_DURATION_MS;
-           
-           newData.logs.unshift(createLog("Daily Quests Incomplete. Penalty Zone Activated.", 'PENALTY'));
-           addNotification("Daily Quests Failed. Penalty Zone Active.", 'DANGER');
-        }
+        // Daily Failure Logic - Pure Resource Deduction
+        const deductionXP = 200;
+        const deductionGold = 100;
+
+        const lossXP = Math.min(newData.currentXp, deductionXP); 
+        newData.currentXp -= lossXP;
+        newData.totalXp = Math.max(0, newData.totalXp - lossXP);
+        
+        const lossGold = Math.min(newData.gold, deductionGold);
+        newData.gold -= lossGold;
+        
+        newData.logs.unshift(createLog(`Daily Quests Incomplete. -${lossXP} XP, -${lossGold} Gold.`, 'PENALTY'));
+        addNotification(`Daily Failure. -${lossXP} XP, -${lossGold} Gold`, 'DANGER');
       } else {
         // Daily Success Logic (Resetting for new day)
         newData.logs.unshift(createLog("Daily Cycle Reset. New Quests Available.", 'SYSTEM'));
@@ -207,7 +217,7 @@ export const useSystem = () => {
       newData.quests = newData.quests.map(q => {
         if (q.isDaily && q.isCompleted) {
             resetCount++;
-            return { ...q, isCompleted: false };
+            return { ...q, isCompleted: false, completedAsMini: false }; // Reset mini status too
         }
         return q;
       });
@@ -215,7 +225,7 @@ export const useSystem = () => {
         newData.logs.unshift(createLog(`Daily Reset: ${resetCount} Quests Refreshed`, 'SYSTEM'));
       }
 
-      // Perform Daily Check (Deductions or Penalty)
+      // Perform Daily Check (Deductions)
       newData = checkDailyQuests(newData);
 
       const lastLoginDateObj = new Date(lastLogin);
@@ -229,13 +239,9 @@ export const useSystem = () => {
           const streakGold = newData.streak * 20;
           
           newData.gold += streakGold;
-          // Calculate new Max MP based on Streak
-          const newMaxMp = 10 + (newData.streak * 2);
-          newData.maxMp = newMaxMp;
-          newData.mp = newMaxMp; // Refill MP on new day
           
-          newData.logs.unshift(createLog(`Streak Active: ${newData.streak} Days. +${streakGold} Gold. Max MP Upgraded.`, 'STREAK'));
-          addNotification(`Daily Streak! +${streakGold} Gold, Max MP Increased`, 'SUCCESS');
+          newData.logs.unshift(createLog(`Streak Active: ${newData.streak} Days. +${streakGold} Gold.`, 'STREAK'));
+          addNotification(`Daily Streak! +${streakGold} Gold`, 'SUCCESS');
       } else if (diffDays > 1) {
           // Streak Broken
           if (newData.streak > 1) {
@@ -243,9 +249,6 @@ export const useSystem = () => {
              addNotification("Streak Broken. Stats Recalibrating...", 'WARNING');
           }
           newData.streak = 1;
-          // Reset Max MP to base + streak calculation
-          newData.maxMp = 10 + (newData.streak * 2);
-          newData.mp = newData.maxMp;
       }
       // If diffDays === 0, it's the same day, no changes to streak.
 
@@ -267,13 +270,11 @@ export const useSystem = () => {
       }
     });
 
-    // Check penalty expiry only if it's a Time-based penalty
-    if (newData.isPenaltyActive && newData.penaltyEndTime && now > newData.penaltyEndTime) {
+    // Clean up any stale penalty state if it exists from old version
+    if (newData.isPenaltyActive) {
        newData.isPenaltyActive = false;
        newData.penaltyEndTime = undefined;
        newData.penaltyTask = undefined;
-       newData.logs.unshift(createLog("Penalty Duration Complete.", 'SYSTEM'));
-       addNotification("Penalty Served.", 'SUCCESS');
        hasChanges = true;
     }
 
@@ -298,7 +299,7 @@ export const useSystem = () => {
             logs: [createLog(`System Initialized. Welcome, ${profileOrName}.`, 'SYSTEM')]
          };
       } else {
-         const incoming = profileOrName as any;
+         const incoming = profileOrName as Record<string, any>;
          newProfileData = {
             ...INITIAL_PLAYER_DATA,
             ...profileOrName,
@@ -310,11 +311,15 @@ export const useSystem = () => {
             dailyXp: incoming.daily_xp ?? incoming.dailyXp ?? INITIAL_PLAYER_DATA.dailyXp,
             maxHp: incoming.max_hp ?? incoming.maxHp ?? INITIAL_PLAYER_DATA.maxHp,
             maxMp: incoming.max_mp ?? incoming.maxMp ?? INITIAL_PLAYER_DATA.maxMp,
+            mp: incoming.mp ?? INITIAL_PLAYER_DATA.mp,
             dailyQuestComplete: incoming.daily_quest_complete ?? incoming.dailyQuestComplete ?? INITIAL_PLAYER_DATA.dailyQuestComplete,
-            isPenaltyActive: incoming.is_penalty_active ?? incoming.isPenaltyActive ?? INITIAL_PLAYER_DATA.isPenaltyActive,
-            penaltyEndTime: incoming.penalty_end_time ?? incoming.penaltyEndTime ?? INITIAL_PLAYER_DATA.penaltyEndTime,
-            penaltyTask: incoming.penalty_task ?? incoming.penaltyTask ?? INITIAL_PLAYER_DATA.penaltyTask,
+            isPenaltyActive: false, 
+            penaltyEndTime: undefined,
+            penaltyTask: undefined,
             shopItems: incoming.shop_items ?? incoming.shopItems ?? INITIAL_PLAYER_DATA.shopItems,
+            personalBests: incoming.personal_bests ?? incoming.personalBests ?? {},
+            identity: incoming.identity ?? incoming.identity ?? INITIAL_PLAYER_DATA.identity, 
+            exerciseDatabase: incoming.exercise_database ?? incoming.exerciseDatabase ?? INITIAL_EXERCISE_DB,
 
             isConfigured: true,
             stats: incoming.stats || INITIAL_STATS,
@@ -323,7 +328,9 @@ export const useSystem = () => {
             history: incoming.history || [],
             username: incoming.username || incoming.name?.toLowerCase().replace(/[^a-z0-9]/g, '') || '',
             pin: incoming.pin || '',
-            userId: incoming.id || userId, 
+            userId: incoming.id || userId,
+            // Preserve healthProfile if passed directly in profileOrName (e.g. from local storage load)
+            healthProfile: (incoming as any).healthProfile || undefined
          };
          newProfileData = processSystemLogic(newProfileData);
       }
@@ -334,21 +341,33 @@ export const useSystem = () => {
   useEffect(() => {
     const checkMidnight = () => {
       const systemDate = getLocalDate();
-      // If the local date has changed since the last update (e.g. crossing midnight while app is open)
       if (player.isConfigured && systemDate !== player.lastLoginDate) {
-         // Trigger the daily processing logic
          setPlayer(prev => processSystemLogic(prev));
       }
     };
-
-    // Check every minute
     const interval = setInterval(checkMidnight, 60000);
     return () => clearInterval(interval);
   }, [player.isConfigured, player.lastLoginDate, processSystemLogic]);
 
-  // AUTH CHECK ON MOUNT
+  // AUTH & PERSISTENCE LOAD
   useEffect(() => {
     const checkSession = async () => {
+        let localData: PlayerData | null = null;
+        
+        // 1. Try Local Storage
+        try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                localData = JSON.parse(stored);
+                if (localData) {
+                    setPlayer(localData);
+                }
+            }
+        } catch (e) {
+            console.error("Local load error", e);
+        }
+
+        // 2. Try Supabase
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session && session.user) {
@@ -360,35 +379,47 @@ export const useSystem = () => {
                     .single();
                 
                 if (profile && !error) {
-                    registerUser(profile);
-                    // Load Health Data
+                    // Fetch Health Data
                     const { data: healthData } = await supabase.from('health_profiles').select('*').eq('id', session.user.id).single();
+                    
+                    let healthProfile: HealthProfile | undefined = undefined;
+                    
                     if (healthData) {
-                        setPlayer(prev => ({
-                            ...prev,
-                            healthProfile: {
-                                gender: healthData.gender,
-                                age: healthData.age,
-                                height: healthData.height,
-                                weight: healthData.weight,
-                                neck: healthData.neck,
-                                waist: healthData.waist,
-                                hip: healthData.hip,
-                                activityLevel: healthData.activity_level,
-                                goal: healthData.goal,
-                                equipment: healthData.equipment,
-                                injuries: healthData.injuries || [],
-                                bmi: healthData.biometrics?.bmi,
-                                bmr: healthData.biometrics?.bmr,
-                                bodyFat: healthData.biometrics?.bodyFat,
-                                category: healthData.biometrics?.category,
-                                workoutPlan: healthData.workout_plan,
-                                macros: healthData.nutrition_plan,
-                                lastWorkoutDate: healthData.last_workout_date,
-                                sessionDuration: healthData.session_duration || 60
-                            }
-                        }));
+                        healthProfile = {
+                            gender: healthData.gender,
+                            age: healthData.age,
+                            height: healthData.height,
+                            weight: healthData.weight,
+                            targetWeight: healthData.target_weight,
+                            startingWeight: healthData.starting_weight,
+                            neck: healthData.neck,
+                            waist: healthData.waist,
+                            hip: healthData.hip,
+                            activityLevel: healthData.activity_level,
+                            goal: healthData.goal,
+                            equipment: healthData.equipment,
+                            injuries: healthData.injuries || [],
+                            bmi: healthData.biometrics?.bmi,
+                            bmr: healthData.biometrics?.bmr,
+                            bodyFat: healthData.biometrics?.bodyFat,
+                            category: healthData.biometrics?.category,
+                            workoutPlan: healthData.workout_plan,
+                            macros: healthData.nutrition_plan,
+                            lastWorkoutDate: healthData.last_workout_date,
+                            sessionDuration: healthData.session_duration || 60,
+                            intensity: healthData.intensity || 'MODERATE'
+                        };
+                    } else if (localData?.healthProfile) {
+                        // Keep local health profile if DB missing (sync lag or offline creation)
+                        healthProfile = localData.healthProfile;
                     }
+
+                    // Register/Merge
+                    const mergedData = {
+                        ...profile,
+                        healthProfile
+                    };
+                    registerUser(mergedData, session.user.id);
                 }
             }
         } catch (err) {
@@ -401,7 +432,7 @@ export const useSystem = () => {
     checkSession();
   }, [registerUser]);
 
-  // Persistence
+  // Persistence Save
   useEffect(() => {
     if (isLoaded && player.isConfigured) {
         if (saveTimeout.current) clearTimeout(saveTimeout.current);
@@ -420,6 +451,11 @@ export const useSystem = () => {
       addNotification("Hunter Profile Updated.", 'SYSTEM');
   };
 
+  const updateExerciseDatabase = (exercises: AdminExercise[]) => {
+      setPlayer(prev => ({ ...prev, exerciseDatabase: exercises }));
+      // Trigger a save immediately? Rely on useEffect persistence for now.
+  };
+
   const updateAwakening = (type: 'vision' | 'antiVision', items: string[]) => {
     setPlayer(prev => ({
       ...prev,
@@ -427,9 +463,14 @@ export const useSystem = () => {
     }));
   };
 
-  const saveHealthProfile = async (profile: HealthProfile) => {
-    setPlayer(prev => ({ ...prev, healthProfile: profile }));
+  const saveHealthProfile = async (profile: HealthProfile, identity: string) => {
+    setPlayer(prev => ({ 
+        ...prev, 
+        healthProfile: profile,
+        identity: identity 
+    }));
     
+    // Save to local storage immediately via Effect, but also trigger DB save if connected
     if (player.userId && !player.userId.startsWith('local-')) {
         const payload = {
             id: player.userId,
@@ -437,6 +478,8 @@ export const useSystem = () => {
             age: profile.age,
             height: profile.height,
             weight: profile.weight,
+            target_weight: profile.targetWeight,
+            starting_weight: profile.startingWeight,
             neck: profile.neck,
             waist: profile.waist,
             hip: profile.hip,
@@ -448,38 +491,70 @@ export const useSystem = () => {
             nutrition_plan: profile.macros,
             injuries: profile.injuries,
             last_workout_date: profile.lastWorkoutDate,
-            session_duration: profile.sessionDuration
+            session_duration: profile.sessionDuration,
+            intensity: profile.intensity
         };
         await supabase.from('health_profiles').upsert(payload);
+        await supabase.from('profiles').update({ identity: identity }).eq('id', player.userId);
     }
-    addNotification("Biometric Data Synchronized.", 'SYSTEM');
+    addNotification(`Identity Established: ${identity}`, 'LEVEL_UP');
   };
 
-  const completeWorkoutSession = (exercisesCompleted: number, total: number, isRecovery: boolean) => {
-      if (player.isPenaltyActive) return;
-      
+  const completeWorkoutSession = (exercisesCompleted: number, total: number, results: Record<string, number> = {}, intensityModifier: boolean = false) => {
       const completionRate = exercisesCompleted / total;
       
       // RPG Sync Logic
-      let xpGain = Math.floor((isRecovery ? 100 : 300) * completionRate);
-      let strengthGain = isRecovery ? 0 : Math.floor(2 * completionRate);
-      let vitalityGain = isRecovery ? 2 : Math.floor(1 * completionRate);
+      let xpGain = Math.floor(300 * completionRate);
+      let strengthGain = Math.floor(2 * completionRate);
+      let vitalityGain = Math.floor(1 * completionRate);
       let agilityGain = Math.floor(1 * completionRate);
+
+      // Cardio Bonus
+      if (intensityModifier) {
+          xpGain = Math.floor(xpGain * 1.3);
+          vitalityGain += 1;
+      }
+
+      // System Overdrive: 5+ Day Streak doubles rewards
+      if (player.streak >= 5) {
+          xpGain *= 2;
+          strengthGain *= 2;
+          vitalityGain *= 2;
+          agilityGain *= 2;
+          addNotification("SYSTEM OVERDRIVE: REWARDS DOUBLED", 'LEVEL_UP');
+      }
 
       setPlayer(prev => {
           const newStats = { ...prev.stats };
           newStats.strength = Math.min(100, newStats.strength + strengthGain);
           newStats.willpower = Math.min(100, newStats.willpower + vitalityGain); 
-          
           newStats.focus = Math.min(100, newStats.focus + agilityGain);
 
           const newLogs = [...prev.logs];
           newLogs.unshift(createLog(`Workout Complete. +${xpGain} XP`, 'WORKOUT'));
 
+          // Update Personal Bests
+          const newPBs = { ...prev.personalBests };
+          Object.entries(results).forEach(([exercise, reps]) => {
+              if (!newPBs[exercise] || reps > newPBs[exercise]) {
+                  newPBs[exercise] = reps;
+              }
+          });
+
+          // Zero-Mana Logic: Increase Max MP based on intensity
+          const intensity = prev.healthProfile?.intensity || 'MODERATE';
+          let mpExpand = intensity === 'HIGH' ? 10 : (intensity === 'MODERATE' ? 5 : 2);
+          if (intensityModifier) mpExpand += 5; // Cardio expands mana pool further (stamina)
+          
+          const newMaxMp = prev.maxMp + mpExpand;
+
           return {
               ...prev,
               stats: newStats,
               logs: newLogs,
+              maxMp: newMaxMp,
+              mp: newMaxMp, // Refill MP on success
+              personalBests: newPBs,
               healthProfile: prev.healthProfile ? {
                   ...prev.healthProfile,
                   sessionDuration: prev.healthProfile.sessionDuration || 60
@@ -488,15 +563,10 @@ export const useSystem = () => {
       });
       
       gainXp(xpGain);
-      addNotification(`Workout Sync Complete. +${strengthGain} STR, +${vitalityGain} WIL`, 'SUCCESS');
+      addNotification(`Workout Sync Complete. MP Restored & Expanded.`, 'SUCCESS');
   };
 
   const gainXp = (amount: number) => {
-    if (player.isPenaltyActive) {
-      addNotification("XP Gain Blocked: Penalty Active", 'DANGER');
-      return; 
-    }
-
     setPlayer(prev => {
       let nextXp = Number(prev.currentXp) + amount;
       let nextTotalXp = Number(prev.totalXp) + amount;
@@ -538,8 +608,6 @@ export const useSystem = () => {
   };
 
   const completeDaily = () => {
-    if (player.isPenaltyActive) return;
-
     if (!player.dailyQuestComplete) {
       setPlayer(prev => {
         const newLogs = [...(prev.logs || [])];
@@ -575,61 +643,93 @@ export const useSystem = () => {
     addNotification("New Quest Assigned.", 'SYSTEM');
   };
 
-  const completeQuest = (questId: string) => {
-    if (player.isPenaltyActive) return;
-
+  const completeQuest = (questId: string, asMini: boolean = false) => {
     const quest = player.quests.find(q => q.id === questId);
     if (!quest || quest.isCompleted) return;
 
-    const statPoints = getStatReward(quest.rank);
+    // Mini Quest Logic: 10% XP Reward, Full Stats (for habit building), No Daily Bonus if Mini (Optional choice, but here we just reduce XP)
+    const xpReward = asMini ? Math.floor(quest.xpReward * 0.1) : quest.xpReward;
+    const statPoints = getStatReward(quest.rank); // Give full stat points for reinforcement
 
     setPlayer(prev => ({
       ...prev,
-      quests: prev.quests.map(q => q.id === questId ? { ...q, isCompleted: true } : q)
+      quests: prev.quests.map(q => q.id === questId ? { ...q, isCompleted: true, completedAsMini: asMini } : q)
     }));
 
-    gainXp(quest.xpReward);
+    gainXp(xpReward);
     updateStatValue(quest.category, statPoints);
     
     setPlayer(prev => {
       const newLogs = [...prev.logs];
-      newLogs.unshift(createLog(`Quest Complete: ${quest.title} (+${quest.xpReward} XP, +${statPoints} ${quest.category.toUpperCase()})`, 'SYSTEM'));
+      const logMsg = asMini 
+        ? `Activation Complete: ${quest.title} (Mini-Quest). +${xpReward} XP` 
+        : `Quest Complete: ${quest.title} (+${xpReward} XP, +${statPoints} ${quest.category.toUpperCase()})`;
+        
+      newLogs.unshift(createLog(logMsg, 'SYSTEM'));
       return { ...prev, logs: newLogs };
     });
+    
     // Explicitly showing XP in the notification
-    addNotification(`Quest Completed: ${quest.title} (+${quest.xpReward} XP, +${statPoints} ${quest.category.substring(0,3).toUpperCase()})`, 'SUCCESS');
+    const noteMsg = asMini 
+       ? `Safe Mode Completion: +${xpReward} XP. Streak Preserved.`
+       : `Quest Completed: ${quest.title} (+${xpReward} XP)`;
+       
+    addNotification(noteMsg, asMini ? 'WARNING' : 'SUCCESS');
   };
 
   const failQuest = (questId: string) => {
-    // 1. Mark Quest Failed (Here we just remove it to simulate failure/deletion)
-    // 2. Select Random Penalty
-    const randomTask = PENALTY_TASKS[Math.floor(Math.random() * PENALTY_TASKS.length)];
+    // 1. Remove Quest, Deduct resources (No Penalty Zone)
+    const quest = player.quests.find(q => q.id === questId);
     
     setPlayer(prev => {
-        // 3. Stat Penalty (5% reduction to Willpower)
-        const reducedWillpower = Math.floor(prev.stats.willpower * 0.95);
-        const newStats = { ...prev.stats, willpower: reducedWillpower };
-        
-        // 4. Set Penalty State
-        const now = Date.now();
-        const endTime = randomTask.type === 'TIME' ? now + (randomTask.duration || 3600000) : undefined;
+        const penaltyXP = 50;
+        const penaltyGold = 25;
+
+        const nextXp = Math.max(0, prev.currentXp - penaltyXP);
+        const nextTotalXp = Math.max(0, prev.totalXp - penaltyXP);
+        const nextGold = Math.max(0, prev.gold - penaltyGold);
 
         const newLogs = [...prev.logs];
-        newLogs.unshift(createLog(`QUEST FAILED. PENALTY ASSIGNED: ${randomTask.title}`, 'PENALTY'));
-        newLogs.unshift(createLog(`STAT DECAY: -${prev.stats.willpower - reducedWillpower} WILLPOWER`, 'PENALTY'));
+        newLogs.unshift(createLog(`Quest Failed: ${quest?.title || 'Unknown'}. -${penaltyXP} XP, -${penaltyGold} Gold.`, 'PENALTY'));
 
         return {
             ...prev,
             quests: prev.quests.filter(q => q.id !== questId), // Remove the failed quest
-            stats: newStats,
-            isPenaltyActive: true,
-            penaltyEndTime: endTime,
-            penaltyTask: randomTask,
-            logs: newLogs
+            currentXp: nextXp,
+            totalXp: nextTotalXp,
+            gold: nextGold,
+            logs: newLogs,
+            isPenaltyActive: false
         };
     });
     
-    addNotification("FAILURE DETECTED. PENALTY SYSTEM ACTIVATED.", 'DANGER');
+    addNotification("Quest Failed. XP & Gold Deducted.", 'DANGER');
+  };
+
+  const failWorkout = () => {
+    setPlayer(prev => {
+        const penaltyXP = 100;
+        const penaltyGold = 50;
+
+        const nextXp = Math.max(0, prev.currentXp - penaltyXP);
+        const nextTotalXp = Math.max(0, prev.totalXp - penaltyXP);
+        const nextGold = Math.max(0, prev.gold - penaltyGold);
+
+        const newLogs = [...prev.logs];
+        newLogs.unshift(createLog(`Workout Aborted. -${penaltyXP} XP, -${penaltyGold} Gold.`, 'PENALTY'));
+
+        return {
+            ...prev,
+            currentXp: nextXp,
+            totalXp: nextTotalXp,
+            gold: nextGold,
+            mp: 0, // Draining mana implies exhaustion
+            logs: newLogs,
+            isPenaltyActive: false
+        };
+    });
+
+    addNotification("Workout Failed. XP & Gold Deducted.", 'DANGER');
   };
 
   const resetQuest = (questId: string) => {
@@ -638,13 +738,14 @@ export const useSystem = () => {
     if (!quest || !quest.isCompleted) return;
 
     setPlayer(prev => {
-      const questXp = quest.xpReward;
-      const questGold = Math.floor(questXp * 0.5);
+      // Logic adjustment: Check if it was completed as mini to reverse correct amount
+      const xpGiven = quest.completedAsMini ? Math.floor(quest.xpReward * 0.1) : quest.xpReward;
+      const questGold = Math.floor(xpGiven * 0.5);
       const statPoints = getStatReward(quest.rank);
       
-      let nextXp = Number(prev.currentXp) - questXp;
-      let nextTotalXp = Math.max(0, Number(prev.totalXp) - questXp);
-      let nextDailyXp = Math.max(0, (Number(prev.dailyXp) || 0) - questXp);
+      let nextXp = Number(prev.currentXp) - xpGiven;
+      let nextTotalXp = Math.max(0, Number(prev.totalXp) - xpGiven);
+      let nextDailyXp = Math.max(0, (Number(prev.dailyXp) || 0) - xpGiven);
       let nextGold = Math.max(0, Number(prev.gold) - questGold);
       
       let nextLevel = Number(prev.level);
@@ -678,7 +779,7 @@ export const useSystem = () => {
 
       return {
           ...prev,
-          quests: prev.quests.map(q => q.id === questId ? { ...q, isCompleted: false } : q),
+          quests: prev.quests.map(q => q.id === questId ? { ...q, isCompleted: false, completedAsMini: false } : q),
           currentXp: nextXp,
           totalXp: nextTotalXp,
           dailyXp: nextDailyXp,
@@ -698,11 +799,6 @@ export const useSystem = () => {
   };
 
   const purchaseItem = (item: ShopItem) => {
-    if (player.isPenaltyActive) {
-      addNotification("Transaction Failed: Penalty Active", 'DANGER');
-      return;
-    }
-
     if (player.gold >= item.cost) {
       setPlayer(prev => {
         const newLogs = [...prev.logs];
@@ -726,26 +822,6 @@ export const useSystem = () => {
           shopItems: prev.shopItems.filter(i => i.id !== itemId)
       }));
       addNotification("Reward Removed.", 'SYSTEM');
-  };
-
-  const reducePenalty = (msAmount: number) => {
-    setPlayer(prev => {
-       if (!prev.penaltyEndTime || !prev.isPenaltyActive) return prev;
-       const newEndTime = prev.penaltyEndTime - msAmount;
-       const now = Date.now();
-
-       if (newEndTime <= now) {
-          const newLogs = [...prev.logs];
-          newLogs.unshift(createLog("Penalty Zone Cleared. Synchronization Restored.", 'SYSTEM'));
-          return { ...prev, isPenaltyActive: false, penaltyEndTime: undefined, penaltyTask: undefined, logs: newLogs };
-       }
-       return { ...prev, penaltyEndTime: newEndTime };
-    });
-  };
-
-  const clearPenalty = () => {
-    setPlayer(prev => ({ ...prev, isPenaltyActive: false, penaltyEndTime: undefined, penaltyTask: undefined }));
-    addNotification("Penalty Override Executed.", 'SYSTEM');
   };
 
   const removeNotification = (id: string) => {
@@ -776,6 +852,7 @@ export const useSystem = () => {
     notifications,
     registerUser,
     updateProfile,
+    updateExerciseDatabase, // New export
     updateAwakening,
     gainXp,
     completeDaily,
@@ -784,10 +861,9 @@ export const useSystem = () => {
     addQuest,
     completeQuest,
     failQuest,
+    failWorkout,
     resetQuest,
     deleteQuest,
-    clearPenalty,
-    reducePenalty,
     purchaseItem,
     addShopItem,
     removeShopItem,

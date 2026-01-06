@@ -1,14 +1,16 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Save, User, Briefcase, Award, Fingerprint, Scan, Shield } from 'lucide-react';
+import { Save, User, Briefcase, Award, Fingerprint, Scan, Shield, Terminal } from 'lucide-react';
 import { PlayerData } from '../types';
 
 interface ProfileViewProps {
   player: PlayerData;
   onUpdate: (data: { name: string; job: string; title: string }) => void;
+  onAdminRequest?: () => void; // Optional prop for admin navigation
 }
 
-const ProfileView: React.FC<ProfileViewProps> = ({ player, onUpdate }) => {
+const ProfileView: React.FC<ProfileViewProps> = ({ player, onUpdate, onAdminRequest }) => {
   const [name, setName] = useState(player.name);
   const [job, setJob] = useState(player.job);
   const [title, setTitle] = useState(player.title);
@@ -187,6 +189,19 @@ const ProfileView: React.FC<ProfileViewProps> = ({ player, onUpdate }) => {
                  </motion.button>
              )}
          </div>
+
+         {/* Admin Access Footer */}
+         {onAdminRequest && (
+            <div className="mt-8 pt-6 border-t border-gray-900 text-center">
+               <button 
+                 onClick={onAdminRequest}
+                 className="flex items-center justify-center gap-2 mx-auto text-[10px] text-gray-700 hover:text-red-800 transition-colors font-mono tracking-widest group"
+               >
+                 <Terminal size={12} className="group-hover:text-red-500" />
+                 SYSTEM OVERRIDE
+               </button>
+            </div>
+         )}
       </motion.div>
 
     </div>
