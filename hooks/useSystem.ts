@@ -13,6 +13,18 @@ const INITIAL_TIMESTAMPS: StatTimestamps = {
   willpower: Date.now() 
 };
 
+// Default videos for regions (Populated with placeholders)
+const INITIAL_FOCUS_VIDEOS: Record<string, string> = {
+    'CHEST': 'https://cdn.pixabay.com/video/2019/04/14/22908-330568669_large.mp4',
+    'BACK': 'https://cdn.pixabay.com/video/2016/09/21/5302-183786483_large.mp4',
+    'SHOULDERS': 'https://cdn.pixabay.com/video/2023/07/21/172522-847525339_large.mp4', 
+    'LEGS': 'https://cdn.pixabay.com/video/2020/05/25/40157-424930064_large.mp4',
+    'ARMS': 'https://cdn.pixabay.com/video/2016/11/29/6532-193798994_large.mp4',
+    'CORE': 'https://cdn.pixabay.com/video/2021/02/24/66225-516629929_large.mp4', // Added generic core background
+    'CARDIO': 'https://cdn.pixabay.com/video/2020/06/29/43339-434743235_large.mp4', // Added generic running background
+    'REST': ''
+};
+
 // Initial Mock DB for exercises so the app isn't empty on first load
 const INITIAL_EXERCISE_DB: AdminExercise[] = [
     { id: '1', name: 'Barbell Bench Press', muscleGroup: 'Chest', difficulty: 'Intermediate', imageUrl: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=500&q=80', videoUrl: '', caloriesBurn: 10 },
@@ -79,7 +91,8 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   shopItems: DEFAULT_SHOP_ITEMS,
   awakening: { vision: [], antiVision: [] },
   personalBests: {},
-  exerciseDatabase: INITIAL_EXERCISE_DB
+  exerciseDatabase: INITIAL_EXERCISE_DB,
+  focusVideos: INITIAL_FOCUS_VIDEOS
 };
 
 const STORAGE_KEY = 'bio_sync_os_data_v1';
@@ -156,6 +169,7 @@ export const useSystem = () => {
       awakening: local.awakening,
       personal_bests: local.personalBests,
       exercise_database: local.exerciseDatabase, // Persist DB
+      focus_videos: local.focusVideos, // Persist Focus Videos
       updated_at: new Date().toISOString()
   });
 
@@ -320,6 +334,8 @@ export const useSystem = () => {
             personalBests: incoming.personal_bests ?? incoming.personalBests ?? {},
             identity: incoming.identity ?? incoming.identity ?? INITIAL_PLAYER_DATA.identity, 
             exerciseDatabase: incoming.exercise_database ?? incoming.exerciseDatabase ?? INITIAL_EXERCISE_DB,
+            // Migration handling handled in checkSession for existing users, this is for direct loading/register
+            focusVideos: { ...INITIAL_FOCUS_VIDEOS, ...incoming.focusVideos }, 
 
             isConfigured: true,
             stats: incoming.stats || INITIAL_STATS,
@@ -360,6 +376,19 @@ export const useSystem = () => {
             if (stored) {
                 localData = JSON.parse(stored);
                 if (localData) {
+                    // MIGRATION: Ensure Focus Videos are populated if missing/empty
+                    // This fixes the issue where old user data with empty video strings overrides new defaults
+                    const currentVideos = localData.focusVideos || {};
+                    const mergedVideos = { ...INITIAL_FOCUS_VIDEOS };
+                    
+                    Object.keys(currentVideos).forEach((k) => {
+                        // Only override default if user has a non-empty value (e.g. they set a custom one)
+                        if (currentVideos[k] && currentVideos[k].trim() !== '') {
+                            mergedVideos[k] = currentVideos[k];
+                        }
+                    });
+                    localData.focusVideos = mergedVideos;
+
                     setPlayer(localData);
                 }
             }
@@ -378,6 +407,28 @@ export const useSystem = () => {
                     .eq('id', session.user.id)
                     .single();
                 
+                // --- NEW: Fetch Master Exercise DB to ensure fresh data (video links) ---
+                const { data: masterExercises } = await supabase
+                    .from('exercises')
+                    .select('*');
+                
+                let exerciseDB = INITIAL_EXERCISE_DB;
+                
+                if (masterExercises && masterExercises.length > 0) {
+                     exerciseDB = masterExercises.map((e: any) => ({
+                        id: e.id,
+                        name: e.name,
+                        muscleGroup: e.muscle_group,
+                        subTarget: e.sub_target,
+                        difficulty: e.difficulty,
+                        equipmentNeeded: e.equipment_needed,
+                        environment: e.environment,
+                        imageUrl: e.image_url,
+                        videoUrl: e.video_url,
+                        caloriesBurn: e.calories_burn || 5
+                    }));
+                }
+
                 if (profile && !error) {
                     // Fetch Health Data
                     const { data: healthData } = await supabase.from('health_profiles').select('*').eq('id', session.user.id).single();
@@ -417,7 +468,8 @@ export const useSystem = () => {
                     // Register/Merge
                     const mergedData = {
                         ...profile,
-                        healthProfile
+                        healthProfile,
+                        exerciseDatabase: exerciseDB // Overwrite with fresh DB from Supabase
                     };
                     registerUser(mergedData, session.user.id);
                 }
@@ -453,7 +505,11 @@ export const useSystem = () => {
 
   const updateExerciseDatabase = (exercises: AdminExercise[]) => {
       setPlayer(prev => ({ ...prev, exerciseDatabase: exercises }));
-      // Trigger a save immediately? Rely on useEffect persistence for now.
+  };
+
+  const updateFocusVideos = (videos: Record<string, string>) => {
+      setPlayer(prev => ({ ...prev, focusVideos: videos }));
+      addNotification("Visual Database Updated.", 'SYSTEM');
   };
 
   const updateAwakening = (type: 'vision' | 'antiVision', items: string[]) => {
@@ -852,7 +908,8 @@ export const useSystem = () => {
     notifications,
     registerUser,
     updateProfile,
-    updateExerciseDatabase, // New export
+    updateExerciseDatabase,
+    updateFocusVideos,
     updateAwakening,
     gainXp,
     completeDaily,

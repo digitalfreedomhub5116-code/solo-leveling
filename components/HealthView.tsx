@@ -7,7 +7,7 @@ import { HealthProfile, WorkoutDay, Exercise, PlayerData } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
 import WorkoutOverview from './WorkoutOverview';
-import { generateDailyWorkout } from '../utils/workoutGenerator';
+import { generateSystemProtocol, calculateTimeEstimate } from '../utils/workoutGenerator';
 
 interface HealthViewProps {
   healthProfile?: HealthProfile;
@@ -98,6 +98,7 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
   });
 
   const [realtimeBMI, setRealtimeBMI] = useState(0);
+  const [timeEstimate, setTimeEstimate] = useState<string>("");
 
   // Real-time BMI Calc
   useEffect(() => {
@@ -108,6 +109,12 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
     }
   }, [formData.height, formData.weight]);
 
+  // Real-time Time Estimate
+  useEffect(() => {
+      const estimate = calculateTimeEstimate(formData);
+      setTimeEstimate(estimate);
+  }, [formData.weight, formData.targetWeight, formData.intensity, formData.goal]);
+
   const steps = [
     { id: 'INTRO', title: 'SYSTEM INITIALIZATION', icon: <Activity /> },
     { id: 'METRICS', title: 'BIOMETRIC CALIBRATION', icon: <Ruler /> },
@@ -117,84 +124,30 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
     { id: 'IDENTITY', title: 'AFFIRM IDENTITY', icon: <Fingerprint /> },
   ];
 
-  // --- 4-WEEK SPLIT ARCHITECT ---
-  const generatePlan = (): WorkoutDay[] => {
-      // Dynamic Day Generation: Day 1 is TODAY
-      const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-      const todayIndex = new Date().getDay(); // 0 (Sun) - 6 (Sat)
-      
-      const plan: WorkoutDay[] = [];
-      const TOTAL_DAYS = 28; // 4 Weeks
-      
-      // Strict Schedule Map: Day Index (0-6) -> Focus
-      const scheduleMap: Record<number, string> = {
-          1: 'CHEST',      // Monday
-          2: 'BACK',       // Tuesday
-          3: 'SHOULDERS',  // Wednesday
-          4: 'ARMS',       // Thursday
-          5: 'CORE',       // Friday
-          6: 'LEGS',       // Saturday
-          0: 'REST'        // Sunday
-      };
-
-      for (let i = 0; i < TOTAL_DAYS; i++) {
-          // Calculate the specific day of week index for this slot
-          const targetDayIndex = (todayIndex + i) % 7;
-          const dayLabel = dayNames[targetDayIndex];
-          const focus = scheduleMap[targetDayIndex];
-
-          let exercises: Exercise[] = [];
-          
-          if (focus === 'REST') {
-              exercises = [{name: 'Active Recovery', sets: 1, reps: '30 min', duration: 30, completed: false, type: 'STRETCH'}];
-              plan.push({ 
-                  day: `DAY ${i+1} (${dayLabel})`, 
-                  focus, 
-                  exercises, 
-                  isRecovery: true, 
-                  totalDuration: 30 
-              });
-          } else {
-              // Use generator for specific body part logic
-              // IMPORTANT: Using formData as HealthProfile to generate. 
-              // We generate exercises *now* so they are baked into the plan.
-              exercises = generateDailyWorkout(
-                  formData as HealthProfile, 
-                  focus, 
-                  playerData.exerciseDatabase
-              );
-              
-              // Use the user's selected duration
-              plan.push({ 
-                  day: `DAY ${i+1} (${dayLabel})`, 
-                  focus, 
-                  exercises, 
-                  isRecovery: false, 
-                  totalDuration: formData.sessionDuration || 60 
-              });
-          }
-      }
-      return plan;
-  };
-
   const handleFinishOnboarding = () => {
       const h = (formData.height || 175) / 100;
       const bmi = (formData.weight || 70) / (h * h);
       
-      // Generate the full 4-week plan
-      const plan = generatePlan();
-      
-      const profile: HealthProfile = {
+      // Construct minimal profile for generation
+      const tempProfile: HealthProfile = {
           ...formData as HealthProfile,
           startingWeight: formData.weight,
           bmi,
-          bmr: 2000, // Simplified BMR
+          bmr: 2000, 
           category: bmi < 25 ? 'OPTIMAL' : 'OVERWEIGHT',
-          workoutPlan: plan, // Save the generated plan
+          workoutPlan: [], // Will be filled
           macros: { protein: 180, carbs: 200, fats: 60, calories: 2500 }
       };
+
+      // THE BRAIN: Generate the full protocol
+      const generatedPlan = generateSystemProtocol(tempProfile);
       
-      onSaveProfile(profile, selectedIdentity || "Shadow Hunter");
+      const finalProfile: HealthProfile = {
+          ...tempProfile,
+          workoutPlan: generatedPlan
+      };
+      
+      onSaveProfile(finalProfile, selectedIdentity || "Shadow Hunter");
       setIsOnboarding(false);
   };
 
@@ -349,6 +302,11 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
                                   <div className="text-center mb-6">
                                       <h3 className="text-system-neon font-mono text-4xl font-black">{formData.targetWeight} KG</h3>
                                       <p className="text-xs text-gray-500 font-mono mt-2">OBJECTIVE</p>
+                                      {timeEstimate !== "UNKNOWN" && (
+                                          <div className="inline-block mt-2 px-3 py-1 bg-system-success/10 border border-system-success/20 rounded-full text-[10px] text-system-success font-mono">
+                                              ESTIMATED TIME: {timeEstimate}
+                                          </div>
+                                      )}
                                   </div>
                                   <NeonSlider 
                                       label="TARGET WEIGHT" 
@@ -527,6 +485,7 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
             {showOverview && (
                 <WorkoutOverview 
                     plan={todaysPlan}
+                    focusVideos={playerData.focusVideos || {}}
                     onStart={(modifiedPlan, isCardio) => {
                         setActiveWorkoutData({ plan: modifiedPlan, isCardio });
                         setIsWorkoutActive(true);
@@ -709,7 +668,9 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
                                                         <div key={i} className="flex justify-between items-center border-b border-gray-800/50 pb-2 last:border-0 last:pb-0">
                                                             <div className="flex flex-col">
                                                                 <span className="text-xs font-bold text-gray-300">{ex.name}</span>
-                                                                <span className="text-[10px] text-gray-600 font-mono uppercase">{ex.type}</span>
+                                                                {ex.notes && (
+                                                                    <span className="text-[9px] text-system-accent font-mono uppercase">{ex.notes}</span>
+                                                                )}
                                                             </div>
                                                             <div className="text-right font-mono text-xs">
                                                                 <div className="text-system-neon">{ex.sets} SETS</div>

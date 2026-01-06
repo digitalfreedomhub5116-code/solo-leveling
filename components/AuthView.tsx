@@ -471,12 +471,12 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
             </div>
         </div>
         
-        <div className="mt-6 text-center text-[10px] text-gray-800 font-mono flex flex-col items-center gap-2">
+        <div className="mt-6 text-center text-[10px] text-gray-600 font-mono flex flex-col items-center gap-2">
             <span>SECURE CONNECTION v2.0.1 // SHADOW PROTOCOL ENABLED</span>
             {onAdminAccess && (
                 <button 
                     onClick={onAdminAccess}
-                    className="text-[9px] text-gray-900 hover:text-system-danger transition-colors opacity-50 hover:opacity-100 tracking-widest uppercase"
+                    className="text-[9px] text-gray-500 hover:text-system-danger transition-colors tracking-widest uppercase border border-transparent hover:border-system-danger/30 px-2 py-1 rounded"
                 >
                     [ ADMIN ACCESS ]
                 </button>

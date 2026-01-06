@@ -89,8 +89,9 @@ export interface AdminExercise {
   id: string;
   name: string;
   muscleGroup: string; // 'Chest', 'Back', 'Legs', 'Shoulders', 'Triceps', 'Biceps', 'Abs', 'Cardio', 'Arms', 'Core'
+  subTarget?: string; // 'Upper', 'Lower', 'Middle', 'Lats', 'Thickness', 'Front', 'Side', 'Rear'
   difficulty: string; // 'Beginner', 'Intermediate', 'Advanced'
-  equipmentNeeded?: string; // 'Bodyweight', 'Dumbbell', 'Barbell', 'Machine'
+  equipmentNeeded?: string; // 'Bodyweight', 'Dumbbell', 'Barbell', 'Machine', 'Cable'
   environment?: string; // 'Home', 'Dumbbells', 'Gym'
   imageUrl: string;
   videoUrl: string;
@@ -202,4 +203,5 @@ export interface PlayerData {
   
   // Global Database (Mock Backend)
   exerciseDatabase: AdminExercise[];
+  focusVideos: Record<string, string>; // Configuration for region videos
 }

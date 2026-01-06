@@ -1,5 +1,5 @@
 
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Lock, Swords, Skull, Crown, Flag, Zap, X, Play } from 'lucide-react';
@@ -22,6 +22,17 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
 }) => {
   const [selectedPreview, setSelectedPreview] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Responsive Amplitude State
+  const [amplitude, setAmplitude] = useState(typeof window !== 'undefined' && window.innerWidth < 768 ? 40 : 80);
+
+  useEffect(() => {
+    const handleResize = () => {
+        setAmplitude(window.innerWidth < 768 ? 40 : 80);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // 1. Calculate Journey Length
   const weightDiff = Math.abs(currentWeight - targetWeight);
@@ -32,8 +43,6 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
   // 2. Generate Path Points
   const points = useMemo(() => {
     const pts = [];
-    // Reduced amplitude for better mobile fit
-    const amplitude = 70; 
     const verticalGap = 80; // Distance between nodes
     const frequency = 0.5;
 
@@ -45,7 +54,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
       pts.push({ id: i, x: xOffset, y, isBoss: (i + 1) % 7 === 0, isFinal: i === totalDays });
     }
     return pts;
-  }, [totalDays]);
+  }, [totalDays, amplitude]);
 
   // 3. Generate SVG Path String
   const svgPath = useMemo(() => {
@@ -65,7 +74,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
     return path;
   }, [points]);
 
-  const mapHeight = points[points.length - 1].y + 200; // Increased padding at bottom for tooltip
+  const mapHeight = points[points.length - 1].y + 250; // Increased padding at bottom for tooltip space
 
   return (
     <>
@@ -74,7 +83,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
             {/* Scrollable Container */}
             <div 
                 ref={containerRef}
-                className="absolute inset-0 overflow-y-auto scrollbar-hide flex justify-center"
+                className="absolute inset-0 overflow-y-auto scrollbar-hide flex justify-center overflow-x-hidden"
                 style={{ scrollBehavior: 'smooth' }}
             >
                  {/* Map Content Wrapper centered horizontally */}
@@ -120,7 +129,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                         const isLocked = index > completedDays;
                         
                         // Map generic day index to the 7-day workout plan cycle
-                        const planDay = workoutPlan[index % 7];
+                        const planDay = workoutPlan[index % 7] || { day: `DAY ${index}`, focus: 'UNKNOWN', exercises: [] };
 
                         // Critical Z-Index Fix: Ensure current day is always on top
                         const zIndexClass = isCurrent ? 'z-50' : point.isBoss ? 'z-40' : 'z-10';
@@ -161,9 +170,9 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
 
                                     {/* Label for Current/Boss */}
                                     {(isCurrent || point.isBoss) && (
-                                        <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 w-max max-w-[200px] pointer-events-none">
+                                        <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 w-[180px] pointer-events-none flex justify-center">
                                             {/* Enhanced Tooltip - pointer-events-auto enabled for button interaction */}
-                                            <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg p-3 shadow-[0_0_30px_rgba(0,0,0,0.9)] flex flex-col items-center gap-1.5 relative pointer-events-auto z-50">
+                                            <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg p-3 shadow-[0_0_30px_rgba(0,0,0,0.9)] flex flex-col items-center gap-1.5 relative pointer-events-auto z-50 w-full">
                                                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#0a0a0a] border-t border-l border-gray-800 rotate-45" />
                                                  
                                                  {point.isFinal ? (
@@ -177,7 +186,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                                             {isCurrent && <span className="w-1.5 h-1.5 bg-system-neon rounded-full animate-pulse shadow-[0_0_5px_#00d2ff]" />}
                                                         </div>
                                                         
-                                                        <div className="text-sm font-black text-white italic tracking-tighter uppercase text-center px-1">
+                                                        <div className="text-sm font-black text-white italic tracking-tighter uppercase text-center px-1 leading-tight">
                                                             {planDay.focus}
                                                         </div>
                                                         
@@ -196,7 +205,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                                                 className="mt-2 w-full bg-system-neon text-black text-[10px] font-bold py-2 px-4 rounded flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,210,255,0.4)] hover:bg-white transition-colors"
                                                             >
                                                                 <Play size={10} fill="black" /> 
-                                                                <span className="tracking-wider">START WORKOUT</span>
+                                                                <span className="tracking-wider">START</span>
                                                             </motion.button>
                                                         )}
                                                      </>
@@ -222,7 +231,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
             
             {/* Restart Journey Button (Only visible at end) */}
             {completedDays >= totalDays && (
-                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30">
+                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 w-full flex justify-center">
                      <button 
                         onClick={() => onStartDay(0)} 
                         className="bg-system-neon text-black font-bold px-6 py-3 rounded-full shadow-[0_0_20px_#00d2ff] hover:scale-105 transition-transform font-mono flex items-center gap-2"
@@ -251,7 +260,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="relative z-10 w-full max-w-[320px] bg-[#0a0a0a] border border-gray-700 rounded-xl p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[85vh]"
+                        className="relative z-10 w-full max-w-[320px] bg-[#0a0a0a] border border-gray-700 rounded-xl p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[80vh]"
                     >
                          {/* Decorative Header Line */}
                          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-system-neon to-transparent opacity-50" />
@@ -270,7 +279,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                         
                         <div className="overflow-y-auto scrollbar-hide">
                             <div className="text-white text-2xl font-black italic tracking-tighter mb-4 uppercase text-center">
-                                {workoutPlan[selectedPreview % 7].focus}
+                                {workoutPlan[selectedPreview % 7]?.focus || "UNKNOWN"}
                             </div>
                             
                             <div className="space-y-3 mb-6 bg-gray-900/30 p-4 rounded-lg border border-gray-800/50">
@@ -293,15 +302,15 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                 <div className="mt-4 pt-3 border-t border-gray-800/50">
                                      <div className="text-[10px] text-gray-500 mb-2 uppercase tracking-wider">PROTOCOL:</div>
                                      <div className="space-y-1">
-                                         {workoutPlan[selectedPreview % 7].exercises.slice(0, 3).map((ex, i) => (
+                                         {workoutPlan[selectedPreview % 7]?.exercises.slice(0, 3).map((ex, i) => (
                                              <div key={i} className="text-xs text-gray-300 flex justify-between">
-                                                 <span>{ex.name}</span>
-                                                 <span className="text-gray-600">{ex.sets}x{ex.reps}</span>
+                                                 <span className="truncate pr-2">{ex.name}</span>
+                                                 <span className="text-gray-600 whitespace-nowrap">{ex.sets}x{ex.reps}</span>
                                              </div>
                                          ))}
-                                         {workoutPlan[selectedPreview % 7].exercises.length > 3 && (
+                                         {(workoutPlan[selectedPreview % 7]?.exercises.length || 0) > 3 && (
                                              <div className="text-[10px] text-gray-600 italic mt-1 text-center">
-                                                 + {workoutPlan[selectedPreview % 7].exercises.length - 3} MORE
+                                                 + {(workoutPlan[selectedPreview % 7]?.exercises.length || 0) - 3} MORE
                                              </div>
                                          )}
                                      </div>
