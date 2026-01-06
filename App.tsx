@@ -318,7 +318,8 @@ const App: React.FC = () => {
     removeShopItem, 
     removeNotification,
     saveHealthProfile,
-    completeWorkoutSession
+    completeWorkoutSession,
+    logout // Destructured logout
   } = useSystem();
 
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
@@ -436,7 +437,8 @@ const App: React.FC = () => {
                   <ProfileView 
                       player={player} 
                       onUpdate={updateProfile} 
-                      onAdminRequest={() => setAdminMode('LOGIN')} // Pass the admin trigger here
+                      onAdminRequest={() => setAdminMode('LOGIN')} 
+                      onLogout={logout} // Passed logout prop
                   />
                   <AwakeningView data={player.awakening} updateData={updateAwakening} />
               </div>

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, Database, Save, X, Search, RefreshCw, Video, Image as ImageIcon, CheckCircle, AlertCircle, Link, Map, AlertTriangle, Code } from 'lucide-react';
+import { LogOut, Database, Save, X, Search, RefreshCw, Video, Image as ImageIcon, CheckCircle, AlertCircle, Link, Map, AlertTriangle, Code, Layers } from 'lucide-react';
 import { AdminExercise } from '../types';
 import { useSystem } from '../hooks/useSystem';
 import { supabase } from '../lib/supabase';
@@ -152,6 +152,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         return aHasVideo ? 1 : -1; 
     });
 
+  // Group exercises by muscle group
+  const groupedExercises = filteredExercises.reduce((acc, ex) => {
+      const group = ex.muscleGroup || 'Uncategorized';
+      if (!acc[group]) acc[group] = [];
+      acc[group].push(ex);
+      return acc;
+  }, {} as Record<string, AdminExercise[]>);
+
+  const sortedGroups = Object.keys(groupedExercises).sort();
+
   const missingVideoCount = exercises.filter(e => !e.videoUrl).length;
   const progressPercent = exercises.length > 0 ? Math.round(((exercises.length - missingVideoCount) / exercises.length) * 100) : 0;
 
@@ -236,34 +246,45 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                    </div>
                </div>
            ) : (
-               <>
-                   <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                       <AnimatePresence>
-                           {filteredExercises.map((ex) => {
-                               const hasVideo = !!ex.videoUrl;
-                               const hasImage = !!ex.imageUrl;
-                               return (
-                                   <motion.div key={ex.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} onClick={() => openEditModal(ex)} className={`relative p-4 rounded-lg border cursor-pointer group transition-all ${hasVideo ? 'bg-gray-900/20 border-gray-800 hover:border-gray-600' : 'bg-red-950/10 border-red-900/30 hover:border-red-500/50'}`}>
-                                       <div className="absolute top-4 right-4">
-                                           {hasVideo ? <CheckCircle size={16} className="text-system-success/50" /> : <div className="relative"><div className="w-3 h-3 bg-red-500 rounded-full animate-ping absolute opacity-75" /><div className="w-3 h-3 bg-red-600 rounded-full relative z-10 border border-black" /></div>}
-                                       </div>
-                                       <div className="pr-6">
-                                           <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{ex.muscleGroup} {ex.environment && <span className="text-[9px] text-system-neon ml-1">/ {ex.environment}</span>}</div>
-                                           <h3 className="text-sm font-bold text-white leading-tight group-hover:text-system-neon transition-colors">{ex.name}</h3>
-                                           <div className="mt-3 flex gap-2">
-                                               <span className={`text-[9px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${hasImage ? 'text-gray-400 border-gray-700' : 'text-red-500 border-red-900/50'}`}><ImageIcon size={10} /> {hasImage ? 'IMG' : 'NO IMG'}</span>
-                                               <span className={`text-[9px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${hasVideo ? 'text-system-neon border-system-neon/30' : 'text-red-500 border-red-900/50'}`}><Video size={10} /> {hasVideo ? 'LINKED' : 'MISSING'}</span>
-                                           </div>
-                                       </div>
-                                   </motion.div>
-                               );
-                           })}
-                       </AnimatePresence>
-                   </div>
+               <div className="max-w-7xl mx-auto space-y-8">
+                   {sortedGroups.map((group) => (
+                       <div key={group}>
+                           <div className="flex items-center gap-2 mb-4 border-b border-gray-800 pb-2">
+                               <Layers size={16} className="text-system-neon" />
+                               <h2 className="text-lg font-bold text-white tracking-widest uppercase">{group}</h2>
+                               <span className="bg-gray-800 text-gray-400 text-[10px] px-2 py-0.5 rounded-full font-mono">{groupedExercises[group].length}</span>
+                           </div>
+                           
+                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                               <AnimatePresence>
+                                   {groupedExercises[group].map((ex) => {
+                                       const hasVideo = !!ex.videoUrl;
+                                       const hasImage = !!ex.imageUrl;
+                                       return (
+                                           <motion.div key={ex.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} onClick={() => openEditModal(ex)} className={`relative p-4 rounded-lg border cursor-pointer group transition-all ${hasVideo ? 'bg-gray-900/20 border-gray-800 hover:border-gray-600' : 'bg-red-950/10 border-red-900/30 hover:border-red-500/50'}`}>
+                                               <div className="absolute top-4 right-4">
+                                                   {hasVideo ? <CheckCircle size={16} className="text-system-success/50" /> : <div className="relative"><div className="w-3 h-3 bg-red-500 rounded-full animate-ping absolute opacity-75" /><div className="w-3 h-3 bg-red-600 rounded-full relative z-10 border border-black" /></div>}
+                                               </div>
+                                               <div className="pr-6">
+                                                   <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{ex.muscleGroup} {ex.environment && <span className="text-[9px] text-system-neon ml-1">/ {ex.environment}</span>}</div>
+                                                   <h3 className="text-sm font-bold text-white leading-tight group-hover:text-system-neon transition-colors">{ex.name}</h3>
+                                                   <div className="mt-3 flex gap-2">
+                                                       <span className={`text-[9px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${hasImage ? 'text-gray-400 border-gray-700' : 'text-red-500 border-red-900/50'}`}><ImageIcon size={10} /> {hasImage ? 'IMG' : 'NO IMG'}</span>
+                                                       <span className={`text-[9px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${hasVideo ? 'text-system-neon border-system-neon/30' : 'text-red-500 border-red-900/50'}`}><Video size={10} /> {hasVideo ? 'LINKED' : 'MISSING'}</span>
+                                                   </div>
+                                               </div>
+                                           </motion.div>
+                                       );
+                                   })}
+                               </AnimatePresence>
+                           </div>
+                       </div>
+                   ))}
+
                    {filteredExercises.length === 0 && !loading && (
                        <div className="flex flex-col items-center justify-center h-64 text-gray-600"><Database size={48} className="mb-4 opacity-50" /><p>NO ASSETS FOUND</p></div>
                    )}
-               </>
+               </div>
            )}
        </main>
 

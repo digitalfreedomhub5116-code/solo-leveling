@@ -353,6 +353,18 @@ export const useSystem = () => {
       setPlayer(newProfileData);
   }, [processSystemLogic]);
 
+  // LOGOUT ACTION
+  const logout = useCallback(async () => {
+      try {
+          await supabase.auth.signOut();
+          localStorage.removeItem(STORAGE_KEY);
+          setPlayer(INITIAL_PLAYER_DATA);
+          addNotification("System Disconnected.", 'SYSTEM');
+      } catch (e) {
+          console.error("Logout error", e);
+      }
+  }, [addNotification]);
+
   // AUTOMATIC MIDNIGHT CHECK
   useEffect(() => {
     const checkMidnight = () => {
@@ -926,6 +938,7 @@ export const useSystem = () => {
     removeShopItem,
     removeNotification,
     saveHealthProfile,
-    completeWorkoutSession
+    completeWorkoutSession,
+    logout // Exported logout function
   };
 };
