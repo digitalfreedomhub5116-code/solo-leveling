@@ -615,19 +615,31 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
 
                         const isLocked = index > completedDays;
                         const isToday = index === completedDays;
+                        const isCompleted = index < completedDays;
                         
                         return (
-                            <div key={index} className={`bg-system-card border rounded-lg overflow-hidden transition-all ${isToday ? 'border-system-neon/50' : 'border-system-border'}`}>
+                            <div key={index} className={`bg-system-card border rounded-lg overflow-hidden transition-all ${isToday ? 'border-system-neon/50 shadow-[0_0_10px_rgba(0,210,255,0.1)]' : 'border-system-border'} ${isCompleted ? 'opacity-75 hover:opacity-100' : ''}`}>
                                 <div className="p-4 flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-8 h-8 rounded flex items-center justify-center font-mono font-bold text-sm ${isToday ? 'bg-system-neon text-black' : isLocked ? 'bg-gray-900 text-gray-600' : 'bg-system-success text-black'}`}>
-                                            {index + 1}
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono font-bold text-sm transition-colors ${
+                                            isToday ? 'bg-system-neon text-black shadow-[0_0_10px_#00d2ff]' : 
+                                            isCompleted ? 'bg-system-success/20 text-system-success border border-system-success/30' : 
+                                            'bg-gray-900 text-gray-600 border border-gray-800'
+                                        }`}>
+                                            {isCompleted ? <CheckCircle size={18} /> : index + 1}
                                         </div>
                                         <div>
-                                            <h4 className={`font-mono text-sm font-bold uppercase tracking-wider ${isLocked ? 'text-gray-500' : 'text-white'}`}>
-                                                {dayPlan.focus}
-                                            </h4>
-                                            <span className="text-[10px] text-gray-600 font-mono uppercase">{dayPlan.day}</span>
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <h4 className={`font-mono text-sm font-bold uppercase tracking-wider ${isLocked ? 'text-gray-500' : 'text-white'}`}>
+                                                    {dayPlan.focus}
+                                                </h4>
+                                                {isToday && <span className="text-[8px] bg-system-neon/20 text-system-neon px-1.5 py-0.5 rounded border border-system-neon/30 animate-pulse">CURRENT</span>}
+                                                {isCompleted && <span className="text-[8px] bg-system-success/10 text-system-success px-1.5 py-0.5 rounded border border-system-success/20">COMPLETE</span>}
+                                                {isLocked && <span className="text-[8px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded border border-gray-700">LOCKED</span>}
+                                            </div>
+                                            <span className="text-[10px] text-gray-500 font-mono uppercase flex items-center gap-1">
+                                                {dayPlan.day} {dayPlan.isRecovery && <span className="text-system-success">• RECOVERY</span>}
+                                            </span>
                                         </div>
                                     </div>
                                     
