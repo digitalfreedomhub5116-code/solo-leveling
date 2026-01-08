@@ -13,33 +13,35 @@ const INITIAL_TIMESTAMPS: StatTimestamps = {
   willpower: Date.now() 
 };
 
-// Default videos for regions
+// Reliable dummy video for testing (Google Sample Video)
+export const DUMMY_VIDEO = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4';
+const BROKEN_VIDEO_PART = 'github.com/digitalfreedomhub5116-code';
+
 const INITIAL_FOCUS_VIDEOS: Record<string, string> = {
-    'CHEST': 'https://cdn.pixabay.com/video/2019/04/14/22908-330568669_large.mp4',
-    'BACK': 'https://cdn.pixabay.com/video/2016/09/21/5302-183786483_large.mp4',
-    // Updated video link for Shoulders as requested
-    'SHOULDERS': 'https://github.com/digitalfreedomhub5116-code/solo-leveling/raw/refs/heads/main/A_highquality_2d_202601061949_9g6lc.mp4', 
-    'LEGS': 'https://cdn.pixabay.com/video/2020/05/25/40157-424930064_large.mp4',
-    'ARMS': 'https://cdn.pixabay.com/video/2016/11/29/6532-193798994_large.mp4',
-    'CORE': 'https://cdn.pixabay.com/video/2021/02/24/66225-516629929_large.mp4', 
-    'CARDIO': 'https://cdn.pixabay.com/video/2020/06/29/43339-434743235_large.mp4', 
-    'REST': ''
+    'CHEST': DUMMY_VIDEO,
+    'BACK': DUMMY_VIDEO,
+    'SHOULDERS': DUMMY_VIDEO,
+    'LEGS': DUMMY_VIDEO,
+    'ARMS': DUMMY_VIDEO,
+    'CORE': DUMMY_VIDEO,
+    'CARDIO': DUMMY_VIDEO,
+    'REST': DUMMY_VIDEO
 };
 
-// Initial Mock DB for exercises so the app isn't empty on first load
+// Initial Mock DB for exercises so the app isn't empty on first load - Populated with Dummy Video
 const INITIAL_EXERCISE_DB: AdminExercise[] = [
-    { id: '1', name: 'Barbell Bench Press', muscleGroup: 'Chest', difficulty: 'Intermediate', imageUrl: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=500&q=80', videoUrl: '', caloriesBurn: 10 },
-    { id: '2', name: 'Incline Dumbbell Press', muscleGroup: 'Chest', difficulty: 'Intermediate', imageUrl: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=500&q=80', videoUrl: '', caloriesBurn: 8 },
-    { id: '3', name: 'Cable Flys', muscleGroup: 'Chest', difficulty: 'Beginner', imageUrl: '', videoUrl: '', caloriesBurn: 6 },
-    { id: '4', name: 'Push-Ups', muscleGroup: 'Chest', difficulty: 'Beginner', imageUrl: 'https://images.unsplash.com/photo-1598971639058-211a74a96aea?auto=format&fit=crop&w=500&q=80', videoUrl: '', caloriesBurn: 5 },
-    { id: '5', name: 'Tricep Rope Pushdown', muscleGroup: 'Triceps', difficulty: 'Beginner', imageUrl: '', videoUrl: '', caloriesBurn: 5 },
-    { id: '6', name: 'Skullcrushers', muscleGroup: 'Triceps', difficulty: 'Intermediate', imageUrl: '', videoUrl: '', caloriesBurn: 7 },
-    { id: '7', name: 'Deadlift', muscleGroup: 'Back', difficulty: 'Advanced', imageUrl: '', videoUrl: '', caloriesBurn: 15 },
-    { id: '8', name: 'Pull-Ups', muscleGroup: 'Back', difficulty: 'Intermediate', imageUrl: '', videoUrl: '', caloriesBurn: 10 },
-    { id: '9', name: 'Dumbbell Rows', muscleGroup: 'Back', difficulty: 'Beginner', imageUrl: '', videoUrl: '', caloriesBurn: 8 },
-    { id: '10', name: 'Face Pulls', muscleGroup: 'Shoulders', difficulty: 'Beginner', imageUrl: '', videoUrl: '', caloriesBurn: 6 },
-    { id: '11', name: 'Barbell Squat', muscleGroup: 'Legs', difficulty: 'Advanced', imageUrl: '', videoUrl: '', caloriesBurn: 12 },
-    { id: '12', name: 'Leg Extensions', muscleGroup: 'Legs', difficulty: 'Beginner', imageUrl: '', videoUrl: '', caloriesBurn: 6 },
+    { id: '1', name: 'Barbell Bench Press', muscleGroup: 'Chest', difficulty: 'Intermediate', imageUrl: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=500&q=80', videoUrl: DUMMY_VIDEO, caloriesBurn: 10 },
+    { id: '2', name: 'Incline Dumbbell Press', muscleGroup: 'Chest', difficulty: 'Intermediate', imageUrl: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=500&q=80', videoUrl: DUMMY_VIDEO, caloriesBurn: 8 },
+    { id: '3', name: 'Cable Flys', muscleGroup: 'Chest', difficulty: 'Beginner', imageUrl: '', videoUrl: DUMMY_VIDEO, caloriesBurn: 6 },
+    { id: '4', name: 'Push-Ups', muscleGroup: 'Chest', difficulty: 'Beginner', imageUrl: 'https://images.unsplash.com/photo-1598971639058-211a74a96aea?auto=format&fit=crop&w=500&q=80', videoUrl: DUMMY_VIDEO, caloriesBurn: 5 },
+    { id: '5', name: 'Tricep Rope Pushdown', muscleGroup: 'Triceps', difficulty: 'Beginner', imageUrl: '', videoUrl: DUMMY_VIDEO, caloriesBurn: 5 },
+    { id: '6', name: 'Skullcrushers', muscleGroup: 'Triceps', difficulty: 'Intermediate', imageUrl: '', videoUrl: DUMMY_VIDEO, caloriesBurn: 7 },
+    { id: '7', name: 'Deadlift', muscleGroup: 'Back', difficulty: 'Advanced', imageUrl: '', videoUrl: DUMMY_VIDEO, caloriesBurn: 15 },
+    { id: '8', name: 'Pull-Ups', muscleGroup: 'Back', difficulty: 'Intermediate', imageUrl: '', videoUrl: DUMMY_VIDEO, caloriesBurn: 10 },
+    { id: '9', name: 'Dumbbell Rows', muscleGroup: 'Back', difficulty: 'Beginner', imageUrl: '', videoUrl: DUMMY_VIDEO, caloriesBurn: 8 },
+    { id: '10', name: 'Face Pulls', muscleGroup: 'Shoulders', difficulty: 'Beginner', imageUrl: '', videoUrl: DUMMY_VIDEO, caloriesBurn: 6 },
+    { id: '11', name: 'Barbell Squat', muscleGroup: 'Legs', difficulty: 'Advanced', imageUrl: '', videoUrl: DUMMY_VIDEO, caloriesBurn: 12 },
+    { id: '12', name: 'Leg Extensions', muscleGroup: 'Legs', difficulty: 'Beginner', imageUrl: '', videoUrl: DUMMY_VIDEO, caloriesBurn: 6 },
 ];
 
 const DEFAULT_SHOP_ITEMS: ShopItem[] = [
@@ -96,7 +98,8 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   focusVideos: INITIAL_FOCUS_VIDEOS
 };
 
-const STORAGE_KEY = 'bio_sync_os_data_v1';
+// Increment version to force fresh load of videos
+const STORAGE_KEY = 'bio_sync_os_data_v2';
 
 const getStatReward = (rank: Rank): number => {
   const points: Record<Rank, number> = { 'E': 1, 'D': 2, 'C': 5, 'B': 10, 'A': 20, 'S': 50 };
@@ -315,6 +318,16 @@ export const useSystem = () => {
          };
       } else {
          const incoming = profileOrName as Record<string, any>;
+         
+         // Sanitize Incoming Videos
+         let sanitizedFocusVideos = { ...INITIAL_FOCUS_VIDEOS, ...(incoming.focus_videos || incoming.focusVideos || {}) };
+         Object.keys(sanitizedFocusVideos).forEach(key => {
+             const val = sanitizedFocusVideos[key];
+             if (val && val.includes(BROKEN_VIDEO_PART)) {
+                 sanitizedFocusVideos[key] = DUMMY_VIDEO;
+             }
+         });
+
          newProfileData = {
             ...INITIAL_PLAYER_DATA,
             ...profileOrName,
@@ -336,12 +349,7 @@ export const useSystem = () => {
             identity: incoming.identity ?? incoming.identity ?? INITIAL_PLAYER_DATA.identity, 
             exerciseDatabase: incoming.exercise_database ?? incoming.exerciseDatabase ?? INITIAL_EXERCISE_DB,
             
-            // Fix: Map focus_videos (snake_case from DB) to focusVideos (camelCase in App)
-            // Prioritize incoming DB data over local constants
-            focusVideos: { 
-                ...INITIAL_FOCUS_VIDEOS, 
-                ...(incoming.focus_videos || incoming.focusVideos || {}) 
-            }, 
+            focusVideos: sanitizedFocusVideos, 
 
             isConfigured: true,
             stats: incoming.stats || INITIAL_STATS,
@@ -394,13 +402,14 @@ export const useSystem = () => {
             if (stored) {
                 localData = JSON.parse(stored);
                 if (localData) {
-                    // MIGRATION: Ensure Focus Videos are populated if missing/empty
+                    // MIGRATION: Ensure Focus Videos are populated and clean
                     const currentVideos = localData.focusVideos || {};
                     const mergedVideos = { ...INITIAL_FOCUS_VIDEOS };
                     
                     Object.keys(currentVideos).forEach((k) => {
-                        if (currentVideos[k] && currentVideos[k].trim() !== '') {
-                            mergedVideos[k] = currentVideos[k];
+                        const val = currentVideos[k];
+                        if (val && val.trim() !== '' && !val.includes(BROKEN_VIDEO_PART)) {
+                            mergedVideos[k] = val;
                         }
                     });
                     localData.focusVideos = mergedVideos;
@@ -431,18 +440,24 @@ export const useSystem = () => {
                 let exerciseDB = INITIAL_EXERCISE_DB;
                 
                 if (masterExercises && masterExercises.length > 0) {
-                     exerciseDB = masterExercises.map((e: any) => ({
-                        id: e.id,
-                        name: e.name,
-                        muscleGroup: e.muscle_group,
-                        subTarget: e.sub_target,
-                        difficulty: e.difficulty,
-                        equipmentNeeded: e.equipment_needed,
-                        environment: e.environment,
-                        imageUrl: e.image_url,
-                        videoUrl: e.video_url,
-                        caloriesBurn: e.calories_burn || 5
-                    }));
+                     exerciseDB = masterExercises.map((e: any) => {
+                        // Sanitize DB videos on load
+                        let vid = e.video_url || '';
+                        if (vid.includes(BROKEN_VIDEO_PART)) vid = DUMMY_VIDEO;
+
+                        return {
+                            id: e.id,
+                            name: e.name,
+                            muscleGroup: e.muscle_group,
+                            subTarget: e.sub_target,
+                            difficulty: e.difficulty,
+                            equipmentNeeded: e.equipment_needed,
+                            environment: e.environment,
+                            imageUrl: e.image_url,
+                            videoUrl: vid,
+                            caloriesBurn: e.calories_burn || 5
+                        };
+                    });
                 }
 
                 if (profile && !error) {
@@ -485,7 +500,7 @@ export const useSystem = () => {
                     const mergedData = {
                         ...profile,
                         healthProfile,
-                        exerciseDatabase: exerciseDB // Overwrite with fresh DB from Supabase
+                        exerciseDatabase: exerciseDB // Overwrite with fresh DB from Supabase (sanitized)
                     };
                     registerUser(mergedData, session.user.id);
                 }

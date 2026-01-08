@@ -3,13 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, Database, Save, X, RefreshCw, Video, CheckCircle, Link, Map, Layers } from 'lucide-react';
 import { AdminExercise } from '../types';
-import { useSystem } from '../hooks/useSystem';
+import { useSystem, DUMMY_VIDEO } from '../hooks/useSystem'; // Imported DUMMY_VIDEO
 import { supabase } from '../lib/supabase';
 import WorkoutPlanPreview from './WorkoutPlanPreview'; 
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
+
+const BROKEN_VIDEO_PART = 'github.com/digitalfreedomhub5116-code';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { updateExerciseDatabase, updateFocusVideos, player } = useSystem();
@@ -50,7 +52,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       if (!url) return false;
       const clean = url.toLowerCase();
       // If it ends in a video extension, it's a direct file. Otherwise, assume embed.
-      const hasDirectExtension = /\.(mp4|webm|ogg|mov)$/.test(clean);
+      const hasDirectExtension = /\.(mp4|webm|ogg|mov)($|\?)/.test(clean);
       const isKnownEmbed = clean.includes('youtube') || clean.includes('youtu.be') || clean.includes('vimeo');
       return isKnownEmbed || !hasDirectExtension;
   };
@@ -74,26 +76,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           const { data, error } = await supabase.from('exercises').select('*').order('name', { ascending: true });
           if (error) {
               console.error("Error fetching exercises:", error);
+              // Fallback to local system DB if fetch fails
+              setExercises(player.exerciseDatabase);
               return;
           }
           if (data) {
-              const mapped: AdminExercise[] = data.map((e: any) => ({
-                  id: e.id,
-                  name: e.name,
-                  muscleGroup: e.muscle_group,
-                  subTarget: e.sub_target,
-                  difficulty: e.difficulty,
-                  equipmentNeeded: e.equipment_needed, 
-                  environment: e.environment, 
-                  imageUrl: e.image_url,
-                  videoUrl: e.video_url,
-                  caloriesBurn: e.calories_burn || 5
-              }));
+              const mapped: AdminExercise[] = data.map((e: any) => {
+                  let vid = e.video_url || '';
+                  // Auto-fix broken links in view
+                  if (vid.includes(BROKEN_VIDEO_PART)) vid = DUMMY_VIDEO;
+
+                  return {
+                      id: e.id,
+                      name: e.name,
+                      muscleGroup: e.muscle_group,
+                      subTarget: e.sub_target,
+                      difficulty: e.difficulty,
+                      equipmentNeeded: e.equipment_needed, 
+                      environment: e.environment, 
+                      imageUrl: e.image_url,
+                      videoUrl: vid,
+                      caloriesBurn: e.calories_burn || 5
+                  };
+              });
               setExercises(mapped);
               updateExerciseDatabase(mapped);
           }
       } catch (err) {
           console.error("Fetch Error:", err);
+          setExercises(player.exerciseDatabase);
       }
   };
 

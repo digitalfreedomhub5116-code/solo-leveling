@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Flame, Dumbbell, Zap, Activity, HeartPulse, ChevronRight, Fingerprint, ScanLine, Video, AlertTriangle } from 'lucide-react';
 import { WorkoutDay, Exercise } from '../types';
@@ -12,10 +12,12 @@ interface WorkoutOverviewProps {
 }
 
 // Check if string looks like a video embed URL or just a file path
+// Logic updated to allow query parameters at end of file extension
 const isEmbed = (url: string) => {
     if (!url) return false;
     const clean = url.toLowerCase();
-    const hasDirectExtension = /\.(mp4|webm|ogg|mov)$/.test(clean);
+    // Matches .mp4, .webm, .ogg, .mov followed by end of string OR a query parameter start
+    const hasDirectExtension = /\.(mp4|webm|ogg|mov)($|\?)/.test(clean);
     const isKnownEmbed = clean.includes('youtube') || clean.includes('youtu.be') || clean.includes('vimeo');
     return isKnownEmbed || !hasDirectExtension; // If it doesn't look like a file, assume it's a web page/embed
 };
@@ -37,6 +39,11 @@ const HolographicBody: React.FC<{ focus: string; isCardio: boolean; videos: Reco
   }, [focus, isCardio]);
 
   const videoUrl = videos[videoKey];
+
+  // Reset error state when video source changes
+  useEffect(() => {
+    setHasError(false);
+  }, [videoUrl]);
 
   return (
     <div className="relative w-full h-[380px] flex items-center justify-center overflow-hidden bg-black/80 rounded-lg perspective-1000 group border border-gray-800">
@@ -70,7 +77,10 @@ const HolographicBody: React.FC<{ focus: string; isCardio: boolean; videos: Reco
                 loop
                 muted // Critical: Browsers block autoplay if not muted
                 playsInline // Critical: Required for iOS
-                onError={() => setHasError(true)}
+                onError={() => {
+                    console.error(`Video Error loading: ${videoUrl}`);
+                    setHasError(true);
+                }}
              >
                  <source src={videoUrl} />
              </video>
