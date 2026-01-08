@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, X, AlertOctagon, FastForward, Check, Activity, Film, ChevronRight, Timer as TimerIcon } from 'lucide-react';
+import { Play, Pause, X, AlertOctagon, Check, Activity, Film, ChevronRight, Timer as TimerIcon } from 'lucide-react';
 import { WorkoutDay } from '../types';
 import { SpeechService } from '../utils/speechService';
 import { playSystemSoundEffect } from '../utils/soundEngine';
@@ -45,7 +45,6 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
   // Resolve Video Source (DB priority -> Local fallback)
   const liveExerciseData = player.exerciseDatabase.find(e => e.name === exercise.name);
   const videoSource = liveExerciseData?.videoUrl || exercise.videoUrl;
-  const imageSource = liveExerciseData?.imageUrl || exercise.imageUrl;
 
   // --- LOGIC ---
 
@@ -127,7 +126,6 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
 
   // --- UI CONSTANTS ---
   const progressPercent = (currentIdx / totalExercises) * 100;
-  const currentSetPercent = ((currentSet - 1) / exercise.sets) * 100;
 
   return (
     <div className="fixed inset-0 z-50 bg-black text-white font-sans h-[100dvh] flex flex-col overflow-hidden">
