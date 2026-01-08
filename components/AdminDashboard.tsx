@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, Database, Save, X, Search, RefreshCw, Video, Image as ImageIcon, CheckCircle, AlertCircle, Link, Map, AlertTriangle, Code, Layers } from 'lucide-react';
+import { LogOut, Database, Save, X, RefreshCw, Video, CheckCircle, Link, Map, Layers } from 'lucide-react';
 import { AdminExercise } from '../types';
 import { useSystem } from '../hooks/useSystem';
 import { supabase } from '../lib/supabase';
@@ -17,7 +17,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<'ASSETS' | 'PREVIEW' | 'REGIONS'>('REGIONS'); 
   const [exercises, setExercises] = useState<AdminExercise[]>([]);
-  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Region Video State
@@ -71,7 +70,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   // --- DATA LOADING ---
   const fetchExercises = async () => {
-      setLoading(true);
       try {
           const { data, error } = await supabase.from('exercises').select('*').order('name', { ascending: true });
           if (error) {
@@ -96,8 +94,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           }
       } catch (err) {
           console.error("Fetch Error:", err);
-      } finally {
-          setLoading(false);
       }
   };
 
