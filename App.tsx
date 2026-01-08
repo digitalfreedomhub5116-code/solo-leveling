@@ -12,10 +12,9 @@ import ProfileView from './components/ProfileView';
 import AuthView from './components/AuthView';
 import WelcomeCinematic from './components/WelcomeCinematic';
 import SplashScreen from './components/SplashScreen';
-import AwakeningView from './components/AwakeningView';
 import HealthView from './components/HealthView';
-import AdminLogin from './components/AdminLogin'; // New Import
-import AdminDashboard from './components/AdminDashboard'; // New Import
+import AdminLogin from './components/AdminLogin';
+import AdminDashboard from './components/AdminDashboard';
 import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab } from './types';
 
@@ -304,7 +303,6 @@ const App: React.FC = () => {
     notifications, 
     registerUser, 
     updateProfile, 
-    updateAwakening,
     gainXp, 
     completeDaily, 
     addQuest, 
@@ -319,7 +317,7 @@ const App: React.FC = () => {
     removeNotification,
     saveHealthProfile,
     completeWorkoutSession,
-    logout // Destructured logout
+    logout
   } = useSystem();
 
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
@@ -433,14 +431,13 @@ const App: React.FC = () => {
 
         {activeTab === 'PROFILE' && (
            <motion.div key="profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="w-full">
                   <ProfileView 
                       player={player} 
                       onUpdate={updateProfile} 
                       onAdminRequest={() => setAdminMode('LOGIN')} 
-                      onLogout={logout} // Passed logout prop
+                      onLogout={logout} 
                   />
-                  <AwakeningView data={player.awakening} updateData={updateAwakening} />
               </div>
            </motion.div>
         )}

@@ -191,7 +191,7 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
       // completedDays = index of today in the plan
       
       if (completedDays > 0) {
-          const yesterdayPlan = healthProfile.workoutPlan[completedDays - 1];
+          const yesterdayPlan = healthProfile.workoutPlan?.[completedDays - 1];
           if (yesterdayPlan && !yesterdayPlan.isRecovery) {
               const focus = yesterdayPlan.focus;
               if (['CHEST', 'BACK', 'ARMS', 'SHOULDERS'].some(k => focus.includes(k))) status.UPPER = 55;
@@ -448,7 +448,7 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
   if (!healthProfile) return null;
   
   // Safe access for workout plan (handle potential empty or legacy 7-day plans gracefully)
-  const todaysPlan = healthProfile.workoutPlan[activeDayIndex] || { day: 'REST', focus: 'REST', exercises: [], totalDuration: 0 };
+  const todaysPlan = healthProfile.workoutPlan?.[activeDayIndex] || { day: 'REST', focus: 'REST', exercises: [], totalDuration: 0 };
 
   // Graph Data
   const graphData = [
@@ -539,8 +539,9 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
                     </h3>
                     <p className="text-xs text-gray-600 font-mono">TARGET: {healthProfile.targetWeight} KG</p>
                 </div>
-                <div className="h-[180px] w-full mt-4">
-                    <ResponsiveContainer width="100%" height="100%">
+                {/* Fix: Explicit pixel height on container AND ResponsiveContainer to avoid 0/-1 warning */}
+                <div className="w-full mt-4" style={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height={300}>
                         <AreaChart data={graphData}>
                             <defs>
                                 <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
@@ -589,7 +590,7 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
                     <WorkoutMap 
                         currentWeight={healthProfile.weight}
                         targetWeight={healthProfile.targetWeight || healthProfile.weight - 5}
-                        workoutPlan={healthProfile.workoutPlan}
+                        workoutPlan={healthProfile.workoutPlan || []}
                         completedDays={completedDays}
                         onStartDay={(dayIndex) => {
                             setActiveDayIndex(dayIndex);
@@ -607,7 +608,7 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
                     exit={{ opacity: 0 }}
                     className="space-y-3"
                 >
-                    {healthProfile.workoutPlan.map((dayPlan, index) => {
+                    {healthProfile.workoutPlan?.map((dayPlan, index) => {
                         // Pagination for performance (display current week only + context)
                         const currentWeek = Math.floor(completedDays / 7);
                         const itemWeek = Math.floor(index / 7);

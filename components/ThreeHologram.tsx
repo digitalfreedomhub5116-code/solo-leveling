@@ -3,18 +3,6 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Fix: Add type definitions for Three.js elements in JSX
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      mesh: any;
-      group: any;
-      ambientLight: any;
-      pointLight: any;
-    }
-  }
-}
-
 // --- CUSTOM SHADER MATERIAL ---
 // Creates a sci-fi hologram effect with fresnel rim lighting and scanlines
 const HologramMaterial = {

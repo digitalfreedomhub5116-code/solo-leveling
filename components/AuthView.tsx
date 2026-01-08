@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Terminal, Shield, Lock, AlertTriangle, User, Eye, ArrowRight, Database, Key, Cpu } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PlayerData } from '../types';
@@ -24,7 +24,7 @@ const SECURITY_QUESTIONS = [
 ];
 
 // Glitch transition variants
-const glitchVariants = {
+const glitchVariants: Variants = {
   hidden: { opacity: 0, x: -20, skewX: 10 },
   visible: { 
     opacity: 1, 

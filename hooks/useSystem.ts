@@ -13,15 +13,16 @@ const INITIAL_TIMESTAMPS: StatTimestamps = {
   willpower: Date.now() 
 };
 
-// Default videos for regions (Populated with placeholders)
+// Default videos for regions
 const INITIAL_FOCUS_VIDEOS: Record<string, string> = {
     'CHEST': 'https://cdn.pixabay.com/video/2019/04/14/22908-330568669_large.mp4',
     'BACK': 'https://cdn.pixabay.com/video/2016/09/21/5302-183786483_large.mp4',
-    'SHOULDERS': 'https://cdn.pixabay.com/video/2023/07/21/172522-847525339_large.mp4', 
+    // Updated video link for Shoulders as requested
+    'SHOULDERS': 'https://github.com/digitalfreedomhub5116-code/solo-leveling/raw/refs/heads/main/A_highquality_2d_202601061949_9g6lc.mp4', 
     'LEGS': 'https://cdn.pixabay.com/video/2020/05/25/40157-424930064_large.mp4',
     'ARMS': 'https://cdn.pixabay.com/video/2016/11/29/6532-193798994_large.mp4',
-    'CORE': 'https://cdn.pixabay.com/video/2021/02/24/66225-516629929_large.mp4', // Added generic core background
-    'CARDIO': 'https://cdn.pixabay.com/video/2020/06/29/43339-434743235_large.mp4', // Added generic running background
+    'CORE': 'https://cdn.pixabay.com/video/2021/02/24/66225-516629929_large.mp4', 
+    'CARDIO': 'https://cdn.pixabay.com/video/2020/06/29/43339-434743235_large.mp4', 
     'REST': ''
 };
 
@@ -334,8 +335,13 @@ export const useSystem = () => {
             personalBests: incoming.personal_bests ?? incoming.personalBests ?? {},
             identity: incoming.identity ?? incoming.identity ?? INITIAL_PLAYER_DATA.identity, 
             exerciseDatabase: incoming.exercise_database ?? incoming.exerciseDatabase ?? INITIAL_EXERCISE_DB,
-            // Migration handling handled in checkSession for existing users, this is for direct loading/register
-            focusVideos: { ...INITIAL_FOCUS_VIDEOS, ...incoming.focusVideos }, 
+            
+            // Fix: Map focus_videos (snake_case from DB) to focusVideos (camelCase in App)
+            // Prioritize incoming DB data over local constants
+            focusVideos: { 
+                ...INITIAL_FOCUS_VIDEOS, 
+                ...(incoming.focus_videos || incoming.focusVideos || {}) 
+            }, 
 
             isConfigured: true,
             stats: incoming.stats || INITIAL_STATS,
@@ -389,12 +395,10 @@ export const useSystem = () => {
                 localData = JSON.parse(stored);
                 if (localData) {
                     // MIGRATION: Ensure Focus Videos are populated if missing/empty
-                    // This fixes the issue where old user data with empty video strings overrides new defaults
                     const currentVideos = localData.focusVideos || {};
                     const mergedVideos = { ...INITIAL_FOCUS_VIDEOS };
                     
                     Object.keys(currentVideos).forEach((k) => {
-                        // Only override default if user has a non-empty value (e.g. they set a custom one)
                         if (currentVideos[k] && currentVideos[k].trim() !== '') {
                             mergedVideos[k] = currentVideos[k];
                         }

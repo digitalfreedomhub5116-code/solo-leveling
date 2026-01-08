@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, PolarRadiusAxis, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -72,13 +73,13 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
 
   // Calculate Growth based on history
   // History is stored Newest -> Oldest, so the last element is the oldest recorded entry
-  const oldestEntry = history.length > 0 ? history[history.length - 1] : null;
+  const oldestEntry = history && history.length > 0 ? history[history.length - 1] : null;
   
   const getGrowth = (statKey: keyof CoreStats) => {
-      if (!oldestEntry) return 0;
+      if (!oldestEntry || !oldestEntry.stats) return 0;
       const oldVal = oldestEntry.stats[statKey];
       const currentVal = stats[statKey];
-      if (oldVal === 0) return 0;
+      if (!oldVal || oldVal === 0) return 0;
       // Calculate percentage increase
       return Math.round(((currentVal - oldVal) / oldVal) * 100);
   };
@@ -94,24 +95,24 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
 
   // Prepare Graph Data
   // Reverse history to show oldest to newest for charts
-  const sortedHistory = [...history].reverse();
+  const sortedHistory = history ? [...history].reverse() : [];
 
   // Weekly: Last 7 days
   const weeklyData = sortedHistory.slice(-7).map(entry => ({
-    name: entry.date.split('-').slice(1).join('/'), // MM/DD
+    name: entry.date ? entry.date.split('-').slice(1).join('/') : '??', // MM/DD
     xp: entry.totalXp,
-    str: entry.stats.strength,
-    int: entry.stats.intelligence
+    str: entry.stats?.strength || 0,
+    int: entry.stats?.intelligence || 0
   }));
   
   // Monthly: Last 30 days (Aggregate or raw)
   const monthlyData = sortedHistory.slice(-30).map(entry => ({
-    name: entry.date.split('-').slice(1).join('/'),
+    name: entry.date ? entry.date.split('-').slice(1).join('/') : '??',
     xp: entry.totalXp,
   }));
 
   // Daily: Just Yesterday vs Today
-  const yesterdayXp = history.length > 0 ? history[0].dailyXp : 0;
+  const yesterdayXp = history && history.length > 0 ? history[0].dailyXp : 0;
   const dailyData = [
     { name: 'YESTERDAY', xp: yesterdayXp },
     { name: 'TODAY', xp: dailyXp }
@@ -157,7 +158,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
          </div>
       </div>
 
-      <div className="flex-1 relative min-h-[250px]">
+      <div className="flex-1 relative min-h-[300px]">
         <AnimatePresence mode="wait">
           
           {/* VIEW: CURRENT (RADAR) */}
@@ -169,7 +170,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
               exit={{ opacity: 0 }}
               className="absolute inset-0 w-full h-full"
             >
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={300}>
                 <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
                   <defs>
                     <linearGradient id="radarGradient" x1="0" y1="0" x2="1" y2="1">
@@ -211,7 +212,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
               className="absolute inset-0 w-full h-full"
             >
                <div className="absolute top-0 left-0 text-[10px] text-gray-500 font-mono">XP GAINED (24H)</div>
-               <ResponsiveContainer width="100%" height="100%">
+               <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={dailyData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
                      <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
                      <XAxis dataKey="name" stroke="#555" fontSize={10} tickLine={false} axisLine={false} />
@@ -237,7 +238,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
                 ) : (
                   <>
                     <div className="absolute top-0 left-0 text-[10px] text-gray-500 font-mono">STATS GROWTH (7 DAYS)</div>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height={300}>
                         <AreaChart data={weeklyData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
                           <defs>
                             <linearGradient id="colorXp" x1="0" y1="0" x2="0" y2="1">
@@ -272,7 +273,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
                 ) : (
                   <>
                     <div className="absolute top-0 left-0 text-[10px] text-gray-500 font-mono">TOTAL XP GROWTH (30 DAYS)</div>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height={300}>
                         <AreaChart data={monthlyData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
                           <defs>
                             <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
