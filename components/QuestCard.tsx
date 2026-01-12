@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield, Repeat, RotateCcw, AlertOctagon, Link, Zap, ZapOff, BatteryLow } from 'lucide-react';
+import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield, AlertOctagon, Zap, ZapOff } from 'lucide-react';
 import { Quest, CoreStats, Rank } from '../types';
 
 interface QuestCardProps {

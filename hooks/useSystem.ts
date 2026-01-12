@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { PlayerData, Quest, SystemNotification, NotificationType, ShopItem, ActivityLog, Rank, CoreStats, HealthProfile, AdminExercise } from '../types';
 
@@ -383,7 +384,7 @@ export const useSystem = () => {
       addNotification("Health Profile Saved", "SUCCESS");
   };
 
-  const completeWorkoutSession = (completed: number, total: number, results: Record<string, number>, intensityModifier: boolean) => {
+  const completeWorkoutSession = (completed: number, _total: number, results: Record<string, number>, intensityModifier: boolean) => {
       const baseXp = 100;
       const bonus = completed * 10;
       const intensityBonus = intensityModifier ? 50 : 0;

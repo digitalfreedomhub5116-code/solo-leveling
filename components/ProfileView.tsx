@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, User, Briefcase, Award, Fingerprint, Scan, Shield, Terminal, LogOut, Cpu, Activity, Settings, Zap } from 'lucide-react';
+import { Save, User, Briefcase, Award, Scan, Shield, Terminal, LogOut, Cpu, Activity, Settings, Zap } from 'lucide-react';
 import { PlayerData, CoreStats } from '../types';
 
 interface ProfileViewProps {
