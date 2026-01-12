@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Target, Dumbbell, Flame, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, Ruler, Fingerprint, Crown, Lock, Eye, ChevronDown, ChevronUp } from 'lucide-react';
+import { Activity, Target, Dumbbell, Flame, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, Ruler, Fingerprint, Crown, Lock, Eye, ChevronDown, ChevronUp, Utensils, Construction } from 'lucide-react';
 import { AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { HealthProfile, WorkoutDay, PlayerData } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
@@ -62,6 +62,9 @@ const NeonSlider: React.FC<{
 };
 
 const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, onCompleteWorkout, onFailWorkout, playerData }) => {
+  // New Top Level Section State
+  const [activeSection, setActiveSection] = useState<'WORKOUT' | 'NUTRITION'>('WORKOUT');
+
   const [activeTab, setActiveTab] = useState<'WORKOUT' | 'STATS'>('WORKOUT');
   const [isOnboarding, setIsOnboarding] = useState(!healthProfile);
   const [scanStep, setScanStep] = useState(0);
@@ -480,233 +483,299 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
 
   return (
     <div className="space-y-6 pb-24">
-        {/* Dungeon Gate Overview */}
-        <AnimatePresence>
-            {showOverview && (
-                <WorkoutOverview 
-                    plan={todaysPlan}
-                    focusVideos={playerData.focusVideos || {}}
-                    onStart={(modifiedPlan, isCardio) => {
-                        setActiveWorkoutData({ plan: modifiedPlan, isCardio });
-                        setIsWorkoutActive(true);
-                        setShowOverview(false);
-                    }}
-                    onCancel={() => setShowOverview(false)}
-                />
-            )}
-        </AnimatePresence>
-
-        {/* Heatmap & Quick Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* --- MAIN SECTION TOGGLE --- */}
+        <div className="relative flex p-1 bg-gray-900/80 border border-gray-800 rounded-xl backdrop-blur-sm overflow-hidden select-none">
+            <motion.div 
+                className="absolute top-1 bottom-1 bg-system-neon/20 border border-system-neon/50 rounded-lg shadow-[0_0_15px_rgba(0,210,255,0.3)] z-0"
+                layoutId="activeSectionTab"
+                initial={false}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                style={{ 
+                    width: 'calc(50% - 4px)', 
+                    left: activeSection === 'WORKOUT' ? '4px' : '50%' 
+                }}
+            />
             
-            {/* Muscle Group Heatmap (Stylized Grid) */}
-            <div className="bg-system-card border border-system-border rounded-xl p-6 relative overflow-hidden">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-sm font-mono text-gray-400 tracking-widest flex items-center gap-2">
-                        <Activity size={14} className="text-system-accent" /> MUSCLE STATUS
-                    </h3>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                    {/* Status Bars for Body Parts - Now Dynamic */}
-                    {[
-                        { label: 'UPPER BODY', val: muscleStatus.UPPER, color: 'bg-system-neon' },
-                        { label: 'CORE', val: muscleStatus.CORE, color: 'bg-system-warning' },
-                        { label: 'LOWER BODY', val: muscleStatus.LOWER, color: 'bg-system-danger' },
-                        { label: 'CARDIO', val: muscleStatus.CARDIO, color: 'bg-system-success' }
-                    ].map((part) => (
-                        <div key={part.label} className="bg-gray-900/50 p-3 rounded border border-gray-800">
-                            <div className="flex justify-between mb-1">
-                                <span className="text-[10px] text-gray-500 font-mono">{part.label}</span>
-                                <span className="text-[10px] text-white font-mono">{part.val}%</span>
-                            </div>
-                            <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                                <motion.div 
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${part.val}%` }}
-                                    className={`h-full ${part.color} shadow-[0_0_8px_currentColor]`}
-                                />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Progression Graph */}
-            <div className="bg-system-card border border-system-border rounded-xl p-6 lg:col-span-2 relative">
-                <div className="absolute top-6 left-6 z-10">
-                    <h3 className="text-sm font-mono text-gray-400 tracking-widest flex items-center gap-2">
-                        <TrendingUp size={14} className="text-system-success" /> WEIGHT TRAJECTORY
-                    </h3>
-                    <p className="text-xs text-gray-600 font-mono">TARGET: {healthProfile.targetWeight} KG</p>
-                </div>
-                {/* Fix: Explicit pixel height on container AND ResponsiveContainer to avoid 0/-1 warning */}
-                <div className="w-full mt-4" style={{ height: 300 }}>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <AreaChart data={graphData}>
-                            <defs>
-                                <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                            <XAxis dataKey="name" hide />
-                            <Tooltip 
-                                contentStyle={{ backgroundColor: '#000', borderColor: '#333', fontSize: '12px' }}
-                                itemStyle={{ color: '#fff' }}
-                            />
-                            <Area type="monotone" dataKey="weight" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorWeight)" />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-        </div>
-
-        {/* Action Tabs */}
-        <div className="flex gap-4 border-b border-gray-800">
             <button 
-                onClick={() => setActiveTab('WORKOUT')}
-                className={`pb-2 text-sm font-mono transition-colors border-b-2 ${activeTab === 'WORKOUT' ? 'text-system-neon border-system-neon' : 'text-gray-600 border-transparent hover:text-gray-300'}`}
+                onClick={() => setActiveSection('WORKOUT')}
+                className={`flex-1 relative z-10 py-3 text-center font-mono font-bold tracking-widest transition-colors duration-300 ${activeSection === 'WORKOUT' ? 'text-white text-shadow-neon' : 'text-gray-500 hover:text-gray-300'}`}
             >
-                QUEST MAP
+                WORKOUT
             </button>
             <button 
-                onClick={() => setActiveTab('STATS')}
-                className={`pb-2 text-sm font-mono transition-colors border-b-2 ${activeTab === 'STATS' ? 'text-system-accent border-system-accent' : 'text-gray-600 border-transparent hover:text-gray-300'}`}
+                onClick={() => setActiveSection('NUTRITION')}
+                className={`flex-1 relative z-10 py-3 text-center font-mono font-bold tracking-widest transition-colors duration-300 ${activeSection === 'NUTRITION' ? 'text-white text-shadow-neon' : 'text-gray-500 hover:text-gray-300'}`}
             >
-                PROTOCOL OVERVIEW
+                NUTRITION
             </button>
         </div>
 
         <AnimatePresence mode="wait">
-            {activeTab === 'WORKOUT' && (
-                <motion.div 
-                    key="workout"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="space-y-4"
+            {/* --- WORKOUT SECTION --- */}
+            {activeSection === 'WORKOUT' && (
+                <motion.div
+                    key="workout-section"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-6"
                 >
-                    <WorkoutMap 
-                        currentWeight={healthProfile.weight}
-                        targetWeight={healthProfile.targetWeight || healthProfile.weight - 5}
-                        workoutPlan={healthProfile.workoutPlan || []}
-                        completedDays={completedDays}
-                        onStartDay={(dayIndex) => {
-                            setActiveDayIndex(dayIndex);
-                            setShowOverview(true);
-                        }}
-                    />
-                </motion.div>
-            )}
-            
-            {activeTab === 'STATS' && (
-                <motion.div 
-                    key="overview"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="space-y-3"
-                >
-                    {healthProfile.workoutPlan?.map((dayPlan, index) => {
-                        // Pagination for performance (display current week only + context)
-                        const currentWeek = Math.floor(completedDays / 7);
-                        const itemWeek = Math.floor(index / 7);
-                        if (itemWeek !== currentWeek && index !== completedDays) return null;
+                    {/* Dungeon Gate Overview */}
+                    <AnimatePresence>
+                        {showOverview && (
+                            <WorkoutOverview 
+                                plan={todaysPlan}
+                                focusVideos={playerData.focusVideos || {}}
+                                onStart={(modifiedPlan, isCardio) => {
+                                    setActiveWorkoutData({ plan: modifiedPlan, isCardio });
+                                    setIsWorkoutActive(true);
+                                    setShowOverview(false);
+                                }}
+                                onCancel={() => setShowOverview(false)}
+                            />
+                        )}
+                    </AnimatePresence>
 
-                        const isLocked = index > completedDays;
-                        const isToday = index === completedDays;
-                        const isCompleted = index < completedDays;
+                    {/* Heatmap & Quick Stats */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         
-                        return (
-                            <div key={index} className={`bg-system-card border rounded-lg overflow-hidden transition-all ${isToday ? 'border-system-neon/50 shadow-[0_0_10px_rgba(0,210,255,0.1)]' : 'border-system-border'} ${isCompleted ? 'opacity-75 hover:opacity-100' : ''}`}>
-                                <div className="p-4 flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono font-bold text-sm transition-colors ${
-                                            isToday ? 'bg-system-neon text-black shadow-[0_0_10px_#00d2ff]' : 
-                                            isCompleted ? 'bg-system-success/20 text-system-success border border-system-success/30' : 
-                                            'bg-gray-900 text-gray-600 border border-gray-800'
-                                        }`}>
-                                            {isCompleted ? <CheckCircle size={18} /> : index + 1}
+                        {/* Muscle Group Heatmap (Stylized Grid) */}
+                        <div className="bg-system-card border border-system-border rounded-xl p-6 relative overflow-hidden">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-sm font-mono text-gray-400 tracking-widest flex items-center gap-2">
+                                    <Activity size={14} className="text-system-accent" /> MUSCLE STATUS
+                                </h3>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {/* Status Bars for Body Parts - Now Dynamic */}
+                                {[
+                                    { label: 'UPPER BODY', val: muscleStatus.UPPER, color: 'bg-system-neon' },
+                                    { label: 'CORE', val: muscleStatus.CORE, color: 'bg-system-warning' },
+                                    { label: 'LOWER BODY', val: muscleStatus.LOWER, color: 'bg-system-danger' },
+                                    { label: 'CARDIO', val: muscleStatus.CARDIO, color: 'bg-system-success' }
+                                ].map((part) => (
+                                    <div key={part.label} className="bg-gray-900/50 p-3 rounded border border-gray-800">
+                                        <div className="flex justify-between mb-1">
+                                            <span className="text-[10px] text-gray-500 font-mono">{part.label}</span>
+                                            <span className="text-[10px] text-white font-mono">{part.val}%</span>
                                         </div>
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-0.5">
-                                                <h4 className={`font-mono text-sm font-bold uppercase tracking-wider ${isLocked ? 'text-gray-500' : 'text-white'}`}>
-                                                    {dayPlan.focus}
-                                                </h4>
-                                                {isToday && <span className="text-[8px] bg-system-neon/20 text-system-neon px-1.5 py-0.5 rounded border border-system-neon/30 animate-pulse">CURRENT</span>}
-                                                {isCompleted && <span className="text-[8px] bg-system-success/10 text-system-success px-1.5 py-0.5 rounded border border-system-success/20">COMPLETE</span>}
-                                                {isLocked && <span className="text-[8px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded border border-gray-700">LOCKED</span>}
-                                            </div>
-                                            <span className="text-[10px] text-gray-500 font-mono uppercase flex items-center gap-1">
-                                                {dayPlan.day} {dayPlan.isRecovery && <span className="text-system-success">• RECOVERY</span>}
-                                            </span>
+                                        <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                                            <motion.div 
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${part.val}%` }}
+                                                className={`h-full ${part.color} shadow-[0_0_8px_currentColor]`}
+                                            />
                                         </div>
                                     </div>
-                                    
-                                    <button 
-                                        onClick={() => setExpandedDay(expandedDay === index ? null : index)}
-                                        className={`flex items-center gap-2 px-3 py-1.5 rounded text-[10px] font-mono font-bold transition-colors ${
-                                            isLocked 
-                                                ? 'bg-gray-900 text-gray-500 hover:text-gray-300' 
-                                                : 'bg-system-neon/10 text-system-neon hover:bg-system-neon hover:text-black'
-                                        }`}
-                                    >
-                                        <Eye size={12} /> {expandedDay === index ? 'HIDE INTEL' : 'VIEW INTEL'}
-                                        {expandedDay === index ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                                    </button>
-                                </div>
+                                ))}
+                            </div>
+                        </div>
 
-                                <AnimatePresence>
-                                    {expandedDay === index && (
-                                        <motion.div 
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: 'auto', opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            className="bg-black/50 border-t border-system-border p-4"
-                                        >
-                                            <div className="relative">
-                                                {/* Locked Overlay */}
-                                                {isLocked && (
-                                                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[1px] rounded">
-                                                        <Lock size={24} className="text-gray-500 mb-2" />
-                                                        <span className="text-[10px] font-mono text-gray-400 tracking-widest uppercase">
-                                                            ACCESS RESTRICTED UNTIL DAY {index + 1}
+                        {/* Progression Graph */}
+                        <div className="bg-system-card border border-system-border rounded-xl p-6 lg:col-span-2 relative">
+                            <div className="absolute top-6 left-6 z-10">
+                                <h3 className="text-sm font-mono text-gray-400 tracking-widest flex items-center gap-2">
+                                    <TrendingUp size={14} className="text-system-success" /> WEIGHT TRAJECTORY
+                                </h3>
+                                <p className="text-xs text-gray-600 font-mono">TARGET: {healthProfile.targetWeight} KG</p>
+                            </div>
+                            {/* Fix: Explicit pixel height on container AND ResponsiveContainer to avoid 0/-1 warning */}
+                            <div className="w-full mt-4" style={{ height: 300 }}>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <AreaChart data={graphData}>
+                                        <defs>
+                                            <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+                                        <XAxis dataKey="name" hide />
+                                        <Tooltip 
+                                            contentStyle={{ backgroundColor: '#000', borderColor: '#333', fontSize: '12px' }}
+                                            itemStyle={{ color: '#fff' }}
+                                        />
+                                        <Area type="monotone" dataKey="weight" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorWeight)" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Action Tabs */}
+                    <div className="flex gap-4 border-b border-gray-800">
+                        <button 
+                            onClick={() => setActiveTab('WORKOUT')}
+                            className={`pb-2 text-sm font-mono transition-colors border-b-2 ${activeTab === 'WORKOUT' ? 'text-system-neon border-system-neon' : 'text-gray-600 border-transparent hover:text-gray-300'}`}
+                        >
+                            QUEST MAP
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('STATS')}
+                            className={`pb-2 text-sm font-mono transition-colors border-b-2 ${activeTab === 'STATS' ? 'text-system-accent border-system-accent' : 'text-gray-600 border-transparent hover:text-gray-300'}`}
+                        >
+                            PROTOCOL OVERVIEW
+                        </button>
+                    </div>
+
+                    <AnimatePresence mode="wait">
+                        {activeTab === 'WORKOUT' && (
+                            <motion.div 
+                                key="workout"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="space-y-4"
+                            >
+                                <WorkoutMap 
+                                    currentWeight={healthProfile.weight}
+                                    targetWeight={healthProfile.targetWeight || healthProfile.weight - 5}
+                                    workoutPlan={healthProfile.workoutPlan || []}
+                                    completedDays={completedDays}
+                                    onStartDay={(dayIndex) => {
+                                        setActiveDayIndex(dayIndex);
+                                        setShowOverview(true);
+                                    }}
+                                />
+                            </motion.div>
+                        )}
+                        
+                        {activeTab === 'STATS' && (
+                            <motion.div 
+                                key="overview"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="space-y-3"
+                            >
+                                {healthProfile.workoutPlan?.map((dayPlan, index) => {
+                                    // Pagination for performance (display current week only + context)
+                                    const currentWeek = Math.floor(completedDays / 7);
+                                    const itemWeek = Math.floor(index / 7);
+                                    if (itemWeek !== currentWeek && index !== completedDays) return null;
+
+                                    const isLocked = index > completedDays;
+                                    const isToday = index === completedDays;
+                                    const isCompleted = index < completedDays;
+                                    
+                                    return (
+                                        <div key={index} className={`bg-system-card border rounded-lg overflow-hidden transition-all ${isToday ? 'border-system-neon/50 shadow-[0_0_10px_rgba(0,210,255,0.1)]' : 'border-system-border'} ${isCompleted ? 'opacity-75 hover:opacity-100' : ''}`}>
+                                            <div className="p-4 flex items-center justify-between">
+                                                <div className="flex items-center gap-4">
+                                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono font-bold text-sm transition-colors ${
+                                                        isToday ? 'bg-system-neon text-black shadow-[0_0_10px_#00d2ff]' : 
+                                                        isCompleted ? 'bg-system-success/20 text-system-success border border-system-success/30' : 
+                                                        'bg-gray-900 text-gray-600 border border-gray-800'
+                                                    }`}>
+                                                        {isCompleted ? <CheckCircle size={18} /> : index + 1}
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <h4 className={`font-mono text-sm font-bold uppercase tracking-wider ${isLocked ? 'text-gray-500' : 'text-white'}`}>
+                                                                {dayPlan.focus}
+                                                            </h4>
+                                                            {isToday && <span className="text-[8px] bg-system-neon/20 text-system-neon px-1.5 py-0.5 rounded border border-system-neon/30 animate-pulse">CURRENT</span>}
+                                                            {isCompleted && <span className="text-[8px] bg-system-success/10 text-system-success px-1.5 py-0.5 rounded border border-system-success/20">COMPLETE</span>}
+                                                            {isLocked && <span className="text-[8px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded border border-gray-700">LOCKED</span>}
+                                                        </div>
+                                                        <span className="text-[10px] text-gray-500 font-mono uppercase flex items-center gap-1">
+                                                            {dayPlan.day} {dayPlan.isRecovery && <span className="text-system-success">• RECOVERY</span>}
                                                         </span>
                                                     </div>
-                                                )}
+                                                </div>
+                                                
+                                                <button 
+                                                    onClick={() => setExpandedDay(expandedDay === index ? null : index)}
+                                                    className={`flex items-center gap-2 px-3 py-1.5 rounded text-[10px] font-mono font-bold transition-colors ${
+                                                        isLocked 
+                                                            ? 'bg-gray-900 text-gray-500 hover:text-gray-300' 
+                                                            : 'bg-system-neon/10 text-system-neon hover:bg-system-neon hover:text-black'
+                                                    }`}
+                                                >
+                                                    <Eye size={12} /> {expandedDay === index ? 'HIDE INTEL' : 'VIEW INTEL'}
+                                                    {expandedDay === index ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                                </button>
+                                            </div>
 
-                                                <div className={`space-y-3 ${isLocked ? 'opacity-30 blur-[1px]' : ''}`}>
-                                                    {dayPlan.exercises.map((ex, i) => (
-                                                        <div key={i} className="flex justify-between items-center border-b border-gray-800/50 pb-2 last:border-0 last:pb-0">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-xs font-bold text-gray-300">{ex.name}</span>
-                                                                {ex.notes && (
-                                                                    <span className="text-[9px] text-system-accent font-mono uppercase">{ex.notes}</span>
+                                            <AnimatePresence>
+                                                {expandedDay === index && (
+                                                    <motion.div 
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: 'auto', opacity: 1 }}
+                                                        exit={{ height: 0, opacity: 0 }}
+                                                        className="bg-black/50 border-t border-system-border p-4"
+                                                    >
+                                                        <div className="relative">
+                                                            {/* Locked Overlay */}
+                                                            {isLocked && (
+                                                                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[1px] rounded">
+                                                                    <Lock size={24} className="text-gray-500 mb-2" />
+                                                                    <span className="text-[10px] font-mono text-gray-400 tracking-widest uppercase">
+                                                                        ACCESS RESTRICTED UNTIL DAY {index + 1}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+
+                                                            <div className={`space-y-3 ${isLocked ? 'opacity-30 blur-[1px]' : ''}`}>
+                                                                {dayPlan.exercises.map((ex, i) => (
+                                                                    <div key={i} className="flex justify-between items-center border-b border-gray-800/50 pb-2 last:border-0 last:pb-0">
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-xs font-bold text-gray-300">{ex.name}</span>
+                                                                            {ex.notes && (
+                                                                                <span className="text-[9px] text-system-accent font-mono uppercase">{ex.notes}</span>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="text-right font-mono text-xs">
+                                                                            <div className="text-system-neon">{ex.sets} SETS</div>
+                                                                            <div className="text-gray-500">{ex.reps}</div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                                
+                                                                {dayPlan.isRecovery && (
+                                                                    <div className="text-center py-2 text-xs font-mono text-system-success">
+                                                                        ACTIVE RECOVERY PROTOCOL
+                                                                    </div>
                                                                 )}
                                                             </div>
-                                                            <div className="text-right font-mono text-xs">
-                                                                <div className="text-system-neon">{ex.sets} SETS</div>
-                                                                <div className="text-gray-500">{ex.reps}</div>
-                                                            </div>
                                                         </div>
-                                                    ))}
-                                                    
-                                                    {dayPlan.isRecovery && (
-                                                        <div className="text-center py-2 text-xs font-mono text-system-success">
-                                                            ACTIVE RECOVERY PROTOCOL
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        );
-                    })}
-                    <div className="text-center text-[10px] text-gray-600 font-mono pt-2">
-                        SHOWING CURRENT WEEK OF 4-WEEK CYCLE
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+                                    );
+                                })}
+                                <div className="text-center text-[10px] text-gray-600 font-mono pt-2">
+                                    SHOWING CURRENT WEEK OF 4-WEEK CYCLE
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
+            )}
+
+            {/* --- NUTRITION SECTION (COMING SOON) --- */}
+            {activeSection === 'NUTRITION' && (
+                <motion.div
+                    key="nutrition-section"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.3 }}
+                    className="min-h-[400px] flex flex-col items-center justify-center border border-dashed border-gray-800 rounded-xl bg-gray-900/20"
+                >
+                    <div className="text-center p-8">
+                        <div className="inline-block p-4 rounded-full bg-gray-900 mb-4 border border-gray-800 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+                            <Utensils size={32} className="text-gray-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-400 font-mono tracking-widest mb-2 flex items-center justify-center gap-2">
+                            <Construction size={18} /> MODULE OFFLINE
+                        </h3>
+                        <p className="text-xs text-gray-600 font-mono">NUTRITION TRACKING SYSTEM PENDING...</p>
+                        <div className="mt-4 w-32 h-1 bg-gray-800 mx-auto rounded-full overflow-hidden">
+                            <div className="h-full bg-gray-600 w-1/3 animate-[shimmer_2s_infinite]" />
+                        </div>
                     </div>
                 </motion.div>
             )}

@@ -22,6 +22,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
 }) => {
   const [selectedPreview, setSelectedPreview] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const currentDayRef = useRef<HTMLDivElement>(null);
   
   // Responsive Amplitude State
   const [amplitude, setAmplitude] = useState(typeof window !== 'undefined' && window.innerWidth < 768 ? 40 : 80);
@@ -33,6 +34,19 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Auto-scroll to current day
+  useEffect(() => {
+      if (currentDayRef.current && containerRef.current) {
+          // Add a small timeout to ensure layout is ready
+          setTimeout(() => {
+              currentDayRef.current?.scrollIntoView({ 
+                  behavior: 'smooth', 
+                  block: 'center' 
+              });
+          }, 300);
+      }
+  }, [completedDays]);
 
   // 1. Calculate Journey Length
   const weightDiff = Math.abs(currentWeight - targetWeight);
@@ -78,7 +92,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
 
   return (
     <>
-        <div className="relative w-full h-[500px] md:h-[600px] bg-black/40 border border-gray-800 rounded-xl overflow-hidden backdrop-blur-sm group select-none">
+        <div className="relative w-full h-[500px] md:h-[600px] bg-black/40 border border-gray-800 rounded-xl overflow-hidden backdrop-blur-sm group select-none shadow-inner">
             
             {/* Scrollable Container */}
             <div 
@@ -131,12 +145,12 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                         // Map generic day index to the 7-day workout plan cycle
                         const planDay = workoutPlan[index % 7] || { day: `DAY ${index}`, focus: 'UNKNOWN', exercises: [] };
 
-                        // Critical Z-Index Fix: Ensure current day is always on top
                         const zIndexClass = isCurrent ? 'z-50' : point.isBoss ? 'z-40' : 'z-10';
                         
                         return (
                             <motion.div
                                 key={point.id}
+                                ref={isCurrent ? currentDayRef : null}
                                 className={`absolute flex items-center justify-center cursor-pointer ${zIndexClass}`}
                                 style={{ 
                                     left: `calc(50% + ${point.x}px)`, 
@@ -171,7 +185,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                     {/* Label for Current/Boss */}
                                     {(isCurrent || point.isBoss) && (
                                         <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 w-[180px] pointer-events-none flex justify-center">
-                                            {/* Enhanced Tooltip - pointer-events-auto enabled for button interaction */}
+                                            {/* Enhanced Tooltip */}
                                             <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg p-3 shadow-[0_0_30px_rgba(0,0,0,0.9)] flex flex-col items-center gap-1.5 relative pointer-events-auto z-50 w-full">
                                                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#0a0a0a] border-t border-l border-gray-800 rotate-45" />
                                                  

@@ -3,15 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, Database, Save, X, RefreshCw, Video, CheckCircle, Link, Map, Layers } from 'lucide-react';
 import { AdminExercise } from '../types';
-import { useSystem, DUMMY_VIDEO } from '../hooks/useSystem'; // Imported DUMMY_VIDEO
+import { useSystem, DUMMY_VIDEO, sanitizeVideoUrl } from '../hooks/useSystem'; // Imported sanitizeVideoUrl
 import { supabase } from '../lib/supabase';
 import WorkoutPlanPreview from './WorkoutPlanPreview'; 
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
-
-const BROKEN_VIDEO_PART = 'github.com/digitalfreedomhub5116-code';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { updateExerciseDatabase, updateFocusVideos, player } = useSystem();
@@ -82,9 +80,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           }
           if (data) {
               const mapped: AdminExercise[] = data.map((e: any) => {
-                  let vid = e.video_url || '';
-                  // Auto-fix broken links in view
-                  if (vid.includes(BROKEN_VIDEO_PART)) vid = DUMMY_VIDEO;
+                  const vid = sanitizeVideoUrl(e.video_url);
 
                   return {
                       id: e.id,
@@ -95,7 +91,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       equipmentNeeded: e.equipment_needed, 
                       environment: e.environment, 
                       imageUrl: e.image_url,
-                      videoUrl: vid,
+                      videoUrl: vid || DUMMY_VIDEO,
                       caloriesBurn: e.calories_burn || 5
                   };
               });

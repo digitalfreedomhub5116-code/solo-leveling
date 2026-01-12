@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { LayoutDashboard, Sword, ShoppingCart, User, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -10,11 +11,11 @@ interface NavigationProps {
 
 const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
   const navItems: NavItem[] = [
-    { id: 'DASHBOARD', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+    { id: 'DASHBOARD', label: 'Home', icon: <LayoutDashboard size={20} /> },
     { id: 'HEALTH', label: 'Health', icon: <Activity size={20} /> },
     { id: 'QUESTS', label: 'Quests', icon: <Sword size={20} /> },
     { id: 'SHOP', label: 'Shop', icon: <ShoppingCart size={20} /> },
-    { id: 'PROFILE', label: 'ID Card', icon: <User size={20} /> },
+    { id: 'PROFILE', label: 'ID', icon: <User size={20} /> },
   ];
 
   return (
@@ -23,44 +24,55 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
       <motion.nav 
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-black/90 backdrop-blur-xl border-r border-system-border flex-col z-40 shadow-[0_0_20px_rgba(0,0,0,0.5)]"
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-black/95 backdrop-blur-xl border-r border-gray-800 flex-col z-40"
       >
-        <div className="p-8 border-b border-system-border/50">
+        <div className="p-8 border-b border-gray-800/50">
           <h1 className="text-xl font-bold tracking-tighter text-white flex items-center gap-2">
-            <span className="text-system-accent">BIO-SYNC</span> OS
+            <span className="text-system-accent">BIO-SYNC</span>
           </h1>
-          <p className="text-xs text-gray-500 mt-1 font-mono">SYSTEM VER 1.0</p>
+          <p className="text-[10px] text-gray-500 mt-1 font-mono tracking-[0.2em]">OPERATING SYSTEM</p>
         </div>
 
-        <div className="flex-1 py-6 px-4 space-y-2">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onTabChange(item.id)}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-300 relative group overflow-hidden ${
-                activeTab === item.id 
-                  ? 'text-white bg-system-accent/10 border border-system-accent/20' 
-                  : 'text-gray-500 hover:text-gray-200 hover:bg-white/5 border border-transparent'
-              }`}
-            >
-              <div className={`relative z-10 transition-colors ${activeTab === item.id ? 'text-system-neon' : ''}`}>
-                {item.icon}
-              </div>
-              <span className="font-mono text-sm tracking-wide relative z-10">{item.label}</span>
-              
-              {/* Active Glow Bar */}
-              {activeTab === item.id && (
-                <motion.div 
-                  layoutId="active-nav-glow"
-                  className="absolute left-0 top-0 w-1 h-full bg-system-neon shadow-[0_0_10px_#00d2ff]"
-                />
-              )}
-            </button>
-          ))}
+        <div className="flex-1 py-6 px-4 space-y-1">
+          {navItems.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => onTabChange(item.id)}
+                className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-300 relative group overflow-hidden ${
+                  isActive ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                {isActive && (
+                  <motion.div 
+                    layoutId="active-nav-desktop"
+                    className="absolute inset-0 bg-gray-800/50 border border-gray-700/50 rounded-lg"
+                    initial={false}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  />
+                )}
+                
+                <div className={`relative z-10 transition-transform duration-300 ${isActive ? 'scale-110 text-system-neon' : ''}`}>
+                  {item.icon}
+                </div>
+                <span className="font-mono text-sm tracking-wide relative z-10 font-medium">{item.label}</span>
+                
+                {isActive && (
+                   <motion.div 
+                     layoutId="active-indicator"
+                     className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-system-neon rounded-r-full shadow-[0_0_10px_#00d2ff]"
+                   />
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="p-4 border-t border-system-border/50 space-y-2">
-           <div className="text-xs text-gray-600 font-mono text-center pt-2">
+        <div className="p-6 border-t border-gray-800/50">
+           <div className="flex items-center gap-2 text-[10px] text-gray-600 font-mono">
+              <div className="w-1.5 h-1.5 bg-system-success rounded-full animate-pulse" />
               SYSTEM ONLINE
            </div>
         </div>
@@ -68,30 +80,45 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
 
       {/* Mobile Bottom Bar */}
       <motion.nav 
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="md:hidden fixed bottom-0 left-0 w-full h-16 bg-black/95 backdrop-blur-xl border-t border-system-border z-40 flex justify-around items-center px-2 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]"
+        initial={{ y: 100 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="md:hidden fixed bottom-4 left-4 right-4 h-16 bg-[#0a0a0a]/90 backdrop-blur-xl border border-gray-800 rounded-2xl z-40 flex justify-between items-center px-2 shadow-2xl"
       >
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => onTabChange(item.id)}
-            className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors relative ${
-              activeTab === item.id ? 'text-system-neon' : 'text-gray-500'
-            }`}
-          >
-            <div className={`${activeTab === item.id ? 'scale-110' : 'scale-100'} transition-transform duration-200`}>
-                {item.icon}
-            </div>
-            <span className="text-[10px] font-mono mt-1">{item.label}</span>
-            {activeTab === item.id && (
-               <motion.div 
-                 layoutId="active-mobile-glow"
-                 className="absolute -bottom-1 w-1/2 h-0.5 bg-system-neon shadow-[0_0_10px_#00d2ff]"
-               />
-            )}
-          </button>
-        ))}
+        {navItems.map((item) => {
+          const isActive = activeTab === item.id;
+          const isQuest = item.id === 'QUESTS';
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => onTabChange(item.id)}
+              className="flex-1 flex flex-col items-center justify-center h-full relative"
+            >
+              {isActive && (
+                <motion.div 
+                  layoutId="active-nav-mobile"
+                  className="absolute inset-2 bg-gray-800/60 rounded-xl"
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
+              )}
+              
+              <div className={`relative z-10 transition-all duration-300 ${isActive ? 'text-system-neon -translate-y-1' : 'text-gray-500'} ${isQuest && isActive ? 'drop-shadow-[0_0_8px_rgba(0,210,255,0.8)]' : ''}`}>
+                  {item.icon}
+              </div>
+              
+              {isActive && (
+                <motion.span 
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="absolute bottom-2 text-[9px] font-mono text-system-neon font-bold"
+                >
+                  {item.label}
+                </motion.span>
+              )}
+            </button>
+          );
+        })}
       </motion.nav>
     </>
   );

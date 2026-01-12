@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, X, AlertOctagon, Check, Activity, Film, ChevronRight, Timer as TimerIcon } from 'lucide-react';
 import { WorkoutDay } from '../types';
@@ -127,8 +128,8 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
   // --- UI CONSTANTS ---
   const progressPercent = (currentIdx / totalExercises) * 100;
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black text-white font-sans h-[100dvh] flex flex-col overflow-hidden">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] bg-black text-white font-sans h-[100dvh] flex flex-col overflow-hidden">
         
         {/* --- HEADER (Fixed) --- */}
         <div className="h-16 px-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent absolute top-0 w-full z-30 pointer-events-none">
@@ -210,7 +211,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
         </div>
 
         {/* --- COMMAND DECK (Bottom Half) --- */}
-        <div className="bg-[#050505] relative z-30 flex flex-col border-t border-white/5 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] pb-safe-area">
+        <div className="bg-[#050505] relative z-30 flex flex-col border-t border-white/5 shadow-[0_-10px_40px_rgba(0,0,0,0.8)]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
             
             {/* Progress Bar Line */}
             <div className="w-full h-1 bg-gray-900">
@@ -221,7 +222,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
                 />
             </div>
 
-            <div className="p-6 md:p-8 space-y-6">
+            <div className="p-5 md:p-8 space-y-5 md:space-y-6 pb-8 md:pb-8">
                 
                 {/* Exercise Info */}
                 <div className="flex justify-between items-start">
@@ -230,7 +231,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
                             key={exercise.name}
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="text-2xl md:text-3xl font-black italic text-white leading-tight uppercase tracking-tight truncate"
+                            className="text-xl md:text-3xl font-black italic text-white leading-tight uppercase tracking-tight truncate"
                         >
                             {exercise.name}
                         </motion.h2>
@@ -274,7 +275,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
                 <div className="grid grid-cols-4 gap-3">
                     <button 
                         onClick={() => setIsPaused(!isPaused)}
-                        className={`col-span-1 h-16 rounded-xl flex items-center justify-center border transition-all active:scale-95 ${
+                        className={`col-span-1 h-14 md:h-16 rounded-xl flex items-center justify-center border transition-all active:scale-95 ${
                             isPaused 
                             ? 'bg-yellow-500/10 border-yellow-500 text-yellow-500' 
                             : 'bg-gray-900 border-gray-800 text-gray-400 hover:bg-gray-800'
@@ -286,7 +287,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
                     {phase === 'WORK' ? (
                         <button 
                             onClick={completeSet}
-                            className="col-span-3 h-16 bg-system-neon text-black font-black text-lg rounded-xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,210,255,0.4)] hover:bg-white transition-all active:scale-95 group"
+                            className="col-span-3 h-14 md:h-16 bg-system-neon text-black font-black text-lg rounded-xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,210,255,0.4)] hover:bg-white transition-all active:scale-95 group"
                         >
                             <Check size={24} strokeWidth={3} />
                             <span>COMPLETE SET</span>
@@ -294,7 +295,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
                     ) : (
                         <button 
                             onClick={() => setTimeLeft(0)}
-                            className="col-span-3 h-16 bg-system-success text-black font-black text-lg rounded-xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:bg-white transition-all active:scale-95 group"
+                            className="col-span-3 h-14 md:h-16 bg-system-success text-black font-black text-lg rounded-xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:bg-white transition-all active:scale-95 group"
                         >
                             <span>START NEXT</span>
                             <ChevronRight size={24} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
@@ -308,7 +309,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
         {/* --- QUIT MODAL --- */}
         <AnimatePresence>
            {showQuitConfirm && (
-              <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-6">
+              <div className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-md flex items-center justify-center p-6">
                  <motion.div 
                     initial={{ scale: 0.9, opacity: 0 }} 
                     animate={{ scale: 1, opacity: 1 }} 
@@ -340,7 +341,8 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
               </div>
            )}
         </AnimatePresence>
-    </div>
+    </div>,
+    document.body
   );
 };
 
