@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, PolarRadiusAxis, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Calendar, BarChart3, Hexagon, TrendingUp } from 'lucide-react';
@@ -45,7 +45,7 @@ const RadarTooltip = ({ active, payload, label }: any) => {
             <span className="text-white font-mono text-3xl font-black leading-none tracking-tighter drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
               {value}
             </span>
-            <span className="text-[10px] text-gray-600 font-mono font-bold">/ 100</span>
+            <span className="text-[10px] text-gray-600 font-mono font-bold">PTS</span>
         </div>
         
         <div className="mt-3 pt-2 border-t border-gray-800/50 flex items-center justify-between">
@@ -100,14 +100,28 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
       return Math.round(((currentVal - oldVal) / oldVal) * 100);
   };
 
+  // Calculate Dynamic Domain
+  const maxStatValue = useMemo(() => {
+      return Math.max(
+          stats.strength, 
+          stats.intelligence, 
+          stats.focus, 
+          stats.social, 
+          stats.willpower
+      );
+  }, [stats]);
+
+  // Set domain to slightly larger than max stat (min 10) to make small stats visible
+  const domainMax = Math.max(10, Math.ceil(maxStatValue * 1.2));
+
   // Prepare Radar Data
-  const radarData = [
-    { subject: 'STRENGTH', value: stats.strength, fullMark: 100, growth: getGrowth('strength') },
-    { subject: 'INTELLIGENCE', value: stats.intelligence, fullMark: 100, growth: getGrowth('intelligence') },
-    { subject: 'FOCUS', value: stats.focus, fullMark: 100, growth: getGrowth('focus') },
-    { subject: 'SOCIAL', value: stats.social, fullMark: 100, growth: getGrowth('social') },
-    { subject: 'WILLPOWER', value: stats.willpower, fullMark: 100, growth: getGrowth('willpower') },
-  ];
+  const radarData = useMemo(() => [
+    { subject: 'STRENGTH', value: stats.strength, fullMark: domainMax, growth: getGrowth('strength') },
+    { subject: 'INTELLIGENCE', value: stats.intelligence, fullMark: domainMax, growth: getGrowth('intelligence') },
+    { subject: 'FOCUS', value: stats.focus, fullMark: domainMax, growth: getGrowth('focus') },
+    { subject: 'SOCIAL', value: stats.social, fullMark: domainMax, growth: getGrowth('social') },
+    { subject: 'WILLPOWER', value: stats.willpower, fullMark: domainMax, growth: getGrowth('willpower') },
+  ], [stats, domainMax]);
 
   // Prepare Graph Data
   const sortedHistory = history ? [...history].reverse() : [];
@@ -210,7 +224,8 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
                     dataKey="subject" 
                     tick={{ fill: '#9ca3af', fontSize: 9, fontFamily: 'JetBrains Mono', fontWeight: 'bold' }} 
                   />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                  {/* Dynamic Domain applied here */}
+                  <PolarRadiusAxis angle={30} domain={[0, domainMax]} tick={false} axisLine={false} />
                   <Radar
                     name="Stats"
                     dataKey="value"

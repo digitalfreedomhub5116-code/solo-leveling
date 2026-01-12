@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Target, Dumbbell, Flame, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, Ruler, Fingerprint, Crown, Lock, Eye, ChevronDown, ChevronUp, Utensils, Construction } from 'lucide-react';
+import { Activity, Target, Dumbbell, Flame, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, Ruler, Fingerprint, Crown, Lock, Eye, ChevronDown, ChevronUp, Utensils, Construction, Star, Users, ShieldCheck, Trophy, Clock, Zap } from 'lucide-react';
 import { AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { HealthProfile, WorkoutDay, PlayerData } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
@@ -29,12 +30,12 @@ const NeonSlider: React.FC<{
   const percentage = ((value - min) / (max - min)) * 100;
   
   return (
-    <div className="w-full mb-8 group">
-      <div className="flex justify-between items-end mb-4">
-        <span className="text-gray-500 font-mono text-xs tracking-widest uppercase group-hover:text-system-neon transition-colors">{label}</span>
+    <div className="w-full mb-6 md:mb-8 group">
+      <div className="flex justify-between items-end mb-3 md:mb-4">
+        <span className="text-gray-500 font-mono text-[10px] md:text-xs tracking-widest uppercase group-hover:text-system-neon transition-colors">{label}</span>
         <div className="flex items-baseline gap-1">
-           <span className="text-4xl font-black text-white font-mono">{value}</span>
-           <span className="text-system-neon font-mono text-sm">{unit}</span>
+           <span className="text-3xl md:text-4xl font-black text-white font-mono">{value}</span>
+           <span className="text-system-neon font-mono text-xs md:text-sm">{unit}</span>
         </div>
       </div>
       <div className="relative h-2 bg-gray-800 rounded-full cursor-pointer">
@@ -61,6 +62,189 @@ const NeonSlider: React.FC<{
   );
 };
 
+// --- CALCULATING ANIMATION COMPONENT ---
+const AnalysisView: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+    const [progress, setProgress] = useState(0);
+    const [textIndex, setTextIndex] = useState(0);
+    
+    const messages = [
+        "Analyzing bio-metrics...",
+        "Designing personalized action plan...",
+        "Optimizing habits for consistency...",
+        "Finalizing system roadmap..."
+    ];
+
+    useEffect(() => {
+        // Progress Bar
+        const interval = setInterval(() => {
+            setProgress(prev => {
+                if (prev >= 100) {
+                    clearInterval(interval);
+                    return 100;
+                }
+                return prev + 1; // Approx 4-5 seconds
+            });
+        }, 40);
+
+        // Text Cycle
+        const textInterval = setInterval(() => {
+            setTextIndex(prev => (prev < messages.length - 1 ? prev + 1 : prev));
+        }, 1200);
+
+        const completeTimeout = setTimeout(() => {
+            onComplete();
+        }, 4500);
+
+        return () => {
+            clearInterval(interval);
+            clearInterval(textInterval);
+            clearTimeout(completeTimeout);
+        };
+    }, [onComplete]);
+
+    return (
+        <div className="flex flex-col items-center justify-center h-full text-center p-6">
+            <div className="relative w-32 h-32 md:w-40 md:h-40 mb-8">
+                {/* Outer Glow Ring */}
+                <div className="absolute inset-0 rounded-full border-4 border-gray-800" />
+                <svg className="absolute inset-0 w-full h-full rotate-[-90deg]">
+                    <circle
+                        cx="50%" cy="50%" r="46%"
+                        fill="none" stroke="#00d2ff" strokeWidth="4"
+                        strokeDasharray="290"
+                        strokeDashoffset={290 - (290 * progress) / 100}
+                        strokeLinecap="round"
+                        className="transition-all duration-100 ease-linear"
+                        style={{ filter: "drop-shadow(0 0 8px #00d2ff)" }}
+                    />
+                </svg>
+                {/* Center Pulse */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-xl md:text-2xl font-bold font-mono text-white">{progress}%</div>
+                </div>
+            </div>
+
+            <motion.div
+                key={textIndex}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="h-12"
+            >
+                <h3 className="text-lg md:text-xl font-bold text-system-neon font-mono mb-1">SYSTEM PROCESSING</h3>
+                <p className="text-xs text-gray-400 font-mono tracking-widest uppercase">{messages[textIndex]}</p>
+            </motion.div>
+        </div>
+    );
+};
+
+// --- RESULTS PREVIEW COMPONENT ---
+const ResultsView: React.FC<{ profile: any; onConfirm: () => void }> = ({ profile, onConfirm }) => {
+    return (
+        <div className="flex flex-col h-full overflow-y-auto scrollbar-hide">
+            <div className="text-center mb-6 shrink-0">
+                <motion.div 
+                    initial={{ scale: 0 }} animate={{ scale: 1 }} 
+                    className="w-12 h-12 bg-system-success/20 rounded-full flex items-center justify-center mx-auto mb-3 border border-system-success/50"
+                >
+                    <CheckCircle className="text-system-success w-6 h-6" />
+                </motion.div>
+                <h2 className="text-2xl md:text-3xl font-black text-white font-mono tracking-tighter mb-2">
+                    GOAL 100% ACHIEVABLE
+                </h2>
+                <p className="text-xs md:text-sm text-gray-400 max-w-md mx-auto px-4">
+                    Based on your inputs, the System has generated a personalized S-Rank protocol tailored to your physiology.
+                </p>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 px-1">
+                <div className="bg-gray-900/50 border border-gray-800 p-3 rounded-lg text-center">
+                    <Trophy className="w-4 h-4 text-yellow-500 mx-auto mb-1" />
+                    <div className="text-[10px] text-gray-500 font-mono uppercase">GOAL</div>
+                    <div className="text-xs font-bold text-white">{profile.goal.replace('_', ' ')}</div>
+                </div>
+                <div className="bg-gray-900/50 border border-gray-800 p-3 rounded-lg text-center">
+                    <Clock className="w-4 h-4 text-blue-500 mx-auto mb-1" />
+                    <div className="text-[10px] text-gray-500 font-mono uppercase">TIMELINE</div>
+                    <div className="text-xs font-bold text-white">12 WEEKS</div>
+                </div>
+                <div className="bg-gray-900/50 border border-gray-800 p-3 rounded-lg text-center">
+                    <Zap className="w-4 h-4 text-system-neon mx-auto mb-1" />
+                    <div className="text-[10px] text-gray-500 font-mono uppercase">EFFORT</div>
+                    <div className="text-xs font-bold text-white">{profile.sessionDuration} MIN/DAY</div>
+                </div>
+                <div className="bg-gray-900/50 border border-gray-800 p-3 rounded-lg text-center">
+                    <ShieldCheck className="w-4 h-4 text-green-500 mx-auto mb-1" />
+                    <div className="text-[10px] text-gray-500 font-mono uppercase">LEVEL</div>
+                    <div className="text-xs font-bold text-white">BEGINNER+</div>
+                </div>
+            </div>
+
+            {/* Social Proof */}
+            <div className="bg-system-card/50 border border-gray-800 rounded-xl p-4 mb-6 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-system-accent" />
+                <div className="flex justify-between items-center mb-4">
+                    <div>
+                        <h4 className="font-bold text-white text-sm">YOU ARE NOT ALONE</h4>
+                        <div className="flex items-center gap-2 mt-1">
+                            <div className="flex -space-x-2">
+                                {[1,2,3].map(i => (
+                                    <div key={i} className="w-5 h-5 rounded-full bg-gray-700 border border-black flex items-center justify-center text-[8px] text-white overflow-hidden">
+                                        <Users size={10} />
+                                    </div>
+                                ))}
+                            </div>
+                            <span className="text-[10px] text-gray-400">10,000+ Active Hunters</span>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <div className="flex items-center gap-1 text-yellow-500">
+                            <Star size={12} fill="currentColor" />
+                            <span className="font-bold text-sm">4.8</span>
+                        </div>
+                        <span className="text-[10px] text-gray-500">Average Rating</span>
+                    </div>
+                </div>
+
+                {/* Testimonial Slider (Simple) */}
+                <div className="relative h-16 overflow-hidden">
+                    <motion.div 
+                        animate={{ y: [0, -64, -128, 0] }}
+                        transition={{ duration: 12, repeat: Infinity, times: [0, 0.33, 0.66, 1], ease: "easeInOut", delay: 1 }}
+                    >
+                        <div className="h-16 flex flex-col justify-center">
+                            <p className="text-xs text-gray-300 italic">"I never thought I'd stay consistent, but this app made it simple."</p>
+                            <p className="text-[10px] text-system-neon mt-1">- Alex K. (Lvl 24)</p>
+                        </div>
+                        <div className="h-16 flex flex-col justify-center">
+                            <p className="text-xs text-gray-300 italic">"Clear plan, no confusion, and actual results in 3 weeks."</p>
+                            <p className="text-[10px] text-system-neon mt-1">- Sarah M. (Lvl 15)</p>
+                        </div>
+                        <div className="h-16 flex flex-col justify-center">
+                            <p className="text-xs text-gray-300 italic">"The gamification makes me actually want to train. S-Rank soon."</p>
+                            <p className="text-[10px] text-system-neon mt-1">- Jin W. (Lvl 99)</p>
+                        </div>
+                    </motion.div>
+                </div>
+            </div>
+
+            {/* Final CTA */}
+            <div className="mt-auto pt-4 border-t border-gray-900 sticky bottom-0 bg-[#050505] z-10 pb-1">
+                <button 
+                    onClick={onConfirm}
+                    className="w-full py-4 bg-white text-black font-black font-mono text-sm md:text-lg rounded-xl hover:bg-system-neon transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.3)] active:scale-95"
+                >
+                    <Zap size={20} fill="black" /> START MY HEALTH JOURNEY
+                </button>
+                <p className="text-center text-[10px] text-gray-600 mt-2 font-mono">
+                    YOUR PERSONALIZED PLAN IS READY.
+                </p>
+            </div>
+        </div>
+    );
+};
+
 const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, onCompleteWorkout, onFailWorkout, playerData }) => {
   // New Top Level Section State
   const [activeSection, setActiveSection] = useState<'WORKOUT' | 'NUTRITION'>('WORKOUT');
@@ -68,6 +252,10 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
   const [activeTab, setActiveTab] = useState<'WORKOUT' | 'STATS'>('WORKOUT');
   const [isOnboarding, setIsOnboarding] = useState(!healthProfile);
   const [scanStep, setScanStep] = useState(0);
+  
+  // New Processing State for Analysis Flow
+  const [processingState, setProcessingState] = useState<'IDLE' | 'CALCULATING' | 'RESULTS'>('IDLE');
+
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
   const [activeWorkoutData, setActiveWorkoutData] = useState<{plan: WorkoutDay, isCardio: boolean} | null>(null);
@@ -127,7 +315,13 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
     { id: 'IDENTITY', title: 'AFFIRM IDENTITY', icon: <Fingerprint /> },
   ];
 
-  const handleFinishOnboarding = () => {
+  // Initiate the Analysis Sequence
+  const handleInitiateAnalysis = () => {
+      setProcessingState('CALCULATING');
+  };
+
+  // Final Save after Analysis
+  const handleFinalize = () => {
       const h = (formData.height || 175) / 100;
       const bmi = (formData.weight || 70) / (h * h);
       
@@ -152,6 +346,7 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
       
       onSaveProfile(finalProfile, selectedIdentity || "Shadow Hunter");
       setIsOnboarding(false);
+      setProcessingState('IDLE');
   };
 
   // Get identities based on goal
@@ -208,241 +403,272 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
 
   const muscleStatus = getMuscleStatus();
 
-  // --- ONBOARDING VIEW ---
+  // --- ONBOARDING VIEW (PORTAL) ---
   if (isOnboarding) {
-      return (
-          <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-6 overflow-hidden">
+      return createPortal(
+          <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-4 overflow-hidden font-mono text-white">
              {/* Dynamic Background */}
              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-system-neon/10 via-black to-black pointer-events-none" />
              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-system-neon to-transparent opacity-50" />
 
-             <div className="relative z-10 w-full max-w-xl">
-                 {/* Step Indicator */}
-                 <div className="flex justify-between items-center mb-8">
-                    {steps.map((s, i) => (
-                        <div key={s.id} className="flex flex-col items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${i <= scanStep ? 'bg-system-neon text-black border-system-neon' : 'bg-black text-gray-700 border-gray-800'}`}>
-                                {i < scanStep ? <CheckCircle size={14} /> : i + 1}
+             <div className="relative z-10 w-full max-w-xl h-[calc(100dvh-2rem)] md:h-auto flex flex-col justify-center">
+                 
+                 {/* Step Indicator - Hide during analysis */}
+                 {processingState === 'IDLE' && (
+                     <div className="flex justify-between items-center mb-6 md:mb-8 px-2 shrink-0">
+                        {steps.map((s, i) => (
+                            <div key={s.id} className="flex flex-col items-center gap-2">
+                                <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center border text-[10px] md:text-xs transition-all ${i <= scanStep ? 'bg-system-neon text-black border-system-neon' : 'bg-black text-gray-700 border-gray-800'}`}>
+                                    {i < scanStep ? <CheckCircle size={12} className="md:w-3.5 md:h-3.5" /> : i + 1}
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                 </div>
+                        ))}
+                     </div>
+                 )}
 
-                 <div className="bg-[#050505] border border-gray-800 rounded-2xl p-8 shadow-2xl min-h-[400px] flex flex-col relative overflow-hidden">
+                 <div className={`bg-[#050505] border border-gray-800 rounded-2xl shadow-2xl flex flex-col relative overflow-hidden flex-1 md:flex-none transition-all duration-500 ${processingState === 'IDLE' ? 'p-5 md:p-8 min-h-[350px] md:min-h-[400px]' : 'w-full h-full md:h-[600px] md:w-[500px] border-system-neon/20 p-0'}`}>
+                    
+                    {/* ANALYSIS & RESULTS PHASES */}
                     <AnimatePresence mode="wait">
-                       <motion.div
-                         key={scanStep}
-                         initial={{ opacity: 0, x: 50 }}
-                         animate={{ opacity: 1, x: 0 }}
-                         exit={{ opacity: 0, x: -50 }}
-                         transition={{ duration: 0.4, ease: "easeOut" }}
-                         className="flex-1 flex flex-col"
-                       >
-                          <div className="mb-8 flex items-center gap-3">
-                              <div className="p-3 bg-gray-900 rounded-lg text-system-neon">
-                                  {steps[scanStep].icon}
-                              </div>
-                              <div>
-                                  <h2 className="text-xl font-bold text-white font-mono tracking-tight">{steps[scanStep].title}</h2>
-                                  <p className="text-xs text-gray-500 font-mono">COMPLETE CALIBRATION</p>
-                              </div>
-                          </div>
+                       {processingState === 'CALCULATING' && (
+                           <motion.div
+                               key="calc"
+                               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                               className="w-full h-full"
+                           >
+                               <AnalysisView onComplete={() => setProcessingState('RESULTS')} />
+                           </motion.div>
+                       )}
 
-                          {/* STEP 0: INTRO */}
-                          {scanStep === 0 && (
-                              <div className="text-center flex-1 flex flex-col justify-center">
-                                  <Activity size={64} className="text-system-neon mx-auto mb-6 animate-pulse" />
-                                  <p className="text-gray-400 mb-6 font-mono text-sm leading-relaxed">
-                                      The System requires your biometric data to generate an optimized S-Rank growth protocol. 
-                                      <br/><br/>
-                                      Precision is key.
-                                  </p>
-                                  <div className="grid grid-cols-2 gap-4">
-                                      {['MALE', 'FEMALE'].map(g => (
+                       {processingState === 'RESULTS' && (
+                           <motion.div
+                               key="results"
+                               initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }}
+                               className="w-full h-full p-6"
+                           >
+                               <ResultsView profile={formData} onConfirm={handleFinalize} />
+                           </motion.div>
+                       )}
+
+                       {processingState === 'IDLE' && (
+                           <motion.div
+                             key={scanStep}
+                             initial={{ opacity: 0, x: 50 }}
+                             animate={{ opacity: 1, x: 0 }}
+                             exit={{ opacity: 0, x: -50 }}
+                             transition={{ duration: 0.4, ease: "easeOut" }}
+                             className="flex-1 flex flex-col overflow-y-auto md:overflow-visible scrollbar-hide pb-4"
+                           >
+                              <div className="mb-6 md:mb-8 flex items-center gap-3 shrink-0">
+                                  <div className="p-2 md:p-3 bg-gray-900 rounded-lg text-system-neon">
+                                      {React.cloneElement(steps[scanStep].icon as React.ReactElement, { size: 20 })}
+                                  </div>
+                                  <div>
+                                      <h2 className="text-lg md:text-xl font-bold text-white font-mono tracking-tight">{steps[scanStep].title}</h2>
+                                      <p className="text-[10px] md:text-xs text-gray-500 font-mono">COMPLETE CALIBRATION</p>
+                                  </div>
+                              </div>
+
+                              {/* STEP 0: INTRO */}
+                              {scanStep === 0 && (
+                                  <div className="text-center flex-1 flex flex-col justify-center">
+                                      <Activity className="text-system-neon mx-auto mb-6 animate-pulse w-12 h-12 md:w-16 md:h-16" />
+                                      <p className="text-gray-400 mb-6 font-mono text-xs md:text-sm leading-relaxed">
+                                          The System requires your biometric data to generate an optimized S-Rank growth protocol. 
+                                          <br/><br/>
+                                          Precision is key.
+                                      </p>
+                                      <div className="grid grid-cols-2 gap-3 md:gap-4 mt-auto md:mt-0">
+                                          {['MALE', 'FEMALE'].map(g => (
+                                              <button 
+                                                key={g} 
+                                                onClick={() => setFormData({...formData, gender: g as any})}
+                                                className={`py-3 md:py-4 border rounded-lg font-mono text-xs md:text-sm transition-all ${formData.gender === g ? 'bg-system-neon text-black border-system-neon font-bold' : 'border-gray-800 text-gray-500 hover:border-gray-600'}`}
+                                              >
+                                                  {g}
+                                              </button>
+                                          ))}
+                                      </div>
+                                  </div>
+                              )}
+
+                              {/* STEP 1: METRICS (SLIDERS) */}
+                              {scanStep === 1 && (
+                                  <div className="flex-1 flex flex-col justify-center">
+                                      <NeonSlider 
+                                          label="HEIGHT" 
+                                          value={formData.height || 175} 
+                                          min={140} 
+                                          max={220} 
+                                          unit="CM"
+                                          onChange={(v) => setFormData({...formData, height: v})}
+                                      />
+                                      <NeonSlider 
+                                          label="CURRENT WEIGHT" 
+                                          value={formData.weight || 70} 
+                                          min={40} 
+                                          max={150} 
+                                          unit="KG"
+                                          onChange={(v) => setFormData({...formData, weight: v})}
+                                      />
+                                      <div className="mt-2 md:mt-4 p-3 md:p-4 bg-gray-900/50 rounded-lg border border-gray-800 flex justify-between items-center">
+                                          <span className="text-gray-500 font-mono text-[10px] md:text-xs">CALCULATED BMI</span>
+                                          <span className={`font-mono text-lg md:text-xl font-bold ${realtimeBMI > 25 ? 'text-system-warning' : 'text-system-success'}`}>
+                                              {realtimeBMI}
+                                          </span>
+                                      </div>
+                                  </div>
+                              )}
+
+                              {/* STEP 2: TARGET */}
+                              {scanStep === 2 && (
+                                  <div className="flex-1 flex flex-col justify-center">
+                                      <div className="text-center mb-4 md:mb-6">
+                                          <h3 className="text-system-neon font-mono text-3xl md:text-4xl font-black">{formData.targetWeight} KG</h3>
+                                          <p className="text-[10px] md:text-xs text-gray-500 font-mono mt-1 md:mt-2">OBJECTIVE</p>
+                                          {timeEstimate !== "UNKNOWN" && (
+                                              <div className="inline-block mt-2 px-3 py-1 bg-system-success/10 border border-system-success/20 rounded-full text-[10px] text-system-success font-mono">
+                                                  ESTIMATED TIME: {timeEstimate}
+                                              </div>
+                                          )}
+                                      </div>
+                                      <NeonSlider 
+                                          label="TARGET WEIGHT" 
+                                          value={formData.targetWeight || 70} 
+                                          min={40} 
+                                          max={150} 
+                                          unit="KG"
+                                          onChange={(v) => setFormData({...formData, targetWeight: v})}
+                                      />
+                                      <div className="grid grid-cols-1 gap-2 md:gap-3 mt-4">
+                                          {['LOSE_WEIGHT', 'BUILD_MUSCLE', 'ENDURANCE'].map(g => (
+                                              <button 
+                                                key={g} 
+                                                onClick={() => setFormData({...formData, goal: g as any})}
+                                                className={`p-3 border rounded text-left font-mono text-[10px] md:text-xs transition-colors ${formData.goal === g ? 'bg-system-accent/20 border-system-accent text-white' : 'border-gray-800 text-gray-500'}`}
+                                              >
+                                                  {g.replace('_', ' ')}
+                                              </button>
+                                          ))}
+                                      </div>
+                                  </div>
+                              )}
+
+                              {/* STEP 3: INTENSITY */}
+                              {scanStep === 3 && (
+                                  <div className="space-y-2 md:space-y-3">
+                                      {[
+                                          { id: 'LIGHT', label: 'E-RANK', desc: 'Maintenance' },
+                                          { id: 'MODERATE', label: 'B-RANK', desc: 'Balanced Growth' },
+                                          { id: 'HIGH', label: 'S-RANK', desc: 'Maximum Intensity' }
+                                      ].map(i => (
                                           <button 
-                                            key={g} 
-                                            onClick={() => setFormData({...formData, gender: g as any})}
-                                            className={`py-4 border rounded-lg font-mono text-sm transition-all ${formData.gender === g ? 'bg-system-neon text-black border-system-neon font-bold' : 'border-gray-800 text-gray-500 hover:border-gray-600'}`}
+                                            key={i.id} 
+                                            onClick={() => setFormData({...formData, intensity: i.id as any})}
+                                            className={`w-full p-4 md:p-5 border rounded-lg flex items-center justify-between group transition-all ${formData.intensity === i.id ? 'bg-red-900/20 border-red-500' : 'border-gray-800 hover:border-gray-600'}`}
                                           >
-                                              {g}
+                                              <div className="text-left">
+                                                  <div className={`font-bold font-mono text-base md:text-lg ${formData.intensity === i.id ? 'text-red-500' : 'text-gray-400'}`}>{i.label}</div>
+                                                  <div className="text-[10px] md:text-xs text-gray-600 font-mono">{i.desc}</div>
+                                              </div>
+                                              {formData.intensity === i.id && <Flame className="text-red-500 w-4 h-4 md:w-5 md:h-5" />}
                                           </button>
                                       ))}
                                   </div>
-                              </div>
-                          )}
+                              )}
 
-                          {/* STEP 1: METRICS (SLIDERS) */}
-                          {scanStep === 1 && (
-                              <div className="flex-1 flex flex-col justify-center">
-                                  <NeonSlider 
-                                      label="HEIGHT" 
-                                      value={formData.height || 175} 
-                                      min={140} 
-                                      max={220} 
-                                      unit="CM"
-                                      onChange={(v) => setFormData({...formData, height: v})}
-                                  />
-                                  <NeonSlider 
-                                      label="CURRENT WEIGHT" 
-                                      value={formData.weight || 70} 
-                                      min={40} 
-                                      max={150} 
-                                      unit="KG"
-                                      onChange={(v) => setFormData({...formData, weight: v})}
-                                  />
-                                  <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-800 flex justify-between items-center">
-                                      <span className="text-gray-500 font-mono text-xs">CALCULATED BMI</span>
-                                      <span className={`font-mono text-xl font-bold ${realtimeBMI > 25 ? 'text-system-warning' : 'text-system-success'}`}>
-                                          {realtimeBMI}
-                                      </span>
+                              {/* STEP 4: LOGISTICS (Duration) */}
+                              {scanStep === 4 && (
+                                  <div className="flex-1 flex flex-col justify-center">
+                                      <NeonSlider 
+                                          label="SESSION DURATION" 
+                                          value={formData.sessionDuration || 60} 
+                                          min={30} 
+                                          max={120} 
+                                          unit="MIN"
+                                          onChange={(v) => setFormData({...formData, sessionDuration: v})}
+                                      />
+                                      <div className="grid grid-cols-2 gap-3 md:gap-4 mt-6">
+                                          {['GYM', 'HOME_DUMBBELLS', 'BODYWEIGHT'].map(e => (
+                                              <button 
+                                                key={e}
+                                                onClick={() => setFormData({...formData, equipment: e as any})}
+                                                className={`py-3 md:py-4 border rounded font-mono text-[10px] md:text-xs ${formData.equipment === e ? 'bg-white text-black font-bold' : 'border-gray-800 text-gray-500'}`}
+                                              >
+                                                  {e.replace('_', ' ')}
+                                              </button>
+                                          ))}
+                                      </div>
                                   </div>
-                              </div>
-                          )}
+                              )}
 
-                          {/* STEP 2: TARGET */}
-                          {scanStep === 2 && (
-                              <div className="flex-1 flex flex-col justify-center">
-                                  <div className="text-center mb-6">
-                                      <h3 className="text-system-neon font-mono text-4xl font-black">{formData.targetWeight} KG</h3>
-                                      <p className="text-xs text-gray-500 font-mono mt-2">OBJECTIVE</p>
-                                      {timeEstimate !== "UNKNOWN" && (
-                                          <div className="inline-block mt-2 px-3 py-1 bg-system-success/10 border border-system-success/20 rounded-full text-[10px] text-system-success font-mono">
-                                              ESTIMATED TIME: {timeEstimate}
+                              {/* STEP 5: IDENTITY PATH SELECTION */}
+                              {scanStep === 5 && (
+                                  <div className="flex-1 flex flex-col justify-center space-y-3 md:space-y-4">
+                                      <p className="text-gray-400 font-mono text-[10px] md:text-xs mb-2 text-center">SELECT YOUR PATH TO POWER</p>
+                                      {getIdentityOptions().map((idOption) => (
+                                          <button
+                                            key={idOption.title}
+                                            onClick={() => setSelectedIdentity(idOption.title)}
+                                            className={`relative p-4 md:p-5 border rounded-lg text-left transition-all group overflow-hidden ${selectedIdentity === idOption.title ? 'bg-system-neon/10 border-system-neon ring-1 ring-system-neon' : 'border-gray-800 hover:border-gray-600'}`}
+                                          >
+                                              {selectedIdentity === idOption.title && (
+                                                  <div className="absolute top-0 right-0 p-2">
+                                                      <Crown size={14} className="text-system-neon md:w-4 md:h-4" />
+                                                  </div>
+                                              )}
+                                              <h3 className={`font-bold font-mono text-base md:text-lg ${selectedIdentity === idOption.title ? 'text-white' : 'text-gray-400'}`}>
+                                                  {idOption.title}
+                                              </h3>
+                                              <p className="text-[10px] md:text-xs text-gray-600 font-mono mt-1">{idOption.desc}</p>
+                                          </button>
+                                      ))}
+                                      {selectedIdentity && (
+                                          <div className="mt-4 text-center">
+                                              <div className="text-[10px] text-system-neon font-mono animate-pulse">
+                                                  IDENTITY AFFIRMED: {selectedIdentity}
+                                              </div>
                                           </div>
                                       )}
                                   </div>
-                                  <NeonSlider 
-                                      label="TARGET WEIGHT" 
-                                      value={formData.targetWeight || 70} 
-                                      min={40} 
-                                      max={150} 
-                                      unit="KG"
-                                      onChange={(v) => setFormData({...formData, targetWeight: v})}
-                                  />
-                                  <div className="grid grid-cols-1 gap-3 mt-4">
-                                      {['LOSE_WEIGHT', 'BUILD_MUSCLE', 'ENDURANCE'].map(g => (
-                                          <button 
-                                            key={g} 
-                                            onClick={() => setFormData({...formData, goal: g as any})}
-                                            className={`p-3 border rounded text-left font-mono text-xs transition-colors ${formData.goal === g ? 'bg-system-accent/20 border-system-accent text-white' : 'border-gray-800 text-gray-500'}`}
-                                          >
-                                              {g.replace('_', ' ')}
-                                          </button>
-                                      ))}
-                                  </div>
-                              </div>
-                          )}
+                              )}
 
-                          {/* STEP 3: INTENSITY */}
-                          {scanStep === 3 && (
-                              <div className="space-y-3">
-                                  {[
-                                      { id: 'LIGHT', label: 'E-RANK', desc: 'Maintenance' },
-                                      { id: 'MODERATE', label: 'B-RANK', desc: 'Balanced Growth' },
-                                      { id: 'HIGH', label: 'S-RANK', desc: 'Maximum Intensity' }
-                                  ].map(i => (
-                                      <button 
-                                        key={i.id} 
-                                        onClick={() => setFormData({...formData, intensity: i.id as any})}
-                                        className={`w-full p-5 border rounded-lg flex items-center justify-between group transition-all ${formData.intensity === i.id ? 'bg-red-900/20 border-red-500' : 'border-gray-800 hover:border-gray-600'}`}
-                                      >
-                                          <div className="text-left">
-                                              <div className={`font-bold font-mono text-lg ${formData.intensity === i.id ? 'text-red-500' : 'text-gray-400'}`}>{i.label}</div>
-                                              <div className="text-xs text-gray-600 font-mono">{i.desc}</div>
-                                          </div>
-                                          {formData.intensity === i.id && <Flame className="text-red-500" />}
-                                      </button>
-                                  ))}
-                              </div>
-                          )}
-
-                          {/* STEP 4: LOGISTICS (Duration) */}
-                          {scanStep === 4 && (
-                              <div className="flex-1 flex flex-col justify-center">
-                                  <NeonSlider 
-                                      label="SESSION DURATION" 
-                                      value={formData.sessionDuration || 60} 
-                                      min={30} 
-                                      max={120} 
-                                      unit="MIN"
-                                      onChange={(v) => setFormData({...formData, sessionDuration: v})}
-                                  />
-                                  <div className="grid grid-cols-2 gap-4 mt-6">
-                                      {['GYM', 'HOME_DUMBBELLS', 'BODYWEIGHT'].map(e => (
-                                          <button 
-                                            key={e}
-                                            onClick={() => setFormData({...formData, equipment: e as any})}
-                                            className={`py-4 border rounded font-mono text-xs ${formData.equipment === e ? 'bg-white text-black font-bold' : 'border-gray-800 text-gray-500'}`}
-                                          >
-                                              {e.replace('_', ' ')}
-                                          </button>
-                                      ))}
-                                  </div>
-                              </div>
-                          )}
-
-                          {/* STEP 5: IDENTITY PATH SELECTION */}
-                          {scanStep === 5 && (
-                              <div className="flex-1 flex flex-col justify-center space-y-4">
-                                  <p className="text-gray-400 font-mono text-xs mb-2 text-center">SELECT YOUR PATH TO POWER</p>
-                                  {getIdentityOptions().map((idOption) => (
-                                      <button
-                                        key={idOption.title}
-                                        onClick={() => setSelectedIdentity(idOption.title)}
-                                        className={`relative p-5 border rounded-lg text-left transition-all group overflow-hidden ${selectedIdentity === idOption.title ? 'bg-system-neon/10 border-system-neon ring-1 ring-system-neon' : 'border-gray-800 hover:border-gray-600'}`}
-                                      >
-                                          {selectedIdentity === idOption.title && (
-                                              <div className="absolute top-0 right-0 p-2">
-                                                  <Crown size={16} className="text-system-neon" />
-                                              </div>
-                                          )}
-                                          <h3 className={`font-bold font-mono text-lg ${selectedIdentity === idOption.title ? 'text-white' : 'text-gray-400'}`}>
-                                              {idOption.title}
-                                          </h3>
-                                          <p className="text-xs text-gray-600 font-mono mt-1">{idOption.desc}</p>
-                                      </button>
-                                  ))}
-                                  {selectedIdentity && (
-                                      <div className="mt-4 text-center">
-                                          <div className="text-[10px] text-system-neon font-mono animate-pulse">
-                                              IDENTITY AFFIRMED: {selectedIdentity}
-                                          </div>
-                                      </div>
-                                  )}
-                              </div>
-                          )}
-
-                       </motion.div>
+                           </motion.div>
+                       )}
                     </AnimatePresence>
 
-                    <div className="mt-8 flex justify-between items-center pt-6 border-t border-gray-900">
-                        <button 
-                          onClick={() => setScanStep(prev => Math.max(0, prev - 1))}
-                          className={`text-gray-500 hover:text-white transition-colors ${scanStep === 0 ? 'opacity-0 pointer-events-none' : ''}`}
-                        >
-                            <ChevronLeft />
-                        </button>
-                        
-                        <div className="flex gap-1">
-                            {steps.map((_, i) => (
-                                <div key={i} className={`w-1 h-1 rounded-full ${i === scanStep ? 'bg-system-neon' : 'bg-gray-800'}`} />
-                            ))}
-                        </div>
+                    {/* Footer Navigation (Hide when processing) */}
+                    {processingState === 'IDLE' && (
+                        <div className="mt-auto pt-4 md:pt-6 border-t border-gray-900 bg-[#050505] sticky bottom-0 z-20 shrink-0 flex justify-between items-center pb-2">
+                            <button 
+                              onClick={() => setScanStep(prev => Math.max(0, prev - 1))}
+                              className={`text-gray-500 hover:text-white transition-colors ${scanStep === 0 ? 'opacity-0 pointer-events-none' : ''}`}
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
+                            
+                            <div className="flex gap-1">
+                                {steps.map((_, i) => (
+                                    <div key={i} className={`w-1 h-1 rounded-full ${i === scanStep ? 'bg-system-neon' : 'bg-gray-800'}`} />
+                                ))}
+                            </div>
 
-                        <button 
-                          onClick={() => {
-                              if (scanStep < steps.length - 1) setScanStep(prev => prev + 1);
-                              else handleFinishOnboarding();
-                          }}
-                          disabled={scanStep === 5 && !selectedIdentity}
-                          className="flex items-center gap-2 bg-system-neon text-black font-bold px-6 py-2 rounded-full hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {scanStep === steps.length - 1 ? 'AWAKEN' : 'NEXT'} <ChevronRight size={16} />
-                        </button>
-                    </div>
+                            <button 
+                              onClick={() => {
+                                  if (scanStep < steps.length - 1) setScanStep(prev => prev + 1);
+                                  else handleInitiateAnalysis(); // Start the new flow instead of immediate close
+                              }}
+                              disabled={scanStep === 5 && !selectedIdentity}
+                              className="flex items-center gap-2 bg-system-neon text-black font-bold px-4 md:px-6 py-2 rounded-full hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs md:text-sm"
+                            >
+                                {scanStep === steps.length - 1 ? 'AWAKEN' : 'NEXT'} <ChevronRight size={16} />
+                            </button>
+                        </div>
+                    )}
                  </div>
              </div>
-          </div>
+          </div>,
+          document.body
       );
   }
 
@@ -515,10 +741,10 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
             {activeSection === 'WORKOUT' && (
                 <motion.div
                     key="workout-section"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.3 }}
+                    initial={{ opacity: 0, x: -50, filter: "blur(10px)" }}
+                    animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                    exit={{ opacity: 0, x: -50, filter: "blur(10px)" }}
+                    transition={{ type: "spring", stiffness: 200, damping: 25 }}
                     className="space-y-6"
                 >
                     {/* Dungeon Gate Overview */}
@@ -759,10 +985,10 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
             {activeSection === 'NUTRITION' && (
                 <motion.div
                     key="nutrition-section"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.3 }}
+                    initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
+                    animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                    exit={{ opacity: 0, x: 50, filter: "blur(10px)" }}
+                    transition={{ type: "spring", stiffness: 200, damping: 25 }}
                     className="min-h-[400px] flex flex-col items-center justify-center border border-dashed border-gray-800 rounded-xl bg-gray-900/20"
                 >
                     <div className="text-center p-8">
