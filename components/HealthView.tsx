@@ -422,14 +422,14 @@ const NutritionDashboard: React.FC<{
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-6">
-                            <div className="relative w-24 h-24">
+                        <div className="flex items-center gap-6 w-full md:w-auto justify-center md:justify-end">
+                            <div className="relative w-20 h-20 shrink-0 hidden sm:block">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <RechartsPie>
                                         <Pie
                                             data={macroData}
-                                            innerRadius={30}
-                                            outerRadius={40}
+                                            innerRadius={25}
+                                            outerRadius={35}
                                             paddingAngle={5}
                                             dataKey="value"
                                             stroke="none"
@@ -440,15 +440,65 @@ const NutritionDashboard: React.FC<{
                                         </Pie>
                                     </RechartsPie>
                                 </ResponsiveContainer>
-                                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                                <div className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-gray-500">
                                     MACROS
                                 </div>
                             </div>
                             
-                            <div className="space-y-1 text-xs font-mono">
-                                <div className="flex items-center gap-2 text-blue-400"><div className="w-2 h-2 rounded-full bg-blue-500"/> PRO: {consumed.protein}g</div>
-                                <div className="flex items-center gap-2 text-green-400"><div className="w-2 h-2 rounded-full bg-green-500"/> CARB: {consumed.carbs}g</div>
-                                <div className="flex items-center gap-2 text-yellow-400"><div className="w-2 h-2 rounded-full bg-yellow-500"/> FAT: {consumed.fats}g</div>
+                            <div className="flex-1 min-w-[140px] space-y-3">
+                                {/* Protein */}
+                                <div>
+                                    <div className="flex justify-between text-[10px] mb-1 font-mono">
+                                        <span className="text-blue-400 font-bold">PRO</span>
+                                        <span className="text-gray-400">{consumed.protein} / {healthProfile.macros.protein}g</span>
+                                    </div>
+                                    <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden">
+                                        <motion.div 
+                                            initial={{ width: 0 }} 
+                                            animate={{ width: `${Math.min(100, (consumed.protein / healthProfile.macros.protein) * 100)}%` }} 
+                                            className="h-full bg-blue-500" 
+                                        />
+                                    </div>
+                                    <div className="text-[9px] text-gray-600 text-right mt-0.5 font-mono">
+                                        {Math.max(0, healthProfile.macros.protein - consumed.protein)}g LEFT
+                                    </div>
+                                </div>
+
+                                {/* Carbs */}
+                                <div>
+                                    <div className="flex justify-between text-[10px] mb-1 font-mono">
+                                        <span className="text-green-400 font-bold">CARB</span>
+                                        <span className="text-gray-400">{consumed.carbs} / {healthProfile.macros.carbs}g</span>
+                                    </div>
+                                    <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden">
+                                        <motion.div 
+                                            initial={{ width: 0 }} 
+                                            animate={{ width: `${Math.min(100, (consumed.carbs / healthProfile.macros.carbs) * 100)}%` }} 
+                                            className="h-full bg-green-500" 
+                                        />
+                                    </div>
+                                    <div className="text-[9px] text-gray-600 text-right mt-0.5 font-mono">
+                                        {Math.max(0, healthProfile.macros.carbs - consumed.carbs)}g LEFT
+                                    </div>
+                                </div>
+
+                                {/* Fats */}
+                                <div>
+                                    <div className="flex justify-between text-[10px] mb-1 font-mono">
+                                        <span className="text-yellow-400 font-bold">FAT</span>
+                                        <span className="text-gray-400">{consumed.fats} / {healthProfile.macros.fats}g</span>
+                                    </div>
+                                    <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden">
+                                        <motion.div 
+                                            initial={{ width: 0 }} 
+                                            animate={{ width: `${Math.min(100, (consumed.fats / healthProfile.macros.fats) * 100)}%` }} 
+                                            className="h-full bg-yellow-500" 
+                                        />
+                                    </div>
+                                    <div className="text-[9px] text-gray-600 text-right mt-0.5 font-mono">
+                                        {Math.max(0, healthProfile.macros.fats - consumed.fats)}g LEFT
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
