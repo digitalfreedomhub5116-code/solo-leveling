@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Skull, Plus, X, Eye } from 'lucide-react';
@@ -33,7 +34,7 @@ const AwakeningView: React.FC<AwakeningViewProps> = ({ data, updateData }) => {
 
   // Focus Mode Timer
   useEffect(() => {
-    let interval: any;
+    let interval: ReturnType<typeof setInterval>; // Fixed: Explicit Type compatible with browser
     if (focusedItem) {
       setFocusTimer(5);
       interval = setInterval(() => {

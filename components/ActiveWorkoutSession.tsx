@@ -105,7 +105,7 @@ const ActiveWorkoutSession: React.FC<ActiveWorkoutSessionProps> = ({ plan, playe
 
   // Timer Logic
   useEffect(() => {
-    let interval: any;
+    let interval: ReturnType<typeof setInterval>; // Fixed: Explicit Type compatible with browser
     if (!isPaused && timer > 0) {
       interval = setInterval(() => {
         setTimer((prev) => {

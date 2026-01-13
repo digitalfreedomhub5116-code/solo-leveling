@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { PlayerData, Quest, SystemNotification, NotificationType, ShopItem, ActivityLog, Rank, CoreStats, HealthProfile, AdminExercise } from '../types';
+import { PlayerData, Quest, SystemNotification, NotificationType, ShopItem, ActivityLog, Rank, CoreStats, HealthProfile, AdminExercise, ProgressPhoto, MealLog } from '../types';
 
 export const DUMMY_VIDEO = 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-a-human-body-scan-9662-large.mp4';
 
@@ -21,7 +21,7 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   rank: 'E',
   gold: 0,
   streak: 1,
-  stats: { strength: 1, intelligence: 1, focus: 1, social: 1, willpower: 1 },
+  stats: { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 },
   lastStatUpdate: { strength: Date.now(), intelligence: Date.now(), focus: Date.now(), social: Date.now(), willpower: Date.now() },
   history: [],
   hp: 100,
@@ -35,16 +35,114 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   dailyQuestComplete: false,
   isPenaltyActive: false,
   logs: [],
-  quests: [],
-  shopItems: [],
+  quests: [
+    {
+      id: 'q_def_1',
+      title: 'Surya Namaskar',
+      description: 'Perform 12 rounds of Sun Salutations.',
+      rank: 'E',
+      category: 'strength',
+      xpReward: 25,
+      isCompleted: false,
+      createdAt: Date.now(),
+      isDaily: true,
+      trigger: 'Morning'
+    },
+    {
+      id: 'q_def_2',
+      title: 'Deep Work Block',
+      description: '2 hours of focused study or work. No distractions.',
+      rank: 'D',
+      category: 'intelligence',
+      xpReward: 50,
+      isCompleted: false,
+      createdAt: Date.now(),
+      isDaily: true,
+      trigger: 'Work Hours'
+    },
+    {
+      id: 'q_def_3',
+      title: 'No Sugar (Chai/Sweets)',
+      description: 'Avoid added sugar in tea and skip dessert.',
+      rank: 'E',
+      category: 'willpower',
+      xpReward: 20,
+      isCompleted: false,
+      createdAt: Date.now(),
+      isDaily: true
+    },
+    {
+      id: 'q_def_4',
+      title: 'Family Time',
+      description: 'Spend quality time with parents or call home.',
+      rank: 'D',
+      category: 'social',
+      xpReward: 30,
+      isCompleted: false,
+      createdAt: Date.now(),
+      isDaily: true
+    },
+    {
+      id: 'q_def_5',
+      title: 'Meditation (Dhyana)',
+      description: '10 minutes of silence or mindfulness.',
+      rank: 'E',
+      category: 'focus',
+      xpReward: 15,
+      isCompleted: false,
+      createdAt: Date.now(),
+      isDaily: true
+    }
+  ],
+  shopItems: [
+    {
+        id: 's_def_1',
+        title: 'Cheat Meal (Biryani)',
+        description: 'Guilt-free feast.',
+        cost: 200,
+        icon: 'pizza'
+    },
+    {
+        id: 's_def_2',
+        title: 'OTT Subscription',
+        description: '1 Month of Netflix/Prime/Hotstar.',
+        cost: 300,
+        icon: 'tv'
+    },
+    {
+        id: 's_def_3',
+        title: 'Cinema Outing',
+        description: 'Movie ticket with friends.',
+        cost: 500,
+        icon: 'users'
+    },
+    {
+        id: 's_def_4',
+        title: 'Gaming Session',
+        description: '3 hours of uninterrupted play.',
+        cost: 150,
+        icon: 'gamepad'
+    },
+    {
+        id: 's_def_5',
+        title: 'Tech Fund',
+        description: 'Contribution to new gadget savings.',
+        cost: 1000,
+        icon: 'shopping-bag'
+    }
+  ],
   awakening: { vision: [], antiVision: [] },
   personalBests: {},
   exerciseDatabase: [], 
-  focusVideos: {}
+  focusVideos: {},
+  nutritionLogs: []
 };
 
+// Helper to ensure clean initial state copy
+const getInitialState = (): PlayerData => JSON.parse(JSON.stringify(INITIAL_PLAYER_DATA));
+
 export const useSystem = () => {
-  const [player, setPlayer] = useState<PlayerData>(INITIAL_PLAYER_DATA);
+  const [player, setPlayer] = useState<PlayerData>(getInitialState());
   const [isLoaded, setIsLoaded] = useState(false);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
 
@@ -80,7 +178,7 @@ export const useSystem = () => {
   };
 
   const checkDailyQuests = (data: PlayerData): PlayerData => {
-     // Placeholder for daily quest logic
+     // Placeholder for daily quest logic extension if needed
      return data;
   };
 
@@ -94,6 +192,7 @@ export const useSystem = () => {
     if (!newData.logs) newData.logs = [];
     if (!newData.quests) newData.quests = [];
     if (!newData.history) newData.history = [];
+    if (!newData.nutritionLogs) newData.nutritionLogs = [];
     if (newData.streak === undefined) newData.streak = 1;
 
     if (today !== lastLogin) {
@@ -108,6 +207,9 @@ export const useSystem = () => {
       
       newData.history = [historyEntry, ...newData.history].slice(0, 30);
       newData.dailyXp = 0;
+      
+      // DAILY RESET: Clear Nutrition Logs
+      newData.nutritionLogs = [];
       
       let resetCount = 0;
       newData.quests = newData.quests.map(q => {
@@ -181,35 +283,47 @@ export const useSystem = () => {
     return newData;
   }, [addNotification]);
 
-  // Load Data
+  // Init
   useEffect(() => {
-    const savedData = localStorage.getItem('shadow_system_data_v2');
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        const processed = processSystemLogic(parsed);
-        setPlayer({ ...INITIAL_PLAYER_DATA, ...processed });
-      } catch (e) {
-        console.error("Save Corrupt", e);
-        setPlayer(INITIAL_PLAYER_DATA);
-      }
-    } else {
-        setPlayer(INITIAL_PLAYER_DATA);
-    }
+    // System ready to accept user input (renders AuthView due to isConfigured: false)
     setIsLoaded(true);
-  }, [processSystemLogic]);
+  }, []);
 
-  // Persist Data
+  // Persist Data (User-Specific Key)
   useEffect(() => {
-    if (isLoaded) {
-        localStorage.setItem('shadow_system_data_v2', JSON.stringify(player));
+    if (isLoaded && player.isConfigured && player.username) {
+        const key = `shadow_system_v4_${player.username}`;
+        localStorage.setItem(key, JSON.stringify(player));
     }
   }, [player, isLoaded]);
 
   // Actions
   const registerUser = (profile: Partial<PlayerData>) => {
-      setPlayer(prev => ({ ...prev, ...profile, isConfigured: true }));
-      addNotification("Identity Confirmed. System Link Established.", "SUCCESS");
+      const username = profile.username || profile.name || 'Hunter';
+      const key = `shadow_system_v4_${username}`;
+      const savedData = localStorage.getItem(key);
+      
+      let finalData: PlayerData;
+
+      if (savedData) {
+          try {
+              const parsed = JSON.parse(savedData);
+              const processed = processSystemLogic(parsed);
+              // Merge profile just in case pins/details updated
+              finalData = { ...processed, ...profile, isConfigured: true };
+              addNotification(`Welcome back, ${finalData.username || finalData.name}.`, "SUCCESS");
+          } catch (e) {
+              console.error("Save Corrupt", e);
+              // Fallback to fresh if corrupt
+              finalData = { ...getInitialState(), ...profile, username, isConfigured: true };
+          }
+      } else {
+          // New User Setup - Stats will be 0 from getInitialState()
+          finalData = { ...getInitialState(), ...profile, username, isConfigured: true };
+          addNotification("Identity Confirmed. System Link Established.", "SUCCESS");
+      }
+      
+      setPlayer(finalData);
   };
 
   const updateProfile = (data: { name: string; job: string; title: string }) => {
@@ -384,6 +498,58 @@ export const useSystem = () => {
       addNotification("Health Profile Saved", "SUCCESS");
   };
 
+  const addProgressPhoto = (photo: ProgressPhoto) => {
+      setPlayer(prev => {
+          if (!prev.healthProfile) return prev;
+          
+          const currentPhotos = prev.healthProfile.progressPhotos || [];
+          return {
+              ...prev,
+              healthProfile: {
+                  ...prev.healthProfile,
+                  progressPhotos: [...currentPhotos, photo]
+              },
+              logs: [createLog(`Progress Photo Uploaded`, 'SYSTEM'), ...prev.logs]
+          };
+      });
+      addNotification("Scan Uploaded. Sync Complete.", "SUCCESS");
+  };
+
+  const deleteProgressPhoto = (id: string) => {
+      setPlayer(prev => {
+          if (!prev.healthProfile || !prev.healthProfile.progressPhotos) return prev;
+          
+          return {
+              ...prev,
+              healthProfile: {
+                  ...prev.healthProfile,
+                  progressPhotos: prev.healthProfile.progressPhotos.filter(p => p.id !== id)
+              }
+          };
+      });
+      addNotification("Record Deleted.", "SYSTEM");
+  };
+
+  // --- NUTRITION LOGIC ---
+  const logMeal = (meal: MealLog) => {
+      setPlayer(prev => {
+          return {
+              ...prev,
+              nutritionLogs: [...(prev.nutritionLogs || []), meal],
+              logs: [createLog(`Nutrition Logged: ${meal.label} (${meal.totalCalories} kcal)`, 'SYSTEM'), ...prev.logs]
+          };
+      });
+      addNotification(`Meal Logged: ${meal.totalCalories} kcal`, "SUCCESS");
+  };
+
+  const deleteMeal = (id: string) => {
+      setPlayer(prev => ({
+          ...prev,
+          nutritionLogs: (prev.nutritionLogs || []).filter(log => log.id !== id)
+      }));
+      addNotification("Meal Record Deleted", "SYSTEM");
+  };
+
   const completeWorkoutSession = (completed: number, _total: number, results: Record<string, number>, intensityModifier: boolean) => {
       const baseXp = 100;
       const bonus = completed * 10;
@@ -407,7 +573,9 @@ export const useSystem = () => {
   };
 
   const logout = () => {
-      setPlayer(prev => ({ ...prev, isConfigured: false }));
+      // Reset to unconfigured state (which will show AuthView). 
+      // Do NOT clear localStorage here, just state.
+      setPlayer(getInitialState());
   };
 
   const updateExerciseDatabase = (exercises: AdminExercise[]) => {
@@ -444,6 +612,10 @@ export const useSystem = () => {
     removeNotification,
     addNotification,
     saveHealthProfile,
+    addProgressPhoto,
+    deleteProgressPhoto,
+    logMeal,
+    deleteMeal,
     completeWorkoutSession,
     logout,
     updateExerciseDatabase,

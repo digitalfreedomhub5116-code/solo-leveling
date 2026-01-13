@@ -1,3 +1,4 @@
+
 import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
@@ -68,8 +69,18 @@ const HologramMaterial = {
   blending: THREE.AdditiveBlending,
 };
 
+// Interface for BodyPart Props
+interface BodyPartProps {
+  geometry: THREE.BufferGeometry;
+  position: [number, number, number];
+  scale?: [number, number, number];
+  rotation?: [number, number, number];
+  activeTarget: string;
+  partName: string;
+}
+
 // Procedural Body Part Component
-const BodyPart = ({ geometry, position, scale, rotation, activeTarget, partName }: any) => {
+const BodyPart: React.FC<BodyPartProps> = ({ geometry, position, scale, rotation, activeTarget, partName }) => {
     const meshRef = useRef<THREE.Mesh>(null);
     
     // Determine active state

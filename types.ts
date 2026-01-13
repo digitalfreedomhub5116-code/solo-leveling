@@ -119,6 +119,42 @@ export interface WorkoutDay {
   totalDuration: number;
 }
 
+export interface ProgressPhoto {
+  id: string;
+  date: number; // timestamp
+  imageUrl: string; // base64
+  weight?: number;
+  note?: string;
+}
+
+// --- NUTRITION TYPES ---
+export interface FoodItem {
+  id: string;
+  name: string;
+  calories: number; // per serving
+  protein: number; // g
+  carbs: number; // g
+  fats: number; // g
+  servingSize: string; // e.g. "1 bowl", "2 pcs"
+  region?: string; // e.g. "Punjab", "South India"
+}
+
+export interface LoggedFoodItem extends FoodItem {
+  quantity: number;
+}
+
+export interface MealLog {
+  id: string;
+  label: string;
+  items: LoggedFoodItem[];
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFats: number;
+  timestamp: number;
+  imageUrl?: string; // If added via camera
+}
+
 export interface HealthProfile {
   gender: 'MALE' | 'FEMALE';
   age: number;
@@ -145,6 +181,7 @@ export interface HealthProfile {
   workoutPlan: WorkoutDay[];
   macros: { protein: number; carbs: number; fats: number; calories: number };
   lastWorkoutDate?: string;
+  progressPhotos?: ProgressPhoto[];
 }
 
 export interface PenaltyTask {
@@ -200,6 +237,7 @@ export interface PlayerData {
   
   // New Health Integration
   healthProfile?: HealthProfile;
+  nutritionLogs: MealLog[];
   
   // Global Database (Mock Backend)
   exerciseDatabase: AdminExercise[];

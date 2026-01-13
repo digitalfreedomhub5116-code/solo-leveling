@@ -367,6 +367,10 @@ const App: React.FC = () => {
     removeShopItem, 
     removeNotification,
     saveHealthProfile,
+    addProgressPhoto,
+    deleteProgressPhoto,
+    logMeal,
+    deleteMeal,
     completeWorkoutSession,
     logout
   } = useSystem();
@@ -438,6 +442,10 @@ const App: React.FC = () => {
                   onSaveProfile={saveHealthProfile}
                   onCompleteWorkout={completeWorkoutSession}
                   onFailWorkout={failWorkout}
+                  onAddPhoto={addProgressPhoto}
+                  onDeletePhoto={deleteProgressPhoto}
+                  onLogMeal={logMeal}
+                  onDeleteMeal={deleteMeal}
                   playerData={player}
                />
           )}

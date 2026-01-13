@@ -51,10 +51,10 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
 
   useEffect(() => {
     SpeechService.announceStart(exercise.name, exercise.sets, exercise.reps);
-  }, []); // Run once on mount
+  }, [exercise.name, exercise.sets, exercise.reps]); // Fixed: Added dependencies
 
   useEffect(() => {
-    let interval: any;
+    let interval: ReturnType<typeof setInterval>; // Fixed: Explicit Type compatible with browser
     if (!isPaused && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft((prev) => {

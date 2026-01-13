@@ -95,7 +95,11 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
       if (!oldestEntry || !oldestEntry.stats) return 0;
       const oldVal = oldestEntry.stats[statKey];
       const currentVal = stats[statKey];
-      if (!oldVal || oldVal === 0) return 0;
+      
+      // Handle start from 0 case
+      if (!oldVal || oldVal === 0) {
+          return currentVal > 0 ? 100 : 0;
+      }
       // Calculate percentage increase
       return Math.round(((currentVal - oldVal) / oldVal) * 100);
   };
@@ -260,7 +264,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
                   <BarChart data={dailyData} margin={{ top: 30, right: 10, left: -20, bottom: 0 }}>
                      <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
                      <XAxis dataKey="name" stroke="#555" fontSize={10} tickLine={false} axisLine={false} />
-                     <YAxis stroke="#555" fontSize={10} tickLine={false} axisLine={false} />
+                     <YAxis stroke="#555" fontSize={10} tickLine={false} axisLine={false} domain={[0, 'auto']} />
                      <Tooltip content={<GraphTooltip />} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
                      <Bar dataKey="xp" name="XP" fill="#00d2ff" radius={[4, 4, 0, 0]} barSize={40} animationDuration={1500} />
                   </BarChart>
@@ -293,7 +297,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
                           <XAxis dataKey="name" stroke="#555" fontSize={10} tickLine={false} axisLine={false} />
-                          <YAxis stroke="#555" fontSize={10} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#555" fontSize={10} tickLine={false} axisLine={false} domain={[0, 'auto']} />
                           <Tooltip content={<GraphTooltip />} />
                           <Area type="monotone" dataKey="str" name="STR" stackId="1" stroke="#ef4444" fill="none" strokeWidth={2} animationDuration={2000} />
                           <Area type="monotone" dataKey="int" name="INT" stackId="1" stroke="#00d2ff" fill="none" strokeWidth={2} animationDuration={2000} />
@@ -329,7 +333,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
                           <XAxis dataKey="name" stroke="#555" fontSize={10} tickLine={false} axisLine={false} />
-                          <YAxis stroke="#555" fontSize={10} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#555" fontSize={10} tickLine={false} axisLine={false} domain={[0, 'auto']} />
                           <Tooltip content={<GraphTooltip />} />
                           <Area type="monotone" dataKey="xp" name="Total XP" stroke="#00d2ff" fill="url(#colorTotal)" strokeWidth={2} animationDuration={2000} />
                         </AreaChart>
