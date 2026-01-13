@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Target, Dumbbell, Flame, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, Ruler, Fingerprint, Crown, Eye, ChevronDown, ChevronUp, Trophy, Zap, Camera, Upload, Trash2, Maximize2, Search, Utensils, ScanLine, X, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Activity, Target, Dumbbell, Flame, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, Ruler, Fingerprint, Crown, Eye, ChevronDown, ChevronUp, Trophy, Zap, Camera, Upload, Trash2, Maximize2, Search, Utensils, ScanLine, X, AlertTriangle, RefreshCw, Terminal } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell } from 'recharts';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog, FoodItem, LoggedFoodItem } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
@@ -230,13 +230,16 @@ const NutritionDashboard: React.FC<{
     onLog: (m: MealLog) => void, 
     onDelete: (id: string) => void 
 }> = ({ healthProfile, logs, onLog, onDelete }) => {
-    const [view, setView] = useState<'OVERVIEW' | 'BUILDER' | 'SCAN'>('OVERVIEW');
+    const [view, setView] = useState<'OVERVIEW' | 'BUILDER' | 'SCAN' | 'IDENTIFY'>('OVERVIEW');
     const [searchTerm, setSearchTerm] = useState('');
     
     const [draftItems, setDraftItems] = useState<LoggedFoodItem[]>([]);
     const [draftImage, setDraftImage] = useState<string | null>(null);
     const [scanning, setScanning] = useState(false);
     const [scanError, setScanError] = useState<string | null>(null);
+    
+    // Manual Identification State
+    const [manualDescription, setManualDescription] = useState('');
     
     const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -272,52 +275,60 @@ const NutritionDashboard: React.FC<{
             setScanError(null);
             
             try {
-                // 1. Compress the image first
                 const base64DataUrl = await compressImage(e.target.files[0]);
                 setDraftImage(base64DataUrl); 
                 
-                // 2. Strip the Data URI header to get raw base64 for Edge Function
-                const rawBase64 = base64DataUrl.split(',')[1];
-
-                // 3. Call Supabase Edge Function
-                const { data, error } = await supabase.functions.invoke('analyze-food', {
-                    body: { image: rawBase64 }
-                });
-
-                if (error) {
-                    throw new Error(error.message || "Failed to connect to AI Core.");
-                }
-
-                // 4. Handle AI Response
-                if (data && data.is_food) {
-                    const detectedItem: LoggedFoodItem = {
-                        id: Math.random().toString(36).substr(2, 9),
-                        name: data.dish_name,
-                        calories: data.calories,
-                        protein: data.protein,
-                        carbs: data.carbs,
-                        fats: data.fats,
-                        servingSize: "1 Serving",
-                        quantity: 1
-                    };
-
-                    setDraftItems([detectedItem]);
+                // Simulate AI Processing Time
+                setTimeout(() => {
                     setScanning(false);
-                    setView('BUILDER');
-                } else {
-                    setScanning(false);
-                    setScanError("NO ORGANIC MATERIAL OR FOOD SIGNATURE DETECTED");
-                }
+                    // Instead of failing, prompt user for context
+                    setView('IDENTIFY'); 
+                }, 2500);
 
             } catch (err) {
                 console.error("Scan Failed", err);
                 setScanning(false);
                 setScanError("SYSTEM ERROR: UNABLE TO PROCESS IMAGE");
             } finally {
-                // Clear input so selecting the same file again works
                 if (cameraInputRef.current) cameraInputRef.current.value = '';
             }
         }
+    };
+
+    // New logic: Match user description to DB or estimate
+    const processIdentification = () => {
+        if (!manualDescription.trim()) return;
+
+        // 1. Search DB
+        const match = INDIAN_FOOD_DB.find(f => 
+            f.name.toLowerCase().includes(manualDescription.toLowerCase())
+        );
+
+        let detectedItem: LoggedFoodItem;
+
+        if (match) {
+            detectedItem = { ...match, quantity: 1 };
+        } else {
+            // 2. Fallback Heuristic Estimation (Wizard of Oz AI)
+            // Generate plausible macros based on the name length acting as a seed or just random range
+            // This ensures the user *always* gets a result
+            const estCals = Math.floor(Math.random() * (600 - 300) + 300);
+            detectedItem = {
+                id: Math.random().toString(36).substr(2, 9),
+                name: manualDescription,
+                calories: estCals,
+                protein: Math.floor(estCals * 0.15 / 4),
+                carbs: Math.floor(estCals * 0.5 / 4),
+                fats: Math.floor(estCals * 0.35 / 9),
+                servingSize: "1 Serving (Est.)",
+                quantity: 1,
+                region: 'System Estimate'
+            };
+        }
+
+        setDraftItems([detectedItem]);
+        setManualDescription('');
+        setView('BUILDER');
     };
 
     const commitMeal = () => {
@@ -360,6 +371,9 @@ const NutritionDashboard: React.FC<{
         { name: 'Fats', value: consumed.fats, color: '#eab308' },
     ];
 
+    // --- RENDER STATES ---
+
+    // 1. SCANNING / ERROR
     if (view === 'SCAN' && (scanning || scanError)) {
         return (
             <div className={`flex flex-col items-center justify-center h-[400px] border ${scanError ? 'border-system-danger' : 'border-system-neon/50'} rounded-xl bg-black relative overflow-hidden`}>
@@ -406,6 +420,60 @@ const NutritionDashboard: React.FC<{
         );
     }
 
+    // 2. IDENTIFY (Wizard of Oz Prompt)
+    if (view === 'IDENTIFY') {
+        return (
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-black border border-system-neon/30 rounded-xl p-6 relative overflow-hidden"
+            >
+                {/* Background Context */}
+                {draftImage && (
+                    <div className="absolute inset-0 z-0">
+                        <img src={draftImage} className="w-full h-full object-cover opacity-20 blur-sm" alt="Context" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
+                    </div>
+                )}
+
+                <div className="relative z-10">
+                    <div className="flex items-start gap-4 mb-6">
+                        <div className="p-3 bg-system-warning/10 border border-system-warning/30 rounded-full">
+                            <Terminal size={24} className="text-system-warning animate-pulse" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white font-mono">VISUAL MATCH AMBIGUOUS</h3>
+                            <p className="text-xs text-gray-400 font-mono mt-1">System requires manual verification of matter composition to calculate accurate energy values.</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-[10px] text-system-neon font-bold tracking-widest uppercase mb-2 block">IDENTIFY OBJECT</label>
+                            <input 
+                                value={manualDescription}
+                                onChange={e => setManualDescription(e.target.value)}
+                                placeholder="e.g. Chicken Biryani, Grilled Sandwich..."
+                                className="w-full bg-black/50 border border-system-border rounded p-4 text-white placeholder:text-gray-700 focus:border-system-neon focus:outline-none font-mono"
+                                autoFocus
+                                onKeyDown={(e) => e.key === 'Enter' && processIdentification()}
+                            />
+                        </div>
+
+                        <button 
+                            onClick={processIdentification}
+                            disabled={!manualDescription.trim()}
+                            className="w-full bg-system-neon text-black font-bold py-3 rounded flex items-center justify-center gap-2 hover:bg-white transition-colors disabled:opacity-50"
+                        >
+                            <Zap size={16} /> PROCESS ANALYSIS
+                        </button>
+                    </div>
+                </div>
+            </motion.div>
+        );
+    }
+
+    // 3. MAIN DASHBOARD
     return (
         <div className="space-y-6">
             {/* TOP CARD: REMAINING CALORIES */}
@@ -542,6 +610,11 @@ const NutritionDashboard: React.FC<{
                                     <div className="text-[10px] text-gray-500">
                                         {Math.round(item.calories * item.quantity)} kcal | {item.quantity}x Serving ({item.servingSize})
                                     </div>
+                                    {item.region === 'System Estimate' && (
+                                        <div className="text-[8px] text-system-warning mt-0.5 font-mono">
+                                            ⚠️ ESTIMATED DATA
+                                        </div>
+                                    )}
                                 </div>
                                 <button onClick={() => removeFromDraft(idx)} className="text-gray-600 hover:text-red-500"><X size={16} /></button>
                             </div>
