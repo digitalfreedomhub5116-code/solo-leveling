@@ -222,6 +222,10 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
                       <stop offset="5%" stopColor="#00d2ff" stopOpacity={0.4}/>
                       <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.4}/>
                     </linearGradient>
+                    <linearGradient id="radarStrokeGradient" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#00d2ff" />
+                      <stop offset="100%" stopColor="#8b5cf6" />
+                    </linearGradient>
                   </defs>
                   <PolarGrid stroke="#333" strokeDasharray="3 3" />
                   <PolarAngleAxis 
@@ -233,8 +237,8 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
                   <Radar
                     name="Stats"
                     dataKey="value"
-                    stroke="#00d2ff"
-                    strokeWidth={2}
+                    stroke="url(#radarStrokeGradient)"
+                    strokeWidth={3}
                     fill="url(#radarGradient)"
                     fillOpacity={0.6}
                     isAnimationActive={true}
