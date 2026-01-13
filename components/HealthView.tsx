@@ -1,14 +1,13 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Target, Dumbbell, Flame, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, Ruler, Fingerprint, Crown, Eye, ChevronDown, ChevronUp, Trophy, Zap, Camera, Upload, Trash2, Maximize2, Search, Utensils, ScanLine, X, AlertTriangle, RefreshCw, Droplets, Moon, Calendar, Map as MapIcon } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell } from 'recharts';
+import { motion } from 'framer-motion';
+import { Activity, Target, Dumbbell, Flame, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, Ruler, Fingerprint, Crown, Trophy, Zap, Camera, Search, Utensils, ScanLine, X, AlertTriangle, RefreshCw, Droplets, Moon, Calendar, Map as MapIcon } from 'lucide-react';
+import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell } from 'recharts';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog, FoodItem, LoggedFoodItem } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
 import WorkoutOverview from './WorkoutOverview';
-import { generateSystemProtocol, calculateTimeEstimate } from '../utils/workoutGenerator';
+import { generateSystemProtocol } from '../utils/workoutGenerator';
 import { INDIAN_FOOD_DB } from '../utils/indianFoodDb';
 import { supabase } from '../lib/supabase';
 
@@ -723,8 +722,6 @@ const HealthView: React.FC<HealthViewProps> = ({
   onSaveProfile, 
   onCompleteWorkout, 
   onFailWorkout, 
-  onAddPhoto, 
-  onDeletePhoto, 
   onLogMeal, 
   onDeleteMeal,
   playerData 
@@ -776,7 +773,7 @@ const HealthView: React.FC<HealthViewProps> = ({
       setSelectedDayIdx(idx);
   };
 
-  const handleEnterDungeon = (modifiedPlan: WorkoutDay, isCardio: boolean) => {
+  const handleEnterDungeon = (modifiedPlan: WorkoutDay) => {
       setActiveSessionPlan(modifiedPlan);
   };
 
