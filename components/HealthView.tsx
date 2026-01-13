@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Target, Dumbbell, Flame, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, Ruler, Fingerprint, Crown, Eye, ChevronDown, ChevronUp, ShieldCheck, Trophy, Clock, Zap, Calculator, Apple, Camera, Upload, Trash2, Maximize2, Search, Plus, Utensils, PieChart, ScanLine, X, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Activity, Target, Dumbbell, Flame, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, Ruler, Fingerprint, Crown, Eye, ChevronDown, ChevronUp, Trophy, Zap, Camera, Upload, Trash2, Maximize2, Search, Utensils, ScanLine, X, AlertTriangle, RefreshCw } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell } from 'recharts';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog, FoodItem, LoggedFoodItem } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
@@ -76,7 +76,6 @@ const compressImage = (file: File): Promise<string> => {
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 const MAX_WIDTH = 800;
-                const scaleSize = MAX_WIDTH / img.width;
                 const newWidth = Math.min(img.width, MAX_WIDTH);
                 const newHeight = img.height * (newWidth / img.width);
                 
@@ -465,7 +464,7 @@ const NutritionDashboard: React.FC<{
             )}
 
             {/* MEAL BUILDER VIEW */}
-            {(view === 'BUILDER' || view === 'ADD_MEAL') && (
+            {view === 'BUILDER' && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
                     <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-2">
                         <button onClick={() => setView('OVERVIEW')} className="text-gray-500 hover:text-white flex items-center gap-1 text-xs font-mono"><ChevronLeft size={14} /> BACK</button>
