@@ -924,7 +924,7 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
                            <motion.div key={scanStep} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="flex-1 flex flex-col overflow-y-auto md:overflow-visible scrollbar-hide pb-4">
                               <div className="mb-6 md:mb-8 flex items-center gap-3 shrink-0">
                                   <div className="p-2 md:p-3 bg-gray-900 rounded-lg text-system-neon">
-                                      {React.cloneElement(steps[scanStep].icon as React.ReactElement, { size: 20 })}
+                                      {React.cloneElement(steps[scanStep].icon as React.ReactElement<any>, { size: 20 })}
                                   </div>
                                   <div>
                                       <h2 className="text-lg md:text-xl font-bold text-white font-mono tracking-tight">{steps[scanStep].title}</h2>

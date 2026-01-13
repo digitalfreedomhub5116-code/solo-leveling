@@ -419,16 +419,37 @@ export const useSystem = () => {
           const quest = prev.quests.find(q => q.id === id);
           if (!quest || quest.isCompleted) return prev;
 
-          const reward = asMini ? Math.floor(quest.xpReward * 0.1) : quest.xpReward;
-          const logMsg = asMini ? `Quest Activated (Mini): ${quest.title} (+${reward} XP)` : `Quest Complete: ${quest.title} (+${reward} XP)`;
+          // REWARD SCALING TABLE
+          const RANK_REWARDS: Record<Rank, { xp: number, gold: number }> = {
+              'E': { xp: 10, gold: 10 },
+              'D': { xp: 25, gold: 25 },
+              'C': { xp: 50, gold: 50 },
+              'B': { xp: 100, gold: 100 },
+              'A': { xp: 200, gold: 250 },
+              'S': { xp: 400, gold: 300 }
+          };
+
+          const tier = RANK_REWARDS[quest.rank] || RANK_REWARDS['E'];
+
+          // Use the quest's stored XP if available (for custom values), otherwise default to tier
+          const baseXp = quest.xpReward > 0 ? quest.xpReward : tier.xp;
+          // Force gold to match tier structure
+          const baseGold = tier.gold;
+
+          const rewardXp = asMini ? Math.floor(baseXp * 0.1) : baseXp;
+          const rewardGold = asMini ? Math.floor(baseGold * 0.1) : baseGold;
+
+          const logMsg = asMini 
+            ? `Quest Activated (Mini): ${quest.title} (+${rewardXp} XP, +${rewardGold} G)` 
+            : `Quest Complete: ${quest.title} (+${rewardXp} XP, +${rewardGold} G)`;
+            
           const statKey = quest.category;
           const newStats = { ...prev.stats };
           newStats[statKey] += 1;
-          const goldReward = asMini ? 5 : 20;
           
-          let newXp = prev.currentXp + reward;
-          let newTotalXp = prev.totalXp + reward;
-          let newDailyXp = (prev.dailyXp || 0) + reward;
+          let newXp = prev.currentXp + rewardXp;
+          let newTotalXp = prev.totalXp + rewardXp;
+          let newDailyXp = (prev.dailyXp || 0) + rewardXp;
           let newLevel = prev.level;
           let newRequiredXp = prev.requiredXp;
           let leveledUp = false;
@@ -445,7 +466,7 @@ export const useSystem = () => {
           if (leveledUp) {
                addNotification(`LEVEL UP! REACHED LEVEL ${newLevel}`, "LEVEL_UP");
           } else {
-               addNotification(`Quest Complete +${reward} XP`, "SUCCESS");
+               addNotification(`Quest Complete +${rewardXp} XP, +${rewardGold} G`, "SUCCESS");
           }
 
           return {
@@ -456,7 +477,7 @@ export const useSystem = () => {
               dailyXp: newDailyXp,
               level: newLevel,
               requiredXp: newRequiredXp,
-              gold: prev.gold + goldReward,
+              gold: prev.gold + rewardGold,
               stats: newStats,
               lastStatUpdate: { ...prev.lastStatUpdate, [statKey]: Date.now() },
               logs: [createLog(logMsg, 'XP'), ...prev.logs]
