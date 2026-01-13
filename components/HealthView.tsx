@@ -10,7 +10,6 @@ import WorkoutMap from './WorkoutMap';
 import WorkoutOverview from './WorkoutOverview';
 import { generateSystemProtocol, calculateTimeEstimate } from '../utils/workoutGenerator';
 import { INDIAN_FOOD_DB } from '../utils/indianFoodDb';
-import { supabase } from '../lib/supabase'; // Import Supabase Client
 
 interface HealthViewProps {
   healthProfile?: HealthProfile;
