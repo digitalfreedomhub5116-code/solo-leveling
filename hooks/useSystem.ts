@@ -283,11 +283,30 @@ export const useSystem = () => {
     return newData;
   }, [addNotification]);
 
-  // Init
+  // Init - Auto Login Check
   useEffect(() => {
-    // System ready to accept user input (renders AuthView due to isConfigured: false)
+    const lastUser = localStorage.getItem('shadow_system_last_user');
+    
+    if (lastUser) {
+        const key = `shadow_system_v4_${lastUser}`;
+        const savedData = localStorage.getItem(key);
+        
+        if (savedData) {
+            try {
+                const parsed = JSON.parse(savedData);
+                // Process logic to handle day changes while offline
+                const processed = processSystemLogic(parsed);
+                setPlayer({ ...processed, isConfigured: true });
+                console.log(`Auto-login successful: ${lastUser}`);
+            } catch (e) {
+                console.error("Auto-login failed: Data corruption", e);
+            }
+        }
+    }
+    
+    // System ready
     setIsLoaded(true);
-  }, []);
+  }, [processSystemLogic]);
 
   // Persist Data (User-Specific Key)
   useEffect(() => {
@@ -322,6 +341,9 @@ export const useSystem = () => {
           finalData = { ...getInitialState(), ...profile, username, isConfigured: true };
           addNotification("Identity Confirmed. System Link Established.", "SUCCESS");
       }
+      
+      // Store Last User for Auto-Login
+      localStorage.setItem('shadow_system_last_user', username);
       
       setPlayer(finalData);
   };
@@ -573,8 +595,9 @@ export const useSystem = () => {
   };
 
   const logout = () => {
+      // Clear persistence token
+      localStorage.removeItem('shadow_system_last_user');
       // Reset to unconfigured state (which will show AuthView). 
-      // Do NOT clear localStorage here, just state.
       setPlayer(getInitialState());
   };
 
