@@ -83,7 +83,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
         initial={{ y: 100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="md:hidden fixed bottom-4 left-4 right-4 h-16 bg-[#0a0a0a]/90 backdrop-blur-xl border border-gray-800 rounded-2xl z-40 flex justify-between items-center px-2 shadow-2xl"
+        className="md:hidden fixed bottom-4 left-4 right-4 h-16 bg-[#0a0a0a]/90 backdrop-blur-xl border border-gray-800 rounded-2xl z-40 flex justify-around items-center shadow-2xl"
       >
         {navItems.map((item) => {
           const isActive = activeTab === item.id;

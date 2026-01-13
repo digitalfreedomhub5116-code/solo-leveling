@@ -1069,9 +1069,9 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
                 }}
             />
             
-            <button onClick={() => setActiveSection('WORKOUT')} className={`flex-1 relative z-10 py-3 text-center font-mono font-bold tracking-widest transition-colors duration-300 text-xs ${activeSection === 'WORKOUT' ? 'text-white text-shadow-neon' : 'text-gray-500 hover:text-gray-300'}`}>WORKOUT</button>
-            <button onClick={() => setActiveSection('NUTRITION')} className={`flex-1 relative z-10 py-3 text-center font-mono font-bold tracking-widest transition-colors duration-300 text-xs ${activeSection === 'NUTRITION' ? 'text-white text-shadow-neon' : 'text-gray-500 hover:text-gray-300'}`}>NUTRITION</button>
-            <button onClick={() => setActiveSection('TRANSFORMATION')} className={`flex-1 relative z-10 py-3 text-center font-mono font-bold tracking-widest transition-colors duration-300 text-xs ${activeSection === 'TRANSFORMATION' ? 'text-white text-shadow-neon' : 'text-gray-500 hover:text-gray-300'}`}>TRANSFORMATION</button>
+            <button onClick={() => setActiveSection('WORKOUT')} className={`flex-1 relative z-10 py-3 text-center font-mono font-bold tracking-tight md:tracking-widest transition-colors duration-300 text-[10px] md:text-xs ${activeSection === 'WORKOUT' ? 'text-white text-shadow-neon' : 'text-gray-500 hover:text-gray-300'}`}>WORKOUT</button>
+            <button onClick={() => setActiveSection('NUTRITION')} className={`flex-1 relative z-10 py-3 text-center font-mono font-bold tracking-tight md:tracking-widest transition-colors duration-300 text-[10px] md:text-xs ${activeSection === 'NUTRITION' ? 'text-white text-shadow-neon' : 'text-gray-500 hover:text-gray-300'}`}>NUTRITION</button>
+            <button onClick={() => setActiveSection('TRANSFORMATION')} className={`flex-1 relative z-10 py-3 text-center font-mono font-bold tracking-tight md:tracking-widest transition-colors duration-300 text-[10px] md:text-xs ${activeSection === 'TRANSFORMATION' ? 'text-white text-shadow-neon' : 'text-gray-500 hover:text-gray-300'}`}>EVOLUTION</button>
         </div>
 
         <AnimatePresence mode="wait">
@@ -1134,7 +1134,7 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
 
                     <div className="flex gap-4 border-b border-gray-800">
                         <button onClick={() => setActiveTab('WORKOUT')} className={`pb-2 text-sm font-mono transition-colors border-b-2 ${activeTab === 'WORKOUT' ? 'text-system-neon border-system-neon' : 'text-gray-600 border-transparent hover:text-gray-300'}`}>QUEST MAP</button>
-                        <button onClick={() => setActiveTab('STATS')} className={`pb-2 text-sm font-mono transition-colors border-b-2 ${activeTab === 'STATS' ? 'text-system-accent border-system-accent' : 'text-gray-600 border-transparent hover:text-gray-300'}`}>PROTOCOL OVERVIEW</button>
+                        <button onClick={() => setActiveTab('STATS')} className={`pb-2 text-sm font-mono transition-colors border-b-2 ${activeTab === 'STATS' ? 'text-system-accent border-system-accent' : 'text-gray-600 border-transparent hover:text-gray-300'}`}>PROTOCOL</button>
                     </div>
 
                     <AnimatePresence mode="wait">
@@ -1159,7 +1159,7 @@ const HealthView: React.FC<HealthViewProps> = ({ healthProfile, onSaveProfile, o
                                                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono font-bold text-sm transition-colors ${isToday ? 'bg-system-neon text-black shadow-[0_0_10px_#00d2ff]' : isCompleted ? 'bg-system-success/20 text-system-success border border-system-success/30' : 'bg-gray-900 text-gray-600 border border-gray-800'}`}>{isCompleted ? <CheckCircle size={18} /> : index + 1}</div>
                                                     <div><div className="flex items-center gap-2 mb-0.5"><h4 className={`font-mono text-sm font-bold uppercase tracking-wider ${isLocked ? 'text-gray-500' : 'text-white'}`}>{dayPlan.focus}</h4>{isToday && <span className="text-[8px] bg-system-neon/20 text-system-neon px-1.5 py-0.5 rounded border border-system-neon/30 animate-pulse">CURRENT</span>}{isCompleted && <span className="text-[8px] bg-system-success/10 text-system-success px-1.5 py-0.5 rounded border border-system-success/20">COMPLETE</span>}{isLocked && <span className="text-[8px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded border border-gray-700">LOCKED</span>}</div><span className="text-[10px] text-gray-500 font-mono uppercase flex items-center gap-1">{dayPlan.day} {dayPlan.isRecovery && <span className="text-system-success">• RECOVERY</span>}</span></div>
                                                 </div>
-                                                <button onClick={() => setExpandedDay(expandedDay === index ? null : index)} className={`flex items-center gap-2 px-3 py-1.5 rounded text-[10px] font-mono font-bold transition-colors ${isLocked ? 'bg-gray-900 text-gray-500 hover:text-gray-300' : 'bg-system-neon/10 text-system-neon hover:bg-system-neon hover:text-black'}`}><Eye size={12} /> {expandedDay === index ? 'HIDE INTEL' : 'VIEW INTEL'} {expandedDay === index ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</button>
+                                                <button onClick={() => setExpandedDay(expandedDay === index ? null : index)} className={`flex items-center gap-2 px-3 py-1.5 rounded text-[10px] font-mono font-bold transition-colors ${isLocked ? 'bg-gray-900 text-gray-500 hover:text-gray-300' : 'bg-system-neon/10 text-system-neon hover:bg-system-neon hover:text-black'}`}><Eye size={12} /> {expandedDay === index ? 'HIDE' : 'VIEW'} {expandedDay === index ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</button>
                                             </div>
                                             <AnimatePresence>
                                                 {expandedDay === index && (
