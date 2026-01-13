@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo, useRef } from 'react';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, PolarRadiusAxis, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
+import React, { useState, useMemo } from 'react';
+import { ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Calendar, BarChart3, Hexagon, TrendingUp } from 'lucide-react';
 import { CoreStats, HistoryEntry } from '../types';
