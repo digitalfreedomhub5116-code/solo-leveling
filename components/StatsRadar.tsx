@@ -172,16 +172,17 @@ const CustomRadarChart = ({ data, domainMax, onHover }: any) => {
                 );
             })}
 
-            {/* Fill Area (Fade In) */}
+            {/* Fill Area (Fade In Last) */}
             <motion.path
                 d={pathD}
                 fill="url(#radarFillGradient)"
+                stroke="none"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 1.2, duration: 0.5 }}
+                transition={{ delay: 1.5, duration: 0.5 }}
             />
 
-            {/* Stroke Line (Draw Animation) */}
+            {/* Stroke Line (Draw Animation after dots) */}
             <motion.path
                 d={pathD}
                 fill="none"
@@ -189,7 +190,7 @@ const CustomRadarChart = ({ data, domainMax, onHover }: any) => {
                 strokeWidth="3"
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: 1, opacity: 1 }}
-                transition={{ delay: 0.5, duration: 1.5, ease: "easeInOut" }}
+                transition={{ delay: 0.8, duration: 1.5, ease: "easeInOut" }}
             />
 
             {/* Dots (Sequential Pop in) */}
@@ -208,8 +209,8 @@ const CustomRadarChart = ({ data, domainMax, onHover }: any) => {
                         fill="#fff"
                         stroke="#00d2ff"
                         strokeWidth={1}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
                         transition={{ delay: i * 0.15, type: "spring", stiffness: 300, damping: 20 }}
                     />
                 </g>

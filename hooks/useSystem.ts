@@ -21,7 +21,7 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   rank: 'E',
   gold: 0,
   streak: 1,
-  stats: { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 },
+  stats: { strength: 1, intelligence: 1, focus: 1, social: 1, willpower: 1 },
   lastStatUpdate: { strength: Date.now(), intelligence: Date.now(), focus: Date.now(), social: Date.now(), willpower: Date.now() },
   history: [],
   hp: 100,
