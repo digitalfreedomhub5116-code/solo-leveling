@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Activity, Calendar, BarChart3, Hexagon, TrendingUp } from 'lucide-react';
 import { CoreStats, HistoryEntry } from '../types';
 
@@ -12,13 +12,13 @@ interface EvaluationMatrixProps {
 }
 
 // Animation Variants for Panel Transitions
-const panelVariants = {
+const panelVariants: Variants = {
   hidden: { opacity: 0, scale: 0.95, filter: "blur(4px)" },
   visible: { 
     opacity: 1, 
     scale: 1, 
     filter: "blur(0px)",
-    transition: { duration: 0.4, ease: "circOut" }
+    transition: { duration: 0.4, ease: "easeOut" }
   },
   exit: { 
     opacity: 0, 

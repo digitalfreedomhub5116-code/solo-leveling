@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, Variants } from 'framer-motion';
 import { Zap, TrendingUp } from 'lucide-react';
 import Layout from './components/Layout';
 import Navigation from './components/Navigation';
@@ -19,13 +19,13 @@ import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab } from './types';
 
 // Animation Variants
-const pageVariants = {
+const pageVariants: Variants = {
   initial: { opacity: 0, y: 10, scale: 0.98 },
   enter: { 
     opacity: 1, 
     y: 0, 
     scale: 1,
-    transition: { duration: 0.4, ease: [0.2, 0.65, 0.3, 0.9] }
+    transition: { duration: 0.4, ease: "easeInOut" }
   },
   exit: { 
     opacity: 0, 

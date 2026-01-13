@@ -21,7 +21,7 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   rank: 'E',
   gold: 0,
   streak: 1,
-  stats: { strength: 1, intelligence: 1, focus: 1, social: 1, willpower: 1 },
+  stats: { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 },
   lastStatUpdate: { strength: Date.now(), intelligence: Date.now(), focus: Date.now(), social: Date.now(), willpower: Date.now() },
   history: [],
   hp: 100,
@@ -328,8 +328,18 @@ export const useSystem = () => {
           try {
               const parsed = JSON.parse(savedData);
               const processed = processSystemLogic(parsed);
-              // Merge profile just in case pins/details updated
-              finalData = { ...processed, ...profile, isConfigured: true };
+              // CRITICAL: Prefer local game state (stats, xp) over auth profile data to prevent reset/corruption
+              finalData = { 
+                  ...processed, 
+                  // Only update identity fields from auth profile
+                  name: profile.name || processed.name,
+                  username: profile.username || processed.username,
+                  pin: profile.pin || processed.pin,
+                  userId: profile.userId || processed.userId,
+                  // Explicitly preserve local stats if they exist
+                  stats: processed.stats || INITIAL_PLAYER_DATA.stats,
+                  isConfigured: true 
+              };
               addNotification(`Welcome back, ${finalData.username || finalData.name}.`, "SUCCESS");
           } catch (e) {
               console.error("Save Corrupt", e);
