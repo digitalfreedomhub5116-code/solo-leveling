@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Activity, Target, Dumbbell, Flame, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, Ruler, Fingerprint, Crown, Trophy, Zap, Camera, Search, Utensils, ScanLine, X, AlertTriangle, RefreshCw, Droplets, Moon, Calendar, Map as MapIcon } from 'lucide-react';
+import { Dumbbell, Flame, ChevronLeft, Trophy, Zap, Camera, Search, Utensils, ScanLine, X, AlertTriangle, RefreshCw, Droplets, Moon, Calendar, Map as MapIcon } from 'lucide-react';
 import { ResponsiveContainer, PieChart as RechartsPie, Pie, Cell } from 'recharts';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog, FoodItem, LoggedFoodItem } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
