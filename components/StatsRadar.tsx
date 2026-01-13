@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, PolarRadiusAxis, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Calendar, BarChart3, Hexagon, TrendingUp } from 'lucide-react';
@@ -85,8 +85,142 @@ const GraphTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+// Helper for Custom Radar
+const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
+  const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+  return {
+    x: centerX + (radius * Math.cos(angleInRadians)),
+    y: centerY + (radius * Math.sin(angleInRadians))
+  };
+};
+
+const CustomRadarChart = ({ data, domainMax, onHover }: any) => {
+    const size = 300;
+    const center = size / 2;
+    const radius = 100; // Max radius fitting in 300x300 with labels
+    
+    // Grid Levels
+    const gridLevels = 5;
+    const gridPaths = [];
+    for (let level = 1; level <= gridLevels; level++) {
+        const levelRadius = (radius / gridLevels) * level;
+        const pts = data.map((_: any, i: number) => {
+            const angle = (360 / 5) * i;
+            const { x, y } = polarToCartesian(center, center, levelRadius, angle);
+            return `${x},${y}`;
+        });
+        gridPaths.push(pts.join(' '));
+    }
+
+    // Axes Lines
+    const axesLines = data.map((_: any, i: number) => {
+        const angle = (360 / 5) * i;
+        const { x, y } = polarToCartesian(center, center, radius, angle);
+        return { x1: center, y1: center, x2: x, y2: y };
+    });
+
+    // Data Points & Path
+    const dataPoints = data.map((d: any, i: number) => {
+        const angle = (360 / 5) * i;
+        // Clamp value to domainMax to avoid overflow
+        const val = Math.min(d.value, domainMax);
+        const valRadius = (val / domainMax) * radius;
+        return polarToCartesian(center, center, valRadius, angle);
+    });
+    
+    const pathD = dataPoints.map((p: any, i: number) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ') + ' Z';
+
+    return (
+        <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full overflow-visible select-none">
+            <defs>
+                <linearGradient id="radarStrokeGradient" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#00d2ff" />
+                    <stop offset="100%" stopColor="#8b5cf6" />
+                </linearGradient>
+                <linearGradient id="radarFillGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#00d2ff" stopOpacity={0.4}/>
+                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                </linearGradient>
+            </defs>
+
+            {/* Grid */}
+            {gridPaths.map((pts, i) => (
+                <polygon key={`grid-${i}`} points={pts} fill="none" stroke="#333" strokeWidth="1" strokeDasharray="3 3" />
+            ))}
+            {axesLines.map((line: any, i: number) => (
+                <line key={`axis-${i}`} {...line} stroke="#333" strokeWidth="1" strokeDasharray="3 3" />
+            ))}
+
+            {/* Labels */}
+            {data.map((d: any, i: number) => {
+                const angle = (360 / 5) * i;
+                const { x, y } = polarToCartesian(center, center, radius + 25, angle);
+                return (
+                    <text 
+                        key={`label-${i}`} 
+                        x={x} y={y} 
+                        textAnchor="middle" 
+                        dominantBaseline="middle" 
+                        fill="#9ca3af" 
+                        fontSize="9" 
+                        fontFamily="JetBrains Mono" 
+                        fontWeight="bold"
+                        className="drop-shadow-md"
+                    >
+                        {d.subject}
+                    </text>
+                );
+            })}
+
+            {/* Fill Area (Fade In) */}
+            <motion.path
+                d={pathD}
+                fill="url(#radarFillGradient)"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.2, duration: 0.5 }}
+            />
+
+            {/* Stroke Line (Draw Animation) */}
+            <motion.path
+                d={pathD}
+                fill="none"
+                stroke="url(#radarStrokeGradient)"
+                strokeWidth="3"
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={{ pathLength: 1, opacity: 1 }}
+                transition={{ delay: 0.5, duration: 1.5, ease: "easeInOut" }}
+            />
+
+            {/* Dots (Sequential Pop in) */}
+            {dataPoints.map((p: any, i: number) => (
+                <g 
+                    key={`dot-group-${i}`} 
+                    onMouseEnter={(e) => onHover(e, data[i])} 
+                    onMouseLeave={(e) => onHover(e, null)}
+                    style={{ cursor: 'pointer' }}
+                >
+                    {/* Interaction Target */}
+                    <circle cx={p.x} cy={p.y} r={12} fill="transparent" />
+                    
+                    <motion.circle
+                        cx={p.x} cy={p.y} r={4}
+                        fill="#fff"
+                        stroke="#00d2ff"
+                        strokeWidth={1}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: i * 0.15, type: "spring", stiffness: 300, damping: 20 }}
+                    />
+                </g>
+            ))}
+        </svg>
+    );
+};
+
 const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dailyXp }) => {
   const [view, setView] = useState<'CURRENT' | 'DAILY' | 'WEEKLY' | 'MONTHLY'>('CURRENT');
+  const [tooltipConfig, setTooltipConfig] = useState<{data: any, x: number, y: number} | null>(null);
 
   // Calculate Growth based on history
   const oldestEntry = history && history.length > 0 ? history[history.length - 1] : null;
@@ -126,6 +260,21 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
     { subject: 'SOCIAL', value: stats.social, fullMark: domainMax, growth: getGrowth('social') },
     { subject: 'WILLPOWER', value: stats.willpower, fullMark: domainMax, growth: getGrowth('willpower') },
   ], [stats, domainMax]);
+
+  // Handle Tooltip for Custom Radar
+  const handleRadarHover = (e: React.MouseEvent, data: any) => {
+      if (!data) {
+          setTooltipConfig(null);
+          return;
+      }
+      // Get raw coordinate relative to viewport
+      const rect = (e.target as Element).getBoundingClientRect();
+      setTooltipConfig({
+          data,
+          x: rect.left + rect.width / 2, 
+          y: rect.top
+      });
+  };
 
   // Prepare Graph Data
   const sortedHistory = history ? [...history].reverse() : [];
@@ -205,7 +354,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
 
         <AnimatePresence mode="wait">
           
-          {/* VIEW: CURRENT (RADAR) */}
+          {/* VIEW: CURRENT (CUSTOM RADAR) */}
           {view === 'CURRENT' && (
             <motion.div 
               key="radar"
@@ -213,39 +362,9 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="absolute inset-0 w-full h-full"
+              className="absolute inset-0 w-full h-full p-4"
             >
-              <ResponsiveContainer width="100%" height={300}>
-                <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
-                  <defs>
-                    <linearGradient id="radarGradient" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="5%" stopColor="#00d2ff" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.4}/>
-                    </linearGradient>
-                    <linearGradient id="radarStrokeGradient" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="#00d2ff" />
-                      <stop offset="100%" stopColor="#8b5cf6" />
-                    </linearGradient>
-                  </defs>
-                  <PolarGrid stroke="#333" strokeDasharray="3 3" />
-                  <PolarAngleAxis 
-                    dataKey="subject" 
-                    tick={{ fill: '#9ca3af', fontSize: 9, fontFamily: 'JetBrains Mono', fontWeight: 'bold' }} 
-                  />
-                  {/* Dynamic Domain applied here */}
-                  <PolarRadiusAxis angle={30} domain={[0, domainMax]} tick={false} axisLine={false} />
-                  <Radar
-                    name="Stats"
-                    dataKey="value"
-                    stroke="url(#radarStrokeGradient)"
-                    strokeWidth={3}
-                    fill="url(#radarGradient)"
-                    fillOpacity={0.6}
-                    isAnimationActive={true}
-                  />
-                  <Tooltip content={<RadarTooltip />} cursor={false} />
-                </RadarChart>
-              </ResponsiveContainer>
+              <CustomRadarChart data={radarData} domainMax={domainMax} onHover={handleRadarHover} />
               
               {/* Decorative Tech Corners */}
               <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-system-neon/40 rounded-tl-sm"></div>
@@ -349,6 +468,22 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
 
         </AnimatePresence>
       </div>
+
+      {/* Manual Tooltip Portal for Radar */}
+      {view === 'CURRENT' && tooltipConfig && (
+          <div 
+            style={{ 
+                position: 'fixed', 
+                left: tooltipConfig.x, 
+                top: tooltipConfig.y, 
+                transform: 'translate(-50%, -110%)', 
+                zIndex: 100,
+                pointerEvents: 'none'
+            }}
+          >
+             <RadarTooltip active={true} label={tooltipConfig.data.subject} payload={[{ payload: tooltipConfig.data }]} />
+          </div>
+      )}
     </div>
   );
 };
