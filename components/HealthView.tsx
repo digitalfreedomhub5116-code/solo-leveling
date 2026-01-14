@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Zap, Dumbbell, Check, Cpu, Flame, Target, Map, Calendar, List } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Zap, Dumbbell, Check, Cpu, Flame, Target, Map, Calendar, List, Swords } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
@@ -114,7 +114,7 @@ const calculateNutritionPlan = (profile: Partial<HealthProfile>) => {
   const age = profile.age || 25;
   const gender = profile.gender || 'MALE';
   const activity = profile.activityLevel || 'MODERATE';
-  const goal = profile.goal || 'BUILD_MUSCLE';
+  const goal = profile.goal || 'RECOMP';
 
   let bmr = (10 * weight) + (6.25 * height) - (5 * age);
   if (gender === 'MALE') bmr += 5;
@@ -133,8 +133,9 @@ const calculateNutritionPlan = (profile: Partial<HealthProfile>) => {
   let targetCalories = tdee;
   if (goal === 'LOSE_WEIGHT') targetCalories -= 500;
   else if (goal === 'BUILD_MUSCLE') targetCalories += 300;
+  else if (goal === 'RECOMP') targetCalories -= 200; // Slight deficit for body recomposition
   
-  const protein = Math.round(weight * 2.0);
+  const protein = Math.round(weight * 2.2); // Higher protein for recomp
   const fats = Math.round((targetCalories * 0.25) / 9);
   const carbs = Math.round((targetCalories - (protein * 4) - (fats * 9)) / 4);
 
@@ -176,7 +177,7 @@ const HealthView: React.FC<HealthViewProps> = ({
   const [formData, setFormData] = useState<Partial<HealthProfile>>({
       gender: 'MALE', 
       activityLevel: 'MODERATE', 
-      goal: 'BUILD_MUSCLE', 
+      goal: 'RECOMP', 
       equipment: 'GYM',
       intensity: 'MODERATE', 
       sessionDuration: 45, 
@@ -287,8 +288,9 @@ const HealthView: React.FC<HealthViewProps> = ({
 
       let identity = "Shadow Recruit";
       if (fullProfile.goal === 'LOSE_WEIGHT') identity = "Iron Vessel";
-      if (fullProfile.goal === 'BUILD_MUSCLE') identity = "Titan Vanguard";
-      if (fullProfile.goal === 'ENDURANCE') identity = "Wind Walker";
+      else if (fullProfile.goal === 'BUILD_MUSCLE') identity = "Titan Vanguard";
+      else if (fullProfile.goal === 'ENDURANCE') identity = "Wind Walker";
+      else if (fullProfile.goal === 'RECOMP') identity = "Shadow Sovereign";
 
       onSaveProfile(fullProfile, identity);
       setViewMode('MAP');
@@ -299,6 +301,8 @@ const HealthView: React.FC<HealthViewProps> = ({
       }
   };
 
+  // ... (Active session, overview, processing, finalizing renders remain unchanged)
+  
   // --- RENDER: ACTIVE SESSION ---
   if (viewMode === 'ACTIVE' && activePlan) {
       return (
@@ -382,10 +386,11 @@ const HealthView: React.FC<HealthViewProps> = ({
 
   // --- RENDER: ANALYSIS STAGES ---
   if (viewMode === 'ANALYSIS') {
-      // ... (existing analysis rendering code)
       // Calculate estimated time
       const weightDiff = Math.abs((formData.weight || 0) - (formData.targetWeight || formData.weight || 0));
-      const weeks = Math.ceil(weightDiff / 0.5) || 4; 
+      // Recomp takes longer than pure weight loss
+      const rate = formData.goal === 'RECOMP' ? 0.3 : 0.5;
+      const weeks = Math.ceil(weightDiff / rate) || 4; 
       
       const currentStats = [
           { subject: 'STRENGTH', value: 30, fullMark: 100 },
@@ -684,6 +689,7 @@ const HealthView: React.FC<HealthViewProps> = ({
                                 <div className="text-sm text-gray-400 font-mono uppercase tracking-widest mb-2">Prime Directive</div>
                                 <div className="grid grid-cols-1 gap-3">
                                     {[
+                                        { id: 'RECOMP', label: 'LOSE FAT + BUILD MUSCLE', icon: <Swords size={18} />, color: 'text-system-accent', borderColor: 'border-system-accent' },
                                         { id: 'LOSE_WEIGHT', label: 'WEIGHT LOSS', icon: <Zap size={18} />, color: 'text-yellow-500', borderColor: 'border-yellow-500' },
                                         { id: 'BUILD_MUSCLE', label: 'MUSCLE GAIN', icon: <Dumbbell size={18} />, color: 'text-system-neon', borderColor: 'border-system-neon' },
                                         { id: 'ENDURANCE', label: 'ENDURANCE', icon: <Activity size={18} />, color: 'text-system-success', borderColor: 'border-system-success' }
