@@ -38,15 +38,15 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onRese
   const isMiniActive = isMiniView && !quest.isCompleted;
   
   // Dynamic styles
-  const borderColor = isMiniActive ? 'border-amber-700/50' : 'border-gray-800';
-  const bgClass = quest.isCompleted ? 'bg-black/20' : 'bg-system-card/40';
+  const borderColor = isMiniActive ? 'border-amber-700/50' : quest.isCompleted ? 'border-system-success/30' : 'border-gray-800';
+  const bgClass = quest.isCompleted ? 'bg-black/40' : 'bg-system-card/40';
 
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      whileHover={{ scale: 1.01, borderColor: 'rgba(255,255,255,0.1)' }}
+      whileHover={{ scale: 1.01, borderColor: quest.isCompleted ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.1)' }}
       className={`relative border backdrop-blur-sm p-4 rounded-xl flex flex-col md:flex-row gap-4 items-start md:items-center justify-between group overflow-hidden transition-all duration-300 ${bgClass} ${borderColor}`}
     >
        {/* Active Glow/Background */}
@@ -56,12 +56,16 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onRese
 
        {/* Completion Overlay Flash */}
        {quest.isCompleted && (
-           <motion.div 
-             initial={{ opacity: 0.5 }} 
-             animate={{ opacity: 0 }} 
-             transition={{ duration: 0.8 }}
-             className="absolute inset-0 bg-system-success/20 pointer-events-none" 
-           />
+           <>
+             <motion.div 
+               initial={{ opacity: 0.6 }} 
+               animate={{ opacity: 0 }} 
+               transition={{ duration: 1.5, ease: "easeOut" }}
+               className="absolute inset-0 bg-system-success/10 pointer-events-none" 
+             />
+             {/* Subtle Persistent Glow */}
+             <div className="absolute inset-0 shadow-[0_0_30px_rgba(16,185,129,0.05)_inset] pointer-events-none rounded-xl" />
+           </>
        )}
 
        <div className="flex items-center gap-4 z-10 w-full md:w-auto">
@@ -77,9 +81,15 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onRese
                 </span>
                 
                 {/* Rewards */}
-                <span className={`text-[10px] font-mono font-bold ${isMiniActive ? 'text-amber-500' : 'text-system-neon'}`}>
+                <motion.span 
+                    key={quest.isCompleted ? 'completed' : 'active'}
+                    initial={quest.isCompleted ? { scale: 1.5, color: '#4ade80' } : {}}
+                    animate={quest.isCompleted ? { scale: 1, color: '#4ade80' } : {}}
+                    transition={{ type: "spring", stiffness: 300, damping: 10 }}
+                    className={`text-[10px] font-mono font-bold ${isMiniActive ? 'text-amber-500' : quest.isCompleted ? 'text-system-success' : 'text-system-neon'}`}
+                >
                     +{isMiniActive ? miniXp : quest.xpReward} XP
-                </span>
+                </motion.span>
 
                 {quest.isDaily && (
                     <span className="text-[9px] text-system-accent border border-system-accent/20 px-1.5 rounded bg-system-accent/5 font-mono">
@@ -88,7 +98,7 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onRese
                 )}
              </div>
              
-             <h3 className={`font-bold text-sm md:text-base transition-colors ${isMiniActive ? 'text-amber-500' : quest.isCompleted ? 'text-gray-600 line-through' : 'text-gray-200 group-hover:text-white'}`}>
+             <h3 className={`font-bold text-sm md:text-base transition-colors ${isMiniActive ? 'text-amber-500' : quest.isCompleted ? 'text-gray-500 line-through decoration-system-success/50' : 'text-gray-200 group-hover:text-white'}`}>
                {isMiniActive ? miniTitle : quest.title}
              </h3>
              
@@ -97,10 +107,22 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onRese
              )}
 
              {quest.isCompleted && (
-                 <div className="mt-1 text-[10px] font-mono text-system-success flex items-center gap-1">
-                     <CheckCircle size={10} /> COMPLETED
+                 <motion.div 
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="mt-1 text-[10px] font-mono text-system-success flex items-center gap-1"
+                 >
+                     <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: "spring", stiffness: 200, damping: 10 }}
+                     >
+                        <CheckCircle size={12} />
+                     </motion.div>
+                     <span className="font-bold">COMPLETED</span>
                      {quest.completedAsMini && <span className="text-amber-600 ml-2">(SAFE MODE)</span>}
-                 </div>
+                 </motion.div>
              )}
           </div>
        </div>

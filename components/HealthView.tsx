@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Zap, Dumbbell, Check, Cpu } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Zap, Dumbbell, Check, Cpu, Flame, Target, Map, Calendar, List } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
 import WorkoutOverview from './WorkoutOverview';
-import { generateSystemProtocol } from '../utils/workoutGenerator';
+import { generateSystemProtocol, calculateTimeEstimate } from '../utils/workoutGenerator';
 import { INDIAN_FOOD_DB } from '../utils/indianFoodDb';
 
 interface HealthViewProps {
@@ -382,6 +382,7 @@ const HealthView: React.FC<HealthViewProps> = ({
 
   // --- RENDER: ANALYSIS STAGES ---
   if (viewMode === 'ANALYSIS') {
+      // ... (existing analysis rendering code)
       // Calculate estimated time
       const weightDiff = Math.abs((formData.weight || 0) - (formData.targetWeight || formData.weight || 0));
       const weeks = Math.ceil(weightDiff / 0.5) || 4; 
@@ -510,8 +511,6 @@ const HealthView: React.FC<HealthViewProps> = ({
   }
 
   // --- RENDER: SETUP WIZARD ---
-  // ... (Retain existing setup wizard rendering code as it is, no changes needed for this block)
-  // Just ensure the id="tut-health-start" is on the first step container.
   if (viewMode === 'SETUP') {
       const progress = (step / TOTAL_STEPS) * 100;
 
@@ -765,13 +764,12 @@ const HealthView: React.FC<HealthViewProps> = ({
   }
 
   // --- RENDER: DASHBOARD ---
-  // ... (Retain existing dashboard logic)
   const currentDayIndex = playerData.logs.filter(l => l.type === 'WORKOUT').length;
 
   return (
     <div className="h-full flex flex-col gap-4">
         {/* TABS */}
-        <div className="flex border-b border-gray-800">
+        <div className="flex border-b border-gray-800 sticky top-0 bg-system-bg z-30 pt-2">
             {[
                 { id: 'WORKOUT', icon: <Activity size={14} />, label: 'OPERATIONS' },
                 { id: 'NUTRITION', icon: <Utensils size={14} />, label: 'RATIONS' },
@@ -790,15 +788,95 @@ const HealthView: React.FC<HealthViewProps> = ({
         {/* CONTENT */}
         <div className="flex-1 min-h-[500px]">
             <AnimatePresence mode="wait">
+                
+                {/* --- OPERATIONS TAB --- */}
                 {activeTab === 'WORKOUT' && (
-                    <motion.div key="workout" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                        <WorkoutMap 
-                            currentWeight={healthProfile?.weight || 0}
-                            targetWeight={healthProfile?.targetWeight || 0}
-                            workoutPlan={calculatedPlan}
-                            completedDays={currentDayIndex}
-                            onStartDay={handleDaySelect}
-                        />
+                    <motion.div key="workout" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-12 pb-10">
+                        
+                        {/* 1. STREAK SECTION */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden group">
+                                <div className="absolute inset-0 bg-orange-500/5 group-hover:bg-orange-500/10 transition-colors" />
+                                <Flame className="text-orange-500 mb-2 animate-pulse" size={24} />
+                                <div className="text-2xl font-black text-white font-mono">{playerData.streak}</div>
+                                <div className="text-[9px] text-orange-400 font-mono tracking-widest uppercase">DAY STREAK</div>
+                            </div>
+                            <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden group">
+                                <div className="absolute inset-0 bg-system-neon/5 group-hover:bg-system-neon/10 transition-colors" />
+                                <Target className="text-system-neon mb-2" size={24} />
+                                <div className="text-xl font-bold text-white font-mono">{calculateTimeEstimate(healthProfile || formData)}</div>
+                                <div className="text-[9px] text-system-neon font-mono tracking-widest uppercase">EST. COMPLETION</div>
+                            </div>
+                        </div>
+
+                        {/* 2. MAP SECTION */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 border-b border-gray-800 pb-2">
+                                <Map size={16} className="text-system-accent" />
+                                <h3 className="text-xs text-white font-mono font-bold tracking-[0.2em]">OPERATIONAL MAP</h3>
+                            </div>
+                            <WorkoutMap 
+                                currentWeight={healthProfile?.weight || 0}
+                                targetWeight={healthProfile?.targetWeight || 0}
+                                workoutPlan={calculatedPlan}
+                                completedDays={currentDayIndex}
+                                onStartDay={handleDaySelect}
+                            />
+                        </div>
+
+                        {/* 3. PROTOCOL OVERVIEW SECTION */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 border-b border-gray-800 pb-2">
+                                <List size={16} className="text-gray-400" />
+                                <h3 className="text-xs text-white font-mono font-bold tracking-[0.2em]">PROTOCOL MANIFEST</h3>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 gap-6">
+                                {/* Chunk days into weeks */}
+                                {Array.from({ length: 4 }).map((_, weekIdx) => {
+                                    const weekDays = calculatedPlan.slice(weekIdx * 7, (weekIdx + 1) * 7);
+                                    
+                                    return (
+                                        <div key={weekIdx} className="bg-black border border-gray-800 rounded-xl overflow-hidden">
+                                            <div className="bg-gray-900/50 p-3 border-b border-gray-800 flex justify-between items-center">
+                                                <div className="flex items-center gap-2">
+                                                    <Calendar size={14} className="text-system-neon" />
+                                                    <span className="text-xs font-bold text-white font-mono">WEEK {weekIdx + 1}</span>
+                                                </div>
+                                                <span className="text-[9px] text-gray-500 font-mono">PHASE {weekIdx + 1}/4</span>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-7 divide-x divide-gray-800">
+                                                {weekDays.map((day, dIdx) => {
+                                                    const globalIdx = (weekIdx * 7) + dIdx;
+                                                    const isComplete = globalIdx < currentDayIndex;
+                                                    const isCurrent = globalIdx === currentDayIndex;
+                                                    
+                                                    return (
+                                                        <div key={dIdx} className={`p-2 flex flex-col items-center justify-center min-h-[60px] relative group hover:bg-white/5 transition-colors ${isCurrent ? 'bg-system-neon/10' : ''}`}>
+                                                            <div className="text-[8px] text-gray-600 font-mono mb-1">DAY {dIdx + 1}</div>
+                                                            <div className={`text-[9px] font-bold text-center leading-tight ${isComplete ? 'text-system-success line-through opacity-50' : isCurrent ? 'text-white' : 'text-gray-400'}`}>
+                                                                {day.focus}
+                                                            </div>
+                                                            
+                                                            {/* Status Dot */}
+                                                            <div className={`mt-1 w-1.5 h-1.5 rounded-full ${isComplete ? 'bg-system-success' : isCurrent ? 'bg-system-neon animate-pulse' : 'bg-gray-800'}`} />
+                                                            
+                                                            {/* Tooltip */}
+                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-900 border border-gray-700 p-2 rounded w-32 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10 text-center shadow-xl">
+                                                                <div className="text-[9px] text-white font-bold mb-1">{day.day}</div>
+                                                                <div className="text-[8px] text-gray-400">{day.exercises.length} EXERCISES</div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
                     </motion.div>
                 )}
 

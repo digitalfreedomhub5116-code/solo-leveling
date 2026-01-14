@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, ArrowRight, CheckCircle, Info, Lock } from 'lucide-react';
+import { Terminal, ArrowRight, CheckCircle, Info, Lock, FastForward } from 'lucide-react';
 
 interface TutorialOverlayProps {
   currentStep: number;
@@ -18,6 +18,7 @@ interface ScriptStep {
   allowInteraction?: boolean; // If true, user can click/type in the highlighted area
   hideOverlay?: boolean; // For steps where user interacts with complex forms (Health)
   requireInput?: boolean; // If true, prevents clicking Next until input has value
+  forcePosition?: 'top' | 'bottom' | 'center'; // Override automatic positioning
 }
 
 const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, onComplete }) => {
@@ -46,7 +47,8 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           buttonText: "Tap 'Add Quest'",
           targetId: 'tut-add-quest',
           waitForAction: true,
-          allowInteraction: true
+          allowInteraction: true,
+          forcePosition: 'bottom'
       },
       3: { 
           title: "Identity & Name",
@@ -54,21 +56,24 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           buttonText: "Next",
           targetId: 'tut-quest-title',
           allowInteraction: true,
-          requireInput: true 
+          requireInput: true,
+          forcePosition: 'bottom'
       },
       4: { 
           title: "Mini Quests",
           body: "Too hard? Break it down.\n'Mini Quests' are small wins that build momentum.",
           buttonText: "Next",
           targetId: 'tut-quest-mini',
-          allowInteraction: true
+          allowInteraction: true,
+          forcePosition: 'top'
       },
       5: { 
           title: "Triggers",
           body: "Don't rely on memory.\nSet a 'Trigger' (e.g. After coffee) to anchor this habit.",
           buttonText: "Next",
           targetId: 'tut-quest-trigger',
-          allowInteraction: true
+          allowInteraction: true,
+          forcePosition: 'top'
       },
       6: { 
           title: "Alignment",
@@ -76,7 +81,8 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           buttonText: "Tap 'Confirm'",
           targetId: 'tut-confirm-quest',
           waitForAction: true,
-          allowInteraction: true
+          allowInteraction: true,
+          forcePosition: 'top'
       },
       7: { 
           title: "Quest Active",
@@ -128,14 +134,18 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                       return rect;
                   });
                   
-                  const windowHeight = window.innerHeight;
-                  const elementCenterY = rect.top + (rect.height / 2);
-                  
-                  // Aggressive positioning for mobile
-                  if (elementCenterY < windowHeight * 0.45) {
-                      setDialogPosition('bottom');
+                  if (stepData.forcePosition) {
+                      setDialogPosition(stepData.forcePosition);
                   } else {
-                      setDialogPosition('top');
+                      const windowHeight = window.innerHeight;
+                      const elementCenterY = rect.top + (rect.height / 2);
+                      
+                      // Aggressive positioning for mobile
+                      if (elementCenterY < windowHeight * 0.45) {
+                          setDialogPosition('bottom');
+                      } else {
+                          setDialogPosition('top');
+                      }
                   }
               }
           } else {
@@ -303,26 +313,36 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                                 </div>
                             </div>
 
-                            <div className="flex justify-end gap-2 pt-3 mt-1">
-                                {currentStep === 8 ? ( 
-                                    <button 
-                                        onClick={onComplete}
-                                        className="bg-system-neon text-black px-4 py-2 rounded font-bold font-mono text-xs hover:bg-white transition-colors flex items-center gap-2 shadow-[0_0_10px_rgba(0,210,255,0.4)]"
-                                    >
-                                        {stepData.buttonText} <CheckCircle size={14} />
-                                    </button>
-                                ) : !stepData.waitForAction ? (
-                                    <button 
-                                        onClick={handleNextClick}
-                                        className={`px-4 py-2 rounded font-bold font-mono text-xs transition-colors flex items-center gap-2 shadow-[0_0_10px_rgba(0,210,255,0.4)] ${isError ? 'bg-red-500 text-white hover:bg-red-400' : 'bg-system-neon text-black hover:bg-white'}`}
-                                    >
-                                        {stepData.buttonText} <ArrowRight size={14} />
-                                    </button>
-                                ) : (
-                                    <div className="text-[10px] text-system-neon font-mono animate-pulse flex items-center gap-2 px-3 py-2 border border-system-neon/30 rounded bg-system-neon/5">
-                                        <Info size={12} /> {stepData.buttonText}
-                                    </div>
-                                )}
+                            <div className="flex justify-between items-center pt-3 mt-1">
+                                <button 
+                                    onClick={onComplete}
+                                    className="text-[10px] text-gray-600 hover:text-red-400 font-mono tracking-wider transition-colors px-2 py-1 flex items-center gap-1 group"
+                                    title="Skip Tutorial"
+                                >
+                                    SKIP <FastForward size={10} className="group-hover:translate-x-0.5 transition-transform" />
+                                </button>
+
+                                <div className="flex justify-end gap-2">
+                                    {currentStep === 8 ? ( 
+                                        <button 
+                                            onClick={onComplete}
+                                            className="bg-system-neon text-black px-4 py-2 rounded font-bold font-mono text-xs hover:bg-white transition-colors flex items-center gap-2 shadow-[0_0_10px_rgba(0,210,255,0.4)]"
+                                        >
+                                            {stepData.buttonText} <CheckCircle size={14} />
+                                        </button>
+                                    ) : !stepData.waitForAction ? (
+                                        <button 
+                                            onClick={handleNextClick}
+                                            className={`px-4 py-2 rounded font-bold font-mono text-xs transition-colors flex items-center gap-2 shadow-[0_0_10px_rgba(0,210,255,0.4)] ${isError ? 'bg-red-500 text-white hover:bg-red-400' : 'bg-system-neon text-black hover:bg-white'}`}
+                                        >
+                                            {stepData.buttonText} <ArrowRight size={14} />
+                                        </button>
+                                    ) : (
+                                        <div className="text-[10px] text-system-neon font-mono animate-pulse flex items-center gap-2 px-3 py-2 border border-system-neon/30 rounded bg-system-neon/5">
+                                            <Info size={12} /> {stepData.buttonText}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </motion.div>
                     </AnimatePresence>

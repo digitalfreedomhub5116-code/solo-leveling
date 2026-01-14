@@ -195,21 +195,21 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
        {/* Create Quest Modal */}
        <AnimatePresence>
          {isModalOpen && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+           <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm overflow-hidden">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-system-card border border-system-border w-full max-w-lg rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto m-auto relative"
+                className="bg-system-card border border-system-border w-full max-w-lg rounded-xl shadow-2xl overflow-hidden max-h-[85vh] m-auto relative flex flex-col"
               >
-                 <div className="p-3 sm:p-6 border-b border-system-border flex justify-between items-center sticky top-0 bg-system-card z-10">
+                 <div className="p-3 sm:p-6 border-b border-system-border flex justify-between items-center bg-system-card z-10 shrink-0">
                     <h3 className="text-base sm:text-lg font-bold text-white font-mono">NEW ASSIGNMENT</h3>
                     <button onClick={() => handleAutoRank()} className="text-[10px] sm:text-xs text-system-neon flex items-center gap-1 hover:underline group">
                        <Sparkles size={12} className="group-hover:animate-spin" /> ANALYZE
                     </button>
                  </div>
                  
-                 <div className="p-3 sm:p-6 space-y-3 sm:space-y-4">
+                 <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
                     <div>
                        <label className="block text-xs text-gray-500 mb-1 font-mono">TITLE</label>
                        <input 
@@ -228,7 +228,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                          value={description}
                          onChange={e => setDescription(e.target.value)}
                          placeholder="Additional details..."
-                         className="w-full bg-system-bg border border-system-border rounded p-2 text-white text-sm focus:border-system-neon focus:outline-none h-16"
+                         className="w-full bg-system-bg border border-system-border rounded p-2 text-white text-sm focus:border-system-neon focus:outline-none h-16 resize-none"
                        />
                     </div>
 
@@ -305,7 +305,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                     </div>
                  </div>
 
-                 <div className="p-3 sm:p-4 bg-system-bg border-t border-system-border flex justify-end gap-3 sticky bottom-0 z-10">
+                 <div className="p-3 sm:p-4 bg-system-bg border-t border-system-border flex justify-end gap-3 z-10 shrink-0">
                     <button 
                       onClick={() => setIsModalOpen(false)}
                       className="px-4 py-2 text-xs font-mono text-gray-500 hover:text-white"
