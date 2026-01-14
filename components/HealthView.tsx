@@ -23,7 +23,6 @@ interface HealthViewProps {
   tutorialStep?: number;
 }
 
-// ... (Retain AnimatedRadar and helper functions as they are)
 const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
   return {
@@ -173,13 +172,13 @@ const HealthView: React.FC<HealthViewProps> = ({
 
   // Setup Form State
   const [step, setStep] = useState(1);
-  const TOTAL_STEPS = 8; // Increased for Split Selection
+  const TOTAL_STEPS = 8;
   const [formData, setFormData] = useState<Partial<HealthProfile>>({
       gender: 'MALE', 
       activityLevel: 'MODERATE', 
       goal: 'RECOMP', 
       equipment: 'GYM',
-      workoutSplit: 'CLASSIC', // Default
+      workoutSplit: 'CLASSIC', 
       intensity: 'MODERATE', 
       sessionDuration: 45, 
       age: 25, 
@@ -208,7 +207,7 @@ const HealthView: React.FC<HealthViewProps> = ({
 
   // Handlers
   const handleDaySelect = (index: number) => {
-      if (index > (healthProfile?.workoutPlan?.length || 0)) return;
+      if (index > calculatedPlan.length) return;
       const dayPlan = calculatedPlan[index % calculatedPlan.length];
       setActivePlan(dayPlan);
       setSelectedDayIndex(index);
@@ -286,17 +285,79 @@ const HealthView: React.FC<HealthViewProps> = ({
       }
   };
 
-  // --- RENDER: SETUP WIZARD ---
+  // --- RENDER: SETUP WIZARD & PROCESSING ---
+  
+  if (viewMode === 'PROCESSING') {
+      return (
+          <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-8 bg-black/95 absolute inset-0 z-50">
+              <motion.div 
+                animate={{ rotate: 360 }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                className="mb-8 relative"
+              >
+                  <div className="w-24 h-24 rounded-full border-t-2 border-l-2 border-system-neon opacity-80" />
+                  <Cpu className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-system-neon animate-pulse" size={40} />
+              </motion.div>
+              <h2 className="text-2xl font-black text-white font-mono tracking-tighter mb-2">CALIBRATING SYSTEM</h2>
+              <p className="text-xs text-gray-500 font-mono">Analyzing biometrics...</p>
+          </div>
+      );
+  }
+
+  if (viewMode === 'ANALYSIS') {
+      return (
+          <div className="flex flex-col items-center justify-center min-h-[70vh] bg-black/95 absolute inset-0 z-50 p-6">
+              <h2 className="text-xl font-bold text-white font-mono mb-8 tracking-[0.2em] flex items-center gap-2">
+                  <Terminal size={20} className="text-system-accent" /> SYSTEM ANALYSIS
+              </h2>
+              
+              <AnimatedRadar 
+                  label="PROJECTION"
+                  color="#8b5cf6"
+                  data={[
+                      { subject: 'STR', value: analysisStage > 0 ? 80 : 20, fullMark: 100 },
+                      { subject: 'VIT', value: analysisStage > 0 ? 75 : 30, fullMark: 100 },
+                      { subject: 'AGI', value: analysisStage > 0 ? 90 : 40, fullMark: 100 },
+                      { subject: 'INT', value: analysisStage > 0 ? 85 : 50, fullMark: 100 },
+                      { subject: 'PER', value: analysisStage > 0 ? 70 : 25, fullMark: 100 }
+                  ]}
+              />
+
+              <div className="mt-12 w-full max-w-xs">
+                  <button 
+                    onClick={startJourneySequence}
+                    className="w-full py-4 bg-white text-black font-black font-mono text-sm rounded hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                  >
+                      ACCEPT PROTOCOL <Check size={16} />
+                  </button>
+              </div>
+          </div>
+      );
+  }
+
+  if (viewMode === 'FINALIZING') {
+      return (
+          <div className="flex flex-col items-center justify-center min-h-[70vh] bg-black text-green-500 font-mono text-xs absolute inset-0 z-50">
+              <div className="w-full max-w-md space-y-1">
+                  {finalizingLog}
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ repeat: Infinity, duration: 0.5 }}
+                    className="inline-block w-2 h-4 bg-green-500 ml-1"
+                  />
+              </div>
+          </div>
+      );
+  }
+
   if (viewMode === 'SETUP') {
       const progress = (step / TOTAL_STEPS) * 100;
 
       const nextStep = () => {
-          if (step === 7) {
-              // Logic check: If bodyweight, skip split selection (default to Classic/PPL handled in generator, but UI skip needed)
-              if (formData.equipment === 'BODYWEIGHT') {
-                  startProcessing();
-                  return;
-              }
+          if (step === 7 && formData.equipment === 'BODYWEIGHT') {
+              startProcessing();
+              return;
           }
           setStep(prev => Math.min(TOTAL_STEPS, prev + 1));
       };
@@ -580,6 +641,38 @@ const HealthView: React.FC<HealthViewProps> = ({
                   </div>
               </div>
           </div>
+      );
+  }
+
+  // --- RENDER: OVERVIEW & ACTIVE WORKOUT ---
+  
+  if (viewMode === 'OVERVIEW' && activePlan) {
+      return (
+          <WorkoutOverview 
+              plan={activePlan} 
+              focusVideos={playerData.focusVideos}
+              onStart={startWorkout}
+              onCancel={() => {
+                  setActivePlan(null);
+                  setSelectedDayIndex(null);
+                  setViewMode('MAP');
+              }}
+          />
+      );
+  }
+
+  if (viewMode === 'ACTIVE' && activePlan) {
+      return (
+          <ActiveWorkoutPlayer 
+              plan={activePlan} 
+              onComplete={finishWorkout}
+              onFail={() => {
+                  onFailWorkout();
+                  setViewMode('MAP');
+                  setActivePlan(null);
+              }}
+              streak={playerData.streak}
+          />
       );
   }
 

@@ -99,7 +99,7 @@ export const generateSystemProtocol = (userProfile: HealthProfile): WorkoutDay[]
     // 2. Volume Calculation (Time Constraint Logic)
     // Rule: ~2 mins per set (including rest).
     // 60 mins = 30 sets. 45 mins = 22 sets. 30 mins = 15 sets.
-    const totalSetsBudget = Math.floor((userProfile.sessionDuration || 45) / 2);
+    // Fixed: Removed unused variable 'totalSetsBudget'
     
     // 3. Helper to get exercises
     const getExercises = (targetGroup: string, subTargets: string[], limit: number = 6): Exercise[] => {
