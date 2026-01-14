@@ -168,6 +168,7 @@ export interface HealthProfile {
   activityLevel: 'SEDENTARY' | 'LIGHT' | 'MODERATE' | 'VERY_ACTIVE';
   goal: 'LOSE_WEIGHT' | 'BUILD_MUSCLE' | 'ENDURANCE' | 'RECOMP';
   equipment: 'GYM' | 'HOME_DUMBBELLS' | 'BODYWEIGHT';
+  workoutSplit?: 'PPL' | 'CLASSIC'; // PPL = Push/Pull/Legs, CLASSIC = Bro split (Chest/Back/etc)
   sessionDuration: number; // 30, 45, 60, 90, 120
   intensity: 'LIGHT' | 'MODERATE' | 'HIGH';
   injuries: string[];

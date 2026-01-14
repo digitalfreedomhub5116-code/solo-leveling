@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Zap, Dumbbell, Check, Cpu, Flame, Target, Map, Calendar, List, Swords } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Zap, Dumbbell, Check, Cpu, Flame, Target, Map, Calendar, List, Swords, Layers, Grid } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
@@ -173,12 +173,13 @@ const HealthView: React.FC<HealthViewProps> = ({
 
   // Setup Form State
   const [step, setStep] = useState(1);
-  const TOTAL_STEPS = 7;
+  const TOTAL_STEPS = 8; // Increased for Split Selection
   const [formData, setFormData] = useState<Partial<HealthProfile>>({
       gender: 'MALE', 
       activityLevel: 'MODERATE', 
       goal: 'RECOMP', 
       equipment: 'GYM',
+      workoutSplit: 'CLASSIC', // Default
       intensity: 'MODERATE', 
       sessionDuration: 45, 
       age: 25, 
@@ -195,14 +196,6 @@ const HealthView: React.FC<HealthViewProps> = ({
   useEffect(() => {
       if (!healthProfile) setViewMode('SETUP');
   }, [healthProfile]);
-
-  // Tutorial Hook: Advance to form filling step
-  useEffect(() => {
-      if (viewMode === 'SETUP' && tutorialStep === 11) {
-          // Tutorial asks user to start setup. When user hits "Continue" on overlay step 11,
-          // it goes to 12 (filling form).
-      }
-  }, [viewMode, tutorialStep]);
 
   // Derived Values
   const calculatedPlan = useMemo(() => {
@@ -236,18 +229,11 @@ const HealthView: React.FC<HealthViewProps> = ({
 
   const startProcessing = () => {
       setViewMode('PROCESSING');
-      // Advance tutorial to Step 12 (Filling Form -> Processing state) if relevant
-      if (tutorialStep === 12 && onTutorialAction) {
-          // Keep tutorial on 12 ("Filling Form...") until analysis is ready
-      }
-
-      // Simulate calculation time
       setTimeout(() => {
           setViewMode('ANALYSIS');
           setAnalysisStage(1);
-          // Tutorial Hook: Processing complete, show analysis confidence screen
           if (tutorialStep === 12 && onTutorialAction) {
-              onTutorialAction(13); // Go to "Your Goal Is Achievable"
+              onTutorialAction(13);
           }
       }, 3500);
   };
@@ -295,231 +281,26 @@ const HealthView: React.FC<HealthViewProps> = ({
       onSaveProfile(fullProfile, identity);
       setViewMode('MAP');
       
-      // Tutorial Hook: Advance to final dashboard step
       if (tutorialStep === 13 && onTutorialAction) {
           onTutorialAction(14);
       }
   };
 
-  // ... (Active session, overview, processing, finalizing renders remain unchanged)
-  
-  // --- RENDER: ACTIVE SESSION ---
-  if (viewMode === 'ACTIVE' && activePlan) {
-      return (
-        <ActiveWorkoutPlayer 
-            plan={activePlan} 
-            onComplete={finishWorkout} 
-            onFail={() => { onFailWorkout(); setViewMode('MAP'); }} 
-            streak={playerData.streak} 
-        />
-      );
-  }
-
-  // --- RENDER: WORKOUT OVERVIEW ---
-  if (viewMode === 'OVERVIEW' && activePlan) {
-      return (
-        <WorkoutOverview 
-            plan={activePlan} 
-            focusVideos={playerData.focusVideos} 
-            onStart={startWorkout} 
-            onCancel={() => setViewMode('MAP')} 
-        />
-      );
-  }
-
-  // --- RENDER: PROCESSING SCREEN ---
-  if (viewMode === 'PROCESSING') {
-      const logs = [
-          "Compiling biometric data...",
-          "Calculating Basal Metabolic Rate (BMR)...",
-          "Projecting muscle synthesis timelines...",
-          "Analyzing activity coefficients...",
-          "Identifying physical limiters...",
-          "SYNCING WITH SYSTEM DATABASE..."
-      ];
-
-      return (
-          <div className="flex flex-col items-center justify-center min-h-[70vh] p-8 text-center bg-black">
-              <div className="w-24 h-24 relative mb-8">
-                  <div className="absolute inset-0 border-4 border-gray-800 rounded-full"></div>
-                  <div className="absolute inset-0 border-t-4 border-system-neon rounded-full animate-spin"></div>
-                  <Terminal className="absolute inset-0 m-auto text-system-neon animate-pulse" size={32} />
-              </div>
-              <h2 className="text-2xl font-bold text-white font-mono mb-6 tracking-widest animate-pulse">CALIBRATING SYSTEM</h2>
-              <div className="space-y-2 text-left font-mono text-xs max-w-sm w-full bg-gray-900/50 p-4 rounded border border-gray-800">
-                  {logs.map((log, i) => (
-                      <motion.div 
-                        key={i}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.5 }}
-                        className="text-system-neon/80"
-                      >
-                          {`> ${log}`}
-                      </motion.div>
-                  ))}
-              </div>
-          </div>
-      );
-  }
-
-  // --- RENDER: FINALIZING SEQUENCE ---
-  if (viewMode === 'FINALIZING') {
-      return (
-          <div className="flex flex-col items-center justify-center min-h-[70vh] p-8 text-center bg-black">
-              <div className="mb-8">
-                  <Cpu className="w-16 h-16 text-system-accent animate-pulse mx-auto mb-4" />
-                  <div className="h-1 w-64 bg-gray-900 rounded-full overflow-hidden mx-auto">
-                      <motion.div 
-                        className="h-full bg-system-accent"
-                        initial={{ width: 0 }}
-                        animate={{ width: "100%" }}
-                        transition={{ duration: 4, ease: "linear" }}
-                      />
-                  </div>
-              </div>
-              <h2 className="text-xl font-bold text-white font-mono mb-2 tracking-widest">SYSTEM INITIALIZATION</h2>
-              <p className="text-sm text-gray-400 font-mono animate-pulse">{finalizingLog}</p>
-          </div>
-      );
-  }
-
-  // --- RENDER: ANALYSIS STAGES ---
-  if (viewMode === 'ANALYSIS') {
-      // Calculate estimated time
-      const weightDiff = Math.abs((formData.weight || 0) - (formData.targetWeight || formData.weight || 0));
-      // Recomp takes longer than pure weight loss
-      const rate = formData.goal === 'RECOMP' ? 0.3 : 0.5;
-      const weeks = Math.ceil(weightDiff / rate) || 4; 
-      
-      const currentStats = [
-          { subject: 'STRENGTH', value: 30, fullMark: 100 },
-          { subject: 'ENDURANCE', value: 40, fullMark: 100 },
-          { subject: 'AGILITY', value: 20, fullMark: 100 },
-          { subject: 'VITALITY', value: 50, fullMark: 100 },
-          { subject: 'INTELLIGENCE', value: 40, fullMark: 100 },
-      ];
-
-      // Organic/Realistic High Stats (Not just 100s)
-      const potentialStats = [
-          { subject: 'STRENGTH', value: 85, fullMark: 100 },
-          { subject: 'ENDURANCE', value: 92, fullMark: 100 },
-          { subject: 'AGILITY', value: 78, fullMark: 100 },
-          { subject: 'VITALITY', value: 95, fullMark: 100 },
-          { subject: 'INTELLIGENCE', value: 88, fullMark: 100 },
-      ];
-
-      return (
-          <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center">
-              <div className="max-w-4xl w-full bg-black/90 border border-system-neon/30 rounded-2xl p-6 md:p-10 shadow-[0_0_100px_rgba(0,210,255,0.1)] relative overflow-hidden flex flex-col items-center">
-                  
-                  {/* Stage 1: Stats Grid */}
-                  <AnimatePresence mode="wait">
-                      {analysisStage === 1 && (
-                          <motion.div 
-                            key="stage1"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="w-full space-y-8"
-                          >
-                              <div>
-                                  <h2 className="text-sm text-gray-500 font-mono tracking-[0.2em] mb-2">PHASE 1/3</h2>
-                                  <h1 className="text-3xl md:text-4xl font-black text-white italic">BIOMETRIC ANALYSIS COMPLETE</h1>
-                              </div>
-
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                  <div className="bg-gray-900/50 p-6 rounded border border-gray-800 flex flex-col items-center">
-                                      <div className="text-[10px] text-gray-500 font-mono mb-2">EST. TIMELINE</div>
-                                      <div className="text-3xl text-white font-mono font-bold">{weeks} <span className="text-xs text-gray-500">WKS</span></div>
-                                  </div>
-                                  <div className="bg-gray-900/50 p-6 rounded border border-gray-800 flex flex-col items-center">
-                                      <div className="text-[10px] text-gray-500 font-mono mb-2">DAILY RATION</div>
-                                      <div className="text-3xl text-system-neon font-mono font-bold">{nutritionInfo.macros.calories} <span className="text-xs text-gray-500">KCAL</span></div>
-                                  </div>
-                                  <div className="bg-gray-900/50 p-6 rounded border border-gray-800 flex flex-col items-center">
-                                      <div className="text-[10px] text-gray-500 font-mono mb-2">BASAL RATE</div>
-                                      <div className="text-3xl text-white font-mono">{nutritionInfo.bmr}</div>
-                                  </div>
-                                  <div className="bg-gray-900/50 p-6 rounded border border-gray-800 flex flex-col items-center">
-                                      <div className="text-[10px] text-gray-500 font-mono mb-2">BMI</div>
-                                      <div className="text-3xl text-white font-mono">{((formData.weight || 0) / (((formData.height || 1)/100) ** 2)).toFixed(1)}</div>
-                                  </div>
-                              </div>
-
-                              <button 
-                                  onClick={() => setAnalysisStage(2)}
-                                  className="px-8 py-3 bg-white text-black font-bold font-mono rounded-full hover:scale-105 transition-transform flex items-center gap-2 mx-auto"
-                              >
-                                  NEXT PHASE <ArrowRight size={16} />
-                              </button>
-                          </motion.div>
-                      )}
-
-                      {/* Stage 2: Current Radar */}
-                      {analysisStage === 2 && (
-                          <motion.div 
-                            key="stage2"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="w-full space-y-8 flex flex-col items-center"
-                          >
-                              <div>
-                                  <h2 className="text-sm text-red-500 font-mono tracking-[0.2em] mb-2">PHASE 2/3</h2>
-                                  <h1 className="text-3xl md:text-4xl font-black text-white italic">CURRENT REALITY</h1>
-                                  <p className="text-gray-500 font-mono text-xs mt-2">Physical capabilities are suppressed. Status: E-RANK.</p>
-                              </div>
-
-                              <AnimatedRadar data={currentStats} color="#ef4444" label="CURRENT STATUS" />
-
-                              <button 
-                                  onClick={() => setAnalysisStage(3)}
-                                  className="px-8 py-3 border border-red-500 text-red-500 font-bold font-mono rounded-full hover:bg-red-500 hover:text-black transition-colors flex items-center gap-2 mx-auto"
-                              >
-                                  REVEAL POTENTIAL <ArrowRight size={16} />
-                              </button>
-                          </motion.div>
-                      )}
-
-                      {/* Stage 3: Future Radar */}
-                      {analysisStage === 3 && (
-                          <motion.div 
-                            key="stage3"
-                            id="tut-analysis-container"
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="w-full space-y-8 flex flex-col items-center"
-                          >
-                              <div>
-                                  <h2 className="text-sm text-system-neon font-mono tracking-[0.2em] mb-2">PHASE 3/3</h2>
-                                  <h1 className="text-3xl md:text-4xl font-black text-white italic">SYSTEM PROJECTION</h1>
-                                  <p className="text-gray-500 font-mono text-xs mt-2">With consistent adherence, S-RANK status is inevitable.</p>
-                              </div>
-
-                              <AnimatedRadar data={potentialStats} color="#00d2ff" label="POTENTIAL WITH US" />
-
-                              <button 
-                                  id="tut-complete-btn"
-                                  onClick={startJourneySequence}
-                                  className="px-8 py-4 bg-system-neon text-black font-bold font-mono rounded-lg shadow-[0_0_20px_#00d2ff] hover:bg-white transition-all flex items-center gap-2 mx-auto animate-pulse"
-                              >
-                                  START MY JOURNEY <ArrowRight size={18} />
-                              </button>
-                          </motion.div>
-                      )}
-                  </AnimatePresence>
-
-              </div>
-          </div>
-      );
-  }
-
   // --- RENDER: SETUP WIZARD ---
   if (viewMode === 'SETUP') {
       const progress = (step / TOTAL_STEPS) * 100;
 
-      const nextStep = () => setStep(prev => Math.min(TOTAL_STEPS, prev + 1));
+      const nextStep = () => {
+          if (step === 7) {
+              // Logic check: If bodyweight, skip split selection (default to Classic/PPL handled in generator, but UI skip needed)
+              if (formData.equipment === 'BODYWEIGHT') {
+                  startProcessing();
+                  return;
+              }
+          }
+          setStep(prev => Math.min(TOTAL_STEPS, prev + 1));
+      };
+      
       const prevStep = () => setStep(prev => Math.max(1, prev - 1));
 
       return (
@@ -543,7 +324,7 @@ const HealthView: React.FC<HealthViewProps> = ({
                       </div>
                       <h2 className="text-xl font-bold text-white font-mono tracking-[0.2em] mb-1">CALIBRATION</h2>
                       <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase">
-                          PHASE {step} / {TOTAL_STEPS}
+                          PHASE {step} / {formData.equipment === 'BODYWEIGHT' ? 7 : 8}
                       </p>
                   </div>
 
@@ -732,6 +513,38 @@ const HealthView: React.FC<HealthViewProps> = ({
                             </motion.div>
                         )}
 
+                        {/* STEP 8: WORKOUT SPLIT (ONLY FOR GYM/DUMBBELLS) */}
+                        {step === 8 && (
+                            <motion.div 
+                                key="step8"
+                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                                className="space-y-6"
+                            >
+                                <div className="text-sm text-gray-400 font-mono uppercase tracking-widest mb-2">PROTOCOL ARCHITECTURE</div>
+                                <div className="grid grid-cols-1 gap-4">
+                                    <button 
+                                        onClick={() => setFormData({...formData, workoutSplit: 'PPL'})}
+                                        className={`w-full py-4 px-4 rounded-xl border flex flex-col gap-1 transition-all ${formData.workoutSplit === 'PPL' ? 'bg-system-neon/10 border-system-neon text-white shadow-[0_0_15px_rgba(0,210,255,0.2)]' : 'bg-black border-gray-800 text-gray-500 hover:border-gray-600'}`}
+                                    >
+                                        <div className="flex items-center justify-center gap-2 font-mono font-bold text-sm">
+                                            <Layers size={16} /> PUSH / PULL / LEGS
+                                        </div>
+                                        <span className="text-[10px] opacity-60 font-mono">High Frequency (6 Days/Week)</span>
+                                    </button>
+
+                                    <button 
+                                        onClick={() => setFormData({...formData, workoutSplit: 'CLASSIC'})}
+                                        className={`w-full py-4 px-4 rounded-xl border flex flex-col gap-1 transition-all ${formData.workoutSplit === 'CLASSIC' ? 'bg-system-accent/10 border-system-accent text-white shadow-[0_0_15px_rgba(139,92,246,0.2)]' : 'bg-black border-gray-800 text-gray-500 hover:border-gray-600'}`}
+                                    >
+                                        <div className="flex items-center justify-center gap-2 font-mono font-bold text-sm">
+                                            <Grid size={16} /> CLASSIC SPLIT
+                                        </div>
+                                        <span className="text-[10px] opacity-60 font-mono">Isolated Focus (Chest, Back, Legs...)</span>
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+
                     </AnimatePresence>
                   </div>
 
@@ -748,7 +561,8 @@ const HealthView: React.FC<HealthViewProps> = ({
                           <div /> // Spacer
                       )}
 
-                      {step < TOTAL_STEPS ? (
+                      {/* Logic: If Step 7 and Bodyweight, show Finish. Else show Next */}
+                      {(step < TOTAL_STEPS && formData.equipment !== 'BODYWEIGHT') || (step < 7) ? (
                           <button 
                             onClick={nextStep}
                             className="flex items-center gap-2 bg-white text-black px-6 py-2 rounded-full font-bold font-mono hover:bg-system-neon transition-colors"

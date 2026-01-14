@@ -93,12 +93,8 @@ export const generateSystemProtocol = (userProfile: HealthProfile): WorkoutDay[]
     const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     
     // 1. Determine User Filters
-    const allowedEnvs: string[] = ['Bodyweight']; // Everyone can do bodyweight
-    if (userProfile.equipment === 'HOME_DUMBBELLS') {
-        allowedEnvs.push('Dumbbells', 'Home'); // 'Home' maps to dumbbell/bands usually
-    } else if (userProfile.equipment === 'GYM') {
-        allowedEnvs.push('Dumbbells', 'Gym', 'Home', 'Machine', 'Cable', 'Barbell');
-    }
+    // Note: If Bodyweight is selected, force it regardless of split preference (though split UI should handle this)
+    const equipmentType = userProfile.equipment;
 
     // 2. Volume Calculation (Time Constraint Logic)
     // Rule: ~2 mins per set (including rest).
@@ -106,7 +102,7 @@ export const generateSystemProtocol = (userProfile: HealthProfile): WorkoutDay[]
     const totalSetsBudget = Math.floor((userProfile.sessionDuration || 45) / 2);
     
     // 3. Helper to get exercises
-    const getExercises = (targetGroup: string, subTargets: string[]): Exercise[] => {
+    const getExercises = (targetGroup: string, subTargets: string[], limit: number = 6): Exercise[] => {
         let selected: AdminExercise[] = [];
         
         // A. Filter DB by Equipment & Muscle Group
@@ -114,11 +110,11 @@ export const generateSystemProtocol = (userProfile: HealthProfile): WorkoutDay[]
             const muscleMatch = ex.muscleGroup.toLowerCase() === targetGroup.toLowerCase() || 
                                 (targetGroup === 'Arms' && (ex.muscleGroup === 'Biceps' || ex.muscleGroup === 'Triceps'));
             
-            // Strict equipment check based on 'equipmentNeeded' if available
+            // Strict equipment check
             let strictEquipMatch = true;
-            if (userProfile.equipment === 'BODYWEIGHT') {
+            if (equipmentType === 'BODYWEIGHT') {
                 strictEquipMatch = ex.equipmentNeeded === 'Bodyweight';
-            } else if (userProfile.equipment === 'HOME_DUMBBELLS') {
+            } else if (equipmentType === 'HOME_DUMBBELLS') {
                 strictEquipMatch = ex.equipmentNeeded === 'Dumbbell' || ex.equipmentNeeded === 'Bodyweight';
             }
 
@@ -134,10 +130,7 @@ export const generateSystemProtocol = (userProfile: HealthProfile): WorkoutDay[]
         });
 
         // C. Fill remaining slots with compound/general moves from pool if needed
-        // Target roughly 4-6 exercises per workout
-        const targetExerciseCount = Math.min(6, Math.max(3, Math.floor(totalSetsBudget / 3))); // 3 sets per exercise avg
-        
-        const remainingSlots = targetExerciseCount - selected.length;
+        const remainingSlots = Math.max(0, limit - selected.length);
         if (remainingSlots > 0) {
             const fillers = pool.filter(ex => !selected.includes(ex));
             selected = [...selected, ...shuffle(fillers).slice(0, remainingSlots)];
@@ -158,53 +151,74 @@ export const generateSystemProtocol = (userProfile: HealthProfile): WorkoutDay[]
     };
 
     // 4. Generate the 28-day Plan
-    // Fixed Split: Mon(1)=Chest, Tue(2)=Back, Wed(3)=Shoulders, Thu(4)=Arms, Fri(5)=Core, Sat(6)=Legs, Sun(0)=Rest
     const todayIndex = new Date().getDay(); 
+    const splitType = userProfile.workoutSplit || 'CLASSIC';
 
     for (let i = 0; i < TOTAL_DAYS; i++) {
-        const dateIndex = (todayIndex + i) % 7; // 0-6
+        const dateIndex = (todayIndex + i) % 7; // 0-6 (Sun-Sat)
         const dayLabel = dayNames[dateIndex];
         let dailyExercises: Exercise[] = [];
         let focus = 'REST';
         let isRecovery = false;
 
-        switch (dateIndex) {
-            case 1: // Monday
-                focus = 'CHEST';
-                dailyExercises = getExercises('Chest', ['Upper', 'Middle', 'Lower']);
-                break;
-            case 2: // Tuesday
-                focus = 'BACK';
-                dailyExercises = getExercises('Back', ['Width', 'Thickness']);
-                break;
-            case 3: // Wednesday
-                focus = 'SHOULDERS';
-                dailyExercises = getExercises('Shoulders', ['Front', 'Side', 'Rear']);
-                break;
-            case 4: // Thursday
-                focus = 'ARMS';
-                dailyExercises = getExercises('Arms', ['Biceps', 'Triceps']);
-                break;
-            case 5: // Friday
-                focus = 'CORE';
-                dailyExercises = getExercises('Core', ['Upper Abs', 'Lower Abs', 'Obliques']);
-                break;
-            case 6: // Saturday
+        // --- SPLIT LOGIC ---
+        if (splitType === 'PPL') {
+            // PPL: Mon(Push), Tue(Pull), Wed(Legs), Thu(Push), Fri(Pull), Sat(Legs), Sun(Rest)
+            // Or mapped to dateIndex: 1, 4 = Push | 2, 5 = Pull | 3, 6 = Legs | 0 = Rest
+            
+            if (dateIndex === 1 || dateIndex === 4) {
+                focus = 'PUSH';
+                const chestEx = getExercises('Chest', ['Middle', 'Upper'], 2);
+                const shoulderEx = getExercises('Shoulders', ['Front', 'Side'], 2);
+                const triEx = getExercises('Triceps', ['Triceps'], 1);
+                dailyExercises = [...chestEx, ...shoulderEx, ...triEx];
+            } else if (dateIndex === 2 || dateIndex === 5) {
+                focus = 'PULL';
+                const backEx = getExercises('Back', ['Thickness', 'Width'], 3);
+                const biEx = getExercises('Biceps', ['Biceps'], 2);
+                dailyExercises = [...backEx, ...biEx];
+            } else if (dateIndex === 3 || dateIndex === 6) {
                 focus = 'LEGS';
-                dailyExercises = getExercises('Legs', ['Quads', 'Hamstrings', 'Calves']);
-                break;
-            case 0: // Sunday
+                dailyExercises = getExercises('Legs', ['Quads', 'Hamstrings', 'Calves'], 5);
+            } else {
                 focus = 'REST';
                 isRecovery = true;
-                dailyExercises = [{
-                    name: 'Active Recovery Walk',
-                    sets: 1,
-                    reps: '30 min',
-                    duration: 30,
-                    completed: false,
-                    type: 'STRETCH'
-                }];
-                break;
+                dailyExercises = [{ name: 'Active Recovery Walk', sets: 1, reps: '30 min', duration: 30, completed: false, type: 'STRETCH' }];
+            }
+
+        } else {
+            // CLASSIC SPLIT (Bro Split)
+            switch (dateIndex) {
+                case 1: // Monday
+                    focus = 'CHEST';
+                    dailyExercises = getExercises('Chest', ['Upper', 'Middle', 'Lower']);
+                    break;
+                case 2: // Tuesday
+                    focus = 'BACK';
+                    dailyExercises = getExercises('Back', ['Width', 'Thickness']);
+                    break;
+                case 3: // Wednesday
+                    focus = 'SHOULDERS';
+                    dailyExercises = getExercises('Shoulders', ['Front', 'Side', 'Rear']);
+                    break;
+                case 4: // Thursday
+                    focus = 'ARMS';
+                    dailyExercises = getExercises('Arms', ['Biceps', 'Triceps']);
+                    break;
+                case 5: // Friday
+                    focus = 'CORE';
+                    dailyExercises = getExercises('Core', ['Upper Abs', 'Lower Abs', 'Obliques']);
+                    break;
+                case 6: // Saturday
+                    focus = 'LEGS';
+                    dailyExercises = getExercises('Legs', ['Quads', 'Hamstrings', 'Calves']);
+                    break;
+                case 0: // Sunday
+                    focus = 'REST';
+                    isRecovery = true;
+                    dailyExercises = [{ name: 'Active Recovery Walk', sets: 1, reps: '30 min', duration: 30, completed: false, type: 'STRETCH' }];
+                    break;
+            }
         }
 
         // Add Warmup/Cooldown if not rest
