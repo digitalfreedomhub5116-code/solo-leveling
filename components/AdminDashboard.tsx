@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, Database, Save, X, RefreshCw, Video, CheckCircle, Link, Map, Layers } from 'lucide-react';
 import { AdminExercise } from '../types';
-import { useSystem, DUMMY_VIDEO, sanitizeVideoUrl } from '../hooks/useSystem'; // Imported sanitizeVideoUrl
+import { useSystem, DUMMY_VIDEO, sanitizeVideoUrl, isEmbed } from '../hooks/useSystem';
 import { supabase } from '../lib/supabase';
 import WorkoutPlanPreview from './WorkoutPlanPreview'; 
 
@@ -44,15 +44,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           return match ? match[1] : input;
       }
       return input.trim();
-  };
-
-  const isEmbed = (url: string) => {
-      if (!url) return false;
-      const clean = url.toLowerCase();
-      // If it ends in a video extension, it's a direct file. Otherwise, assume embed.
-      const hasDirectExtension = /\.(mp4|webm|ogg|mov)($|\?)/.test(clean);
-      const isKnownEmbed = clean.includes('youtube') || clean.includes('youtu.be') || clean.includes('vimeo');
-      return isKnownEmbed || !hasDirectExtension;
   };
 
   const getErrorMessage = (err: any): string => {
@@ -145,9 +136,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   .eq('id', player.userId);
                   
               if (error) throw error;
-              // Alert removed for smoother experience, maybe show a toast in future
           } else {
-              // Silent local save
               console.log("Local mode: Regions saved.");
           }
       } catch (err: any) {

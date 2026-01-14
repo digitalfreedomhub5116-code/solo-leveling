@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Flame, Dumbbell, Zap, Activity, HeartPulse, ChevronRight, Fingerprint, ScanLine, Video, AlertTriangle } from 'lucide-react';
 import { WorkoutDay, Exercise } from '../types';
+import { isEmbed } from '../hooks/useSystem';
 
 interface WorkoutOverviewProps {
   plan: WorkoutDay;
@@ -10,17 +11,6 @@ interface WorkoutOverviewProps {
   onStart: (modifiedPlan: WorkoutDay, isCardioActive: boolean) => void;
   onCancel: () => void;
 }
-
-// Check if string looks like a video embed URL or just a file path
-// Logic updated to allow query parameters at end of file extension
-const isEmbed = (url: string) => {
-    if (!url) return false;
-    const clean = url.toLowerCase();
-    // Matches .mp4, .webm, .ogg, .mov followed by end of string OR a query parameter start
-    const hasDirectExtension = /\.(mp4|webm|ogg|mov)($|\?)/.test(clean);
-    const isKnownEmbed = clean.includes('youtube') || clean.includes('youtu.be') || clean.includes('vimeo');
-    return isKnownEmbed || !hasDirectExtension; // If it doesn't look like a file, assume it's a web page/embed
-};
 
 // --- VISUAL ANATOMY DISPLAY (VIDEO) ---
 const HolographicBody: React.FC<{ focus: string; isCardio: boolean; videos: Record<string, string> }> = ({ focus, isCardio, videos }) => {

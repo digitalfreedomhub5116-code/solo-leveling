@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, X, AlertOctagon, Check, Activity, Film, ChevronRight, Timer as TimerIcon } from 'lucide-react';
 import { WorkoutDay } from '../types';
 import { SpeechService } from '../utils/speechService';
 import { playSystemSoundEffect } from '../utils/soundEngine';
-import { useSystem } from '../hooks/useSystem';
+import { useSystem, isEmbed } from '../hooks/useSystem';
 
 interface ActiveWorkoutPlayerProps {
   plan: WorkoutDay;
@@ -17,15 +17,6 @@ interface ActiveWorkoutPlayerProps {
 
 const SET_DURATION = 45; 
 const REST_DURATION = 30;
-
-const isEmbed = (url: string) => {
-    if (!url) return false;
-    const clean = url.toLowerCase();
-    // If it ends in a video extension, it's a direct file. Otherwise, assume embed.
-    const hasDirectExtension = /\.(mp4|webm|ogg|mov)($|\?)/.test(clean);
-    const isKnownEmbed = clean.includes('youtube') || clean.includes('youtu.be') || clean.includes('vimeo');
-    return isKnownEmbed || !hasDirectExtension;
-};
 
 const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onComplete, onFail }) => {
   const { player } = useSystem();
@@ -51,62 +42,9 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
 
   useEffect(() => {
     SpeechService.announceStart(exercise.name, exercise.sets, exercise.reps);
-  }, [exercise.name, exercise.sets, exercise.reps]); // Fixed: Added dependencies
+  }, [exercise.name, exercise.sets, exercise.reps]);
 
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>; // Fixed: Explicit Type compatible with browser
-    if (!isPaused && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          const next = prev - 1;
-          if (phase === 'WORK' && next === Math.floor(SET_DURATION / 2)) SpeechService.announceHalfway();
-          if (next <= 3 && next > 0) playSystemSoundEffect('TICK');
-          return next;
-        });
-      }, 1000);
-    } else if (timeLeft === 0 && !isPaused) {
-      handleTimerComplete();
-    }
-    return () => clearInterval(interval);
-  }, [timeLeft, isPaused, phase]);
-
-  const handleTimerComplete = () => {
-    if (phase === 'WORK') {
-      // Work Timer Finished -> Auto-complete set? 
-      // Usually better to let user click "Complete", but if timer runs out, we can notify.
-      // For this system, let's treat timer as "Guideline". 
-      // We don't auto-transition from work to rest without user input in most gym apps, 
-      // but if this is a "Follow Along" style, we auto-transition.
-      // Let's Auto-transition for flow.
-      completeSet();
-    } else {
-      // Rest Timer Finished -> Back to Work
-      startNextSet();
-    }
-  };
-
-  const completeSet = () => {
-      playSystemSoundEffect('SUCCESS');
-      setResults(prev => ({...prev, [`${exercise.name}_set${currentSet}`]: 1 }));
-      
-      if (currentSet < exercise.sets) {
-        setPhase('REST');
-        setTimeLeft(REST_DURATION);
-        SpeechService.announceRest(REST_DURATION);
-      } else {
-        handleExerciseComplete();
-      }
-  };
-
-  const startNextSet = () => {
-      playSystemSoundEffect('SYSTEM');
-      SpeechService.announceSetStart(currentSet + 1);
-      setPhase('WORK');
-      setCurrentSet(prev => prev + 1);
-      setTimeLeft(SET_DURATION);
-  };
-
-  const handleExerciseComplete = () => {
+  const handleExerciseComplete = useCallback(() => {
     if (currentIdx < totalExercises - 1) {
       const nextEx = plan.exercises[currentIdx + 1];
       SpeechService.announceNextExercise(nextEx.name);
@@ -121,7 +59,53 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
       playSystemSoundEffect('LEVEL_UP');
       onComplete(totalExercises, totalExercises, results);
     }
-  };
+  }, [currentIdx, totalExercises, plan.exercises, onComplete, results]);
+
+  const startNextSet = useCallback(() => {
+      playSystemSoundEffect('SYSTEM');
+      SpeechService.announceSetStart(currentSet + 1);
+      setPhase('WORK');
+      setCurrentSet(prev => prev + 1);
+      setTimeLeft(SET_DURATION);
+  }, [currentSet]);
+
+  const completeSet = useCallback(() => {
+      playSystemSoundEffect('SUCCESS');
+      setResults(prev => ({...prev, [`${exercise.name}_set${currentSet}`]: 1 }));
+      
+      if (currentSet < exercise.sets) {
+        setPhase('REST');
+        setTimeLeft(REST_DURATION);
+        SpeechService.announceRest(REST_DURATION);
+      } else {
+        handleExerciseComplete();
+      }
+  }, [currentSet, exercise.sets, exercise.name, handleExerciseComplete]);
+
+  const handleTimerComplete = useCallback(() => {
+    if (phase === 'WORK') {
+      completeSet();
+    } else {
+      startNextSet();
+    }
+  }, [phase, completeSet, startNextSet]);
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (!isPaused && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => {
+          const next = prev - 1;
+          if (phase === 'WORK' && next === Math.floor(SET_DURATION / 2)) SpeechService.announceHalfway();
+          if (next <= 3 && next > 0) playSystemSoundEffect('TICK');
+          return next;
+        });
+      }, 1000);
+    } else if (timeLeft === 0 && !isPaused) {
+      handleTimerComplete();
+    }
+    return () => clearInterval(interval);
+  }, [timeLeft, isPaused, phase, handleTimerComplete]);
 
   const confirmQuit = () => { SpeechService.announceFailure(); onFail(); };
 

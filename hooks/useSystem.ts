@@ -10,6 +10,17 @@ export const sanitizeVideoUrl = (url?: string) => {
   return url;
 };
 
+// Check if string looks like a video embed URL or just a file path
+// Logic updated to allow query parameters at end of file extension
+export const isEmbed = (url: string) => {
+    if (!url) return false;
+    const clean = url.toLowerCase();
+    // Matches .mp4, .webm, .ogg, .mov followed by end of string OR a query parameter start
+    const hasDirectExtension = /\.(mp4|webm|ogg|mov)($|\?)/.test(clean);
+    const isKnownEmbed = clean.includes('youtube') || clean.includes('youtu.be') || clean.includes('vimeo');
+    return isKnownEmbed || !hasDirectExtension; // If it doesn't look like a file, assume it's a web page/embed
+};
+
 const INITIAL_PLAYER_DATA: PlayerData = {
   isConfigured: false,
   name: 'Hunter',

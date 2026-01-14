@@ -1,17 +1,15 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, User, Briefcase, Award, Scan, Shield, Terminal, LogOut, Cpu, Activity, Settings, Zap } from 'lucide-react';
-import { PlayerData, CoreStats } from '../types';
+import { Save, User, Briefcase, Award, Shield, Terminal, Activity, Settings } from 'lucide-react';
+import { PlayerData } from '../types';
 
 interface ProfileViewProps {
   player: PlayerData;
   onUpdate: (data: { name: string; job: string; title: string }) => void;
-  onAdminRequest?: () => void; 
-  onLogout: () => void;
 }
 
-const ProfileView: React.FC<ProfileViewProps> = ({ player, onUpdate, onAdminRequest, onLogout }) => {
+const ProfileView: React.FC<ProfileViewProps> = ({ player, onUpdate }) => {
   const [activeTab, setActiveTab] = useState<'STATS' | 'LOGS' | 'CONFIG'>('STATS');
   
   // Form State
@@ -21,14 +19,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ player, onUpdate, onAdminRequ
 
   const handleSave = () => {
     onUpdate({ name, job, title });
-  };
-
-  const statIcons: Record<keyof CoreStats, React.ReactNode> = {
-    strength: <Zap size={14} />,
-    intelligence: <Cpu size={14} />,
-    focus: <Scan size={14} />,
-    social: <User size={14} />,
-    willpower: <Shield size={14} />,
   };
 
   return (
@@ -155,23 +145,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ player, onUpdate, onAdminRequ
                                 </div>
                             </div>
                         </div>
-
-                        <div>
-                            <h3 className="text-xs text-gray-400 font-mono mb-3 uppercase tracking-widest border-b border-gray-800 pb-2">Core Attributes</h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                {Object.entries(player.stats).map(([key, val]) => (
-                                    <div key={key} className="flex items-center justify-between p-3 bg-black border border-gray-800 rounded hover:border-gray-700 transition-colors group">
-                                        <div className="flex items-center gap-2">
-                                            <div className="text-gray-600 group-hover:text-system-neon transition-colors">
-                                                {statIcons[key as keyof CoreStats]}
-                                            </div>
-                                            <span className="text-[10px] uppercase font-mono text-gray-400">{key}</span>
-                                        </div>
-                                        <span className="text-sm font-bold text-white font-mono">{val}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
                     </motion.div>
                 )}
 
@@ -265,26 +238,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ player, onUpdate, onAdminRequ
                              >
                                 <Save size={14} /> UPDATE REGISTRATION
                              </button>
-                        </div>
-
-                        <div className="pt-6 border-t border-gray-800 flex justify-between items-center">
-                            {onAdminRequest && (
-                               <button 
-                                 onClick={onAdminRequest}
-                                 className="flex items-center gap-2 text-[10px] text-gray-600 hover:text-red-500 transition-colors font-mono tracking-widest group border border-gray-800 hover:border-red-900 px-3 py-2 rounded"
-                               >
-                                 <Terminal size={12} />
-                                 SYSTEM OVERRIDE
-                               </button>
-                            )}
-                            
-                            <button 
-                                 onClick={onLogout}
-                                 className="flex items-center gap-2 text-[10px] text-gray-600 hover:text-red-500 transition-colors font-mono tracking-widest group border border-gray-800 hover:border-red-900 px-3 py-2 rounded ml-auto"
-                            >
-                                 <LogOut size={12} />
-                                 DISCONNECT
-                            </button>
                         </div>
                     </motion.div>
                 )}

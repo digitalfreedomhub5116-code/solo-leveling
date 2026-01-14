@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion, Variants } from 'framer-motion';
-import { Zap, TrendingUp } from 'lucide-react';
+import { Zap, TrendingUp, Cpu, Scan, User, Shield, LogOut, Terminal } from 'lucide-react';
 import Layout from './components/Layout';
 import Navigation from './components/Navigation';
 import EvaluationMatrix from './components/StatsRadar';
@@ -10,31 +10,15 @@ import ShopView from './components/ShopView';
 import SystemMessage from './components/SystemMessage'; 
 import ProfileView from './components/ProfileView';
 import AuthView from './components/AuthView';
-import WelcomeCinematic from './components/WelcomeCinematic';
 import SplashScreen from './components/SplashScreen';
 import HealthView from './components/HealthView';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
+import PenaltyZone from './components/PenaltyZone';
 import { useSystem } from './hooks/useSystem';
-import { PlayerData, Tab } from './types';
+import { PlayerData, Tab, CoreStats } from './types';
 
 // Animation Variants
-const pageVariants: Variants = {
-  initial: { opacity: 0, y: 10, scale: 0.98 },
-  enter: { 
-    opacity: 1, 
-    y: 0, 
-    scale: 1,
-    transition: { duration: 0.4, ease: "easeInOut" }
-  },
-  exit: { 
-    opacity: 0, 
-    y: -10, 
-    scale: 0.98,
-    transition: { duration: 0.2 } 
-  }
-};
-
 const staggerContainer = {
   hidden: { opacity: 0 },
   show: {
@@ -132,8 +116,12 @@ const StatBar: React.FC<{
   );
 };
 
-// Extracted Dashboard Component
-const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void; completeDaily: () => void }> = ({ player }) => {
+// Dashboard Content Component
+const DashboardView: React.FC<{ 
+  player: PlayerData;
+  onLogout: () => void;
+  onAdminRequest: () => void;
+}> = ({ player, onLogout, onAdminRequest }) => {
   const xpPercentage = Math.min(100, (player.currentXp / player.requiredXp) * 100);
   const isCloseToLevelUp = xpPercentage > 80;
 
@@ -149,6 +137,14 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
           weightProgress = Math.min(100, Math.max(0, (currentLoss / totalLoss) * 100));
       }
   }
+
+  const statIcons: Record<keyof CoreStats, React.ReactNode> = {
+    strength: <Zap size={14} />,
+    intelligence: <Cpu size={14} />,
+    focus: <Scan size={14} />,
+    social: <User size={14} />,
+    willpower: <Shield size={14} />,
+  };
 
   return (
     <div className="space-y-6 pb-4 md:pb-0">
@@ -184,7 +180,7 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
          </motion.div>
       </div>
 
-      {/* --- SECTION 1: EVALUATION MATRIX (Shifted Above) --- */}
+      {/* --- SECTION 1: EVALUATION MATRIX & ATTRIBUTES --- */}
       <div className="flex justify-center px-2 md:px-0">
         <motion.div 
             variants={staggerContainer}
@@ -196,15 +192,38 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
              <div className="absolute top-0 left-0 w-6 h-6 border-t border-l border-system-neon/50 rounded-tl-lg" />
              <div className="absolute top-0 right-0 w-6 h-6 border-t border-r border-system-neon/50 rounded-tr-lg" />
 
-             <div className="relative z-10">
-                 <div className="flex justify-between items-center mb-4 border-b border-gray-800/50 pb-4">
-                    <h2 className="text-sm text-gray-400 font-mono tracking-widest flex items-center gap-2">
-                      EVALUATION MATRIX
-                    </h2>
+             <div className="relative z-10 flex flex-col lg:flex-row gap-6">
+                 {/* RADAR COLUMN */}
+                 <div className="flex-1">
+                     <div className="flex justify-between items-center mb-4 border-b border-gray-800/50 pb-4">
+                        <h2 className="text-sm text-gray-400 font-mono tracking-widest flex items-center gap-2">
+                          EVALUATION MATRIX
+                        </h2>
+                     </div>
+                     
+                     <div className="h-[300px] md:h-[350px] w-full">
+                        <EvaluationMatrix stats={player.stats} history={player.history} dailyXp={player.dailyXp || 0} />
+                     </div>
                  </div>
-                 
-                 <div className="h-[350px] w-full">
-                    <EvaluationMatrix stats={player.stats} history={player.history} dailyXp={player.dailyXp || 0} />
+
+                 {/* ATTRIBUTES COLUMN */}
+                 <div className="w-full lg:w-72 shrink-0 border-t lg:border-t-0 lg:border-l border-gray-800/50 pt-6 lg:pt-0 lg:pl-6 flex flex-col">
+                     <h3 className="text-sm text-gray-400 font-mono tracking-widest mb-4 flex items-center gap-2">
+                        CORE ATTRIBUTES
+                     </h3>
+                     <div className="space-y-3 flex-1">
+                        {Object.entries(player.stats).map(([key, val]) => (
+                            <div key={key} className="flex items-center justify-between p-3 bg-black/40 border border-gray-800/60 rounded hover:border-system-neon/30 transition-colors group">
+                                <div className="flex items-center gap-3">
+                                    <div className="text-gray-500 group-hover:text-system-neon transition-colors p-1.5 bg-gray-900 rounded">
+                                        {statIcons[key as keyof CoreStats]}
+                                    </div>
+                                    <span className="text-[10px] uppercase font-mono text-gray-400 font-bold tracking-wider">{key}</span>
+                                </div>
+                                <span className="text-sm font-bold text-white font-mono">{val}</span>
+                            </div>
+                        ))}
+                     </div>
                  </div>
              </div>
         </motion.div>
@@ -313,13 +332,13 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
                       </div>
                   </div>
 
-                  {/* RIGHT COLUMN: Logs (Moved here from previous location) */}
-                  <div className="flex flex-col justify-start">
-                      <motion.div variants={staggerItem} className="border border-gray-800/50 rounded-lg p-4 bg-black/20 h-full">
-                        <h3 className="text-[10px] text-gray-500 font-mono mb-4 flex items-center gap-2 uppercase tracking-widest border-b border-gray-800 pb-2">
+                  {/* RIGHT COLUMN: Logs & Controls */}
+                  <div className="flex flex-col justify-start gap-4">
+                      <motion.div variants={staggerItem} className="border border-gray-800/50 rounded-lg p-4 bg-black/20 h-full max-h-[350px] flex flex-col">
+                        <h3 className="text-[10px] text-gray-500 font-mono mb-4 flex items-center gap-2 uppercase tracking-widest border-b border-gray-800 pb-2 shrink-0">
                           <Zap size={10} /> Activity Logs
                         </h3>
-                        <div className="space-y-3 pl-2 border-l border-gray-800/50 h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                        <div className="space-y-3 pl-2 border-l border-gray-800/50 overflow-y-auto custom-scrollbar pr-2 flex-1">
                           {player.logs && player.logs.length > 0 ? player.logs.map((log) => (
                             <div key={log.id} className="text-[10px] font-mono flex gap-3 items-start opacity-70 hover:opacity-100 transition-opacity">
                               <span className="text-gray-600 whitespace-nowrap">
@@ -338,6 +357,25 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
                           )}
                         </div>
                       </motion.div>
+
+                      {/* System Controls moved here */}
+                      <motion.div variants={staggerItem} className="grid grid-cols-2 gap-4 mt-auto shrink-0">
+                          <button 
+                             onClick={onAdminRequest}
+                             className="flex items-center justify-center gap-2 text-[10px] text-gray-500 hover:text-white transition-colors font-mono tracking-widest group border border-gray-800 hover:border-gray-500 px-3 py-3 rounded bg-black/40"
+                          >
+                             <Terminal size={12} className="group-hover:text-system-neon transition-colors" />
+                             SYSTEM OVERRIDE
+                          </button>
+                          
+                          <button 
+                               onClick={onLogout}
+                               className="flex items-center justify-center gap-2 text-[10px] text-red-800 hover:text-red-500 transition-colors font-mono tracking-widest group border border-red-900/20 hover:border-red-500/50 px-3 py-3 rounded bg-red-950/10"
+                          >
+                               <LogOut size={12} />
+                               DISCONNECT
+                          </button>
+                      </motion.div>
                   </div>
               </div>
             </div>
@@ -349,141 +387,129 @@ const Dashboard: React.FC<{ player: PlayerData; gainXp: (amount: number) => void
 
 const App: React.FC = () => {
   const { 
-    player, 
-    isLoaded, 
-    notifications, 
-    registerUser, 
-    updateProfile, 
-    gainXp, 
-    completeDaily, 
-    addQuest, 
-    completeQuest, 
-    failQuest, 
-    failWorkout,
-    resetQuest, 
-    deleteQuest, 
-    purchaseItem, 
-    addShopItem, 
-    removeShopItem, 
-    removeNotification,
-    saveHealthProfile,
-    addProgressPhoto,
-    deleteProgressPhoto,
-    logMeal,
-    deleteMeal,
-    completeWorkoutSession,
-    logout
+    player, isLoaded, notifications, registerUser, updateProfile, 
+    gainXp, addQuest, completeQuest, failQuest, resetQuest, deleteQuest, 
+    purchaseItem, addShopItem, removeShopItem, removeNotification, 
+    saveHealthProfile, addProgressPhoto, deleteProgressPhoto, logMeal, deleteMeal, 
+    completeWorkoutSession, failWorkout, logout 
   } = useSystem();
 
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
-  const [adminMode, setAdminMode] = useState<'NONE' | 'LOGIN' | 'DASHBOARD'>('NONE');
   const [showSplash, setShowSplash] = useState(true);
-  const [showWelcome, setShowWelcome] = useState(false);
-
-  useEffect(() => {
-     if (!showSplash && player.isConfigured && player.level === 1 && player.currentXp === 0 && !localStorage.getItem('welcome_shown')) {
-         setShowWelcome(true);
-         localStorage.setItem('welcome_shown', 'true');
-     }
-  }, [showSplash, player.isConfigured, player.level, player.currentXp]);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
 
-  if (!isLoaded) {
-      return (
-          <div className="min-h-screen bg-black flex items-center justify-center text-system-neon font-mono text-sm tracking-widest">
-              SYSTEM INITIALIZING...
-          </div>
-      );
-  }
-
-  if (adminMode === 'LOGIN') {
-      return <AdminLogin onLoginSuccess={() => setAdminMode('DASHBOARD')} onBack={() => setAdminMode('NONE')} />;
-  }
-
-  if (adminMode === 'DASHBOARD') {
-      return <AdminDashboard onLogout={() => setAdminMode('NONE')} />;
-  }
+  if (!isLoaded) return null;
 
   if (!player.isConfigured) {
-    return <AuthView onLogin={registerUser} onAdminAccess={() => setAdminMode('LOGIN')} />;
+    return <AuthView onLogin={registerUser} onAdminAccess={() => setIsAdminOpen(true)} />;
   }
 
-  if (showWelcome) {
-     return <WelcomeCinematic username={player.username || player.name} onComplete={() => setShowWelcome(false)} />;
+  if (isAdminOpen && !isAdminAuthenticated) {
+    return (
+      <AdminLogin 
+        onLoginSuccess={() => setIsAdminAuthenticated(true)}
+        onBack={() => setIsAdminOpen(false)}
+      />
+    );
+  }
+
+  if (isAdminAuthenticated) {
+    return <AdminDashboard onLogout={() => { setIsAdminAuthenticated(false); setIsAdminOpen(false); }} />;
+  }
+
+  if (player.isPenaltyActive) {
+    return (
+      <PenaltyZone 
+        endTime={player.penaltyEndTime} 
+        task={player.penaltyTask}
+        gold={player.gold}
+        // Dev bypass for penalty (simulated physical completion)
+        onSurvive={() => failWorkout()} // Placeholder to clear state via logic
+        reducePenalty={() => {}}
+        onSacrifice={() => purchaseItem({ id: 'sacrifice', title: 'Divine Intervention', description: 'Skip Penalty', cost: 500, icon: 'shield' })}
+      />
+    );
   }
 
   return (
-    <Layout 
-       playerLevel={player.level} 
-       streak={player.streak}
-       navigation={<Navigation activeTab={activeTab} onTabChange={setActiveTab} />}
-    >
+    <>
       <SystemMessage notifications={notifications} removeNotification={removeNotification} />
       
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab}
-          variants={pageVariants}
-          initial="initial"
-          animate="enter"
-          exit="exit"
-          className="w-full"
-        >
+      <Layout 
+        navigation={<Navigation activeTab={activeTab} onTabChange={setActiveTab} />}
+        playerLevel={player.level}
+        streak={player.streak}
+      >
+        <AnimatePresence mode="wait">
           {activeTab === 'DASHBOARD' && (
-             <Dashboard player={player} gainXp={gainXp} completeDaily={completeDaily} />
+            <motion.div key="dashboard" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
+              <DashboardView 
+                player={player} 
+                onLogout={logout} 
+                onAdminRequest={() => setIsAdminOpen(true)} 
+              />
+            </motion.div>
           )}
           
           {activeTab === 'HEALTH' && (
-               <HealthView 
-                  healthProfile={player.healthProfile} 
-                  onSaveProfile={saveHealthProfile}
-                  onCompleteWorkout={completeWorkoutSession}
-                  onFailWorkout={failWorkout}
-                  onAddPhoto={addProgressPhoto}
-                  onDeletePhoto={deleteProgressPhoto}
-                  onLogMeal={logMeal}
-                  onDeleteMeal={deleteMeal}
-                  playerData={player}
-               />
+            <motion.div key="health" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
+              <HealthView 
+                playerData={player}
+                healthProfile={player.healthProfile}
+                onSaveProfile={saveHealthProfile}
+                onCompleteWorkout={completeWorkoutSession}
+                onFailWorkout={failWorkout}
+                onAddPhoto={addProgressPhoto}
+                onDeletePhoto={deleteProgressPhoto}
+                onLogMeal={logMeal}
+                onDeleteMeal={deleteMeal}
+              />
+            </motion.div>
           )}
 
           {activeTab === 'QUESTS' && (
-             <QuestsView 
-                quests={player.quests} 
-                addQuest={addQuest} 
-                completeQuest={completeQuest} 
+            <motion.div key="quests" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
+              <QuestsView 
+                quests={player.quests}
+                addQuest={addQuest}
+                completeQuest={completeQuest}
                 failQuest={failQuest}
                 resetQuest={resetQuest}
-                deleteQuest={deleteQuest} 
-             />
+                deleteQuest={deleteQuest}
+              />
+            </motion.div>
           )}
 
           {activeTab === 'SHOP' && (
-             <ShopView 
-                gold={player.gold} 
-                items={player.shopItems} 
-                purchaseItem={purchaseItem} 
+            <motion.div key="shop" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
+              <ShopView 
+                gold={player.gold}
+                items={player.shopItems}
+                purchaseItem={purchaseItem}
                 addItem={addShopItem}
-                removeItem={removeShopItem} 
-             />
+                removeItem={removeShopItem}
+              />
+            </motion.div>
           )}
 
           {activeTab === 'PROFILE' && (
-              <div className="w-full">
-                  <ProfileView 
-                      player={player} 
-                      onUpdate={updateProfile} 
-                      onAdminRequest={() => setAdminMode('LOGIN')} 
-                      onLogout={logout} 
-                  />
-              </div>
+            <motion.div key="profile" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
+              <ProfileView 
+                player={player}
+                onUpdate={updateProfile}
+                onAdminRequest={() => setIsAdminOpen(true)}
+                onLogout={logout}
+              />
+            </motion.div>
           )}
-        </motion.div>
-      </AnimatePresence>
-    </Layout>
+        </AnimatePresence>
+      </Layout>
+    </>
   );
 };
 
