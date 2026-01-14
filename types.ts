@@ -166,7 +166,7 @@ export interface HealthProfile {
   waist?: number;
   hip?: number;
   activityLevel: 'SEDENTARY' | 'LIGHT' | 'MODERATE' | 'VERY_ACTIVE';
-  goal: 'LOSE_WEIGHT' | 'BUILD_MUSCLE' | 'ENDURANCE';
+  goal: 'LOSE_WEIGHT' | 'BUILD_MUSCLE' | 'ENDURANCE' | 'RECOMP';
   equipment: 'GYM' | 'HOME_DUMBBELLS' | 'BODYWEIGHT';
   sessionDuration: number; // 30, 45, 60, 90, 120
   intensity: 'LIGHT' | 'MODERATE' | 'HIGH';
