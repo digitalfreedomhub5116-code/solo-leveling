@@ -195,6 +195,10 @@ export interface PlayerData {
   userId?: string; 
   isConfigured: boolean; // Tracks if user has entered their name
   
+  // Tutorial State
+  tutorialStep: number;
+  tutorialComplete: boolean;
+
   // Core System Data
   name: string;          // Player Display Name
   username?: string;     // Unique Handle for Auth

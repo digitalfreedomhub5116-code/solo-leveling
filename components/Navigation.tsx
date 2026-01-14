@@ -40,6 +40,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
             return (
               <button
                 key={item.id}
+                id={`tut-nav-${item.id.toLowerCase()}`}
                 onClick={() => onTabChange(item.id)}
                 className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-300 relative group overflow-hidden ${
                   isActive ? 'text-white' : 'text-gray-500 hover:text-gray-300'
@@ -92,6 +93,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
           return (
             <button
               key={item.id}
+              id={`tut-nav-${item.id.toLowerCase()}-mob`}
               onClick={() => onTabChange(item.id)}
               className="flex-1 flex flex-col items-center justify-center h-full relative"
             >

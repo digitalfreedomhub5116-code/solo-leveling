@@ -23,6 +23,8 @@ export const isEmbed = (url: string) => {
 
 const INITIAL_PLAYER_DATA: PlayerData = {
   isConfigured: false,
+  tutorialStep: 0,
+  tutorialComplete: false,
   name: 'Hunter',
   level: 1,
   currentXp: 0,
@@ -46,65 +48,7 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   dailyQuestComplete: false,
   isPenaltyActive: false,
   logs: [],
-  quests: [
-    {
-      id: 'q_def_1',
-      title: 'Surya Namaskar',
-      description: 'Perform 12 rounds of Sun Salutations.',
-      rank: 'E',
-      category: 'strength',
-      xpReward: 25,
-      isCompleted: false,
-      createdAt: Date.now(),
-      isDaily: true,
-      trigger: 'Morning'
-    },
-    {
-      id: 'q_def_2',
-      title: 'Deep Work Block',
-      description: '2 hours of focused study or work. No distractions.',
-      rank: 'D',
-      category: 'intelligence',
-      xpReward: 50,
-      isCompleted: false,
-      createdAt: Date.now(),
-      isDaily: true,
-      trigger: 'Work Hours'
-    },
-    {
-      id: 'q_def_3',
-      title: 'No Sugar (Chai/Sweets)',
-      description: 'Avoid added sugar in tea and skip dessert.',
-      rank: 'E',
-      category: 'willpower',
-      xpReward: 20,
-      isCompleted: false,
-      createdAt: Date.now(),
-      isDaily: true
-    },
-    {
-      id: 'q_def_4',
-      title: 'Family Time',
-      description: 'Spend quality time with parents or call home.',
-      rank: 'D',
-      category: 'social',
-      xpReward: 30,
-      isCompleted: false,
-      createdAt: Date.now(),
-      isDaily: true
-    },
-    {
-      id: 'q_def_5',
-      title: 'Meditation (Dhyana)',
-      description: '10 minutes of silence or mindfulness.',
-      rank: 'E',
-      category: 'focus',
-      xpReward: 15,
-      isCompleted: false,
-      createdAt: Date.now(),
-      isDaily: true
-    }
-  ],
+  quests: [],
   shopItems: [
     {
         id: 's_def_1',
@@ -205,6 +149,9 @@ export const useSystem = () => {
     if (!newData.history) newData.history = [];
     if (!newData.nutritionLogs) newData.nutritionLogs = [];
     if (newData.streak === undefined) newData.streak = 1;
+    // Default tutorial state if missing from old saves
+    if (newData.tutorialStep === undefined) newData.tutorialStep = 0;
+    if (newData.tutorialComplete === undefined) newData.tutorialComplete = false;
 
     if (today !== lastLogin) {
       hasChanges = true;
@@ -372,6 +319,23 @@ export const useSystem = () => {
   const updateProfile = (data: { name: string; job: string; title: string }) => {
       setPlayer(prev => ({ ...prev, ...data }));
       addNotification("Profile Updated", "SUCCESS");
+  };
+
+  // --- TUTORIAL ACTIONS ---
+  const advanceTutorial = (step: number) => {
+      setPlayer(prev => ({
+          ...prev,
+          tutorialStep: step
+      }));
+  };
+
+  const completeTutorial = () => {
+      setPlayer(prev => ({
+          ...prev,
+          tutorialComplete: true,
+          tutorialStep: 999
+      }));
+      addNotification("System Tutorial Complete. Full Access Granted.", "SUCCESS");
   };
 
   const gainXp = (amount: number) => {
@@ -684,6 +648,8 @@ export const useSystem = () => {
     completeWorkoutSession,
     logout,
     updateExerciseDatabase,
-    updateFocusVideos
+    updateFocusVideos,
+    advanceTutorial,
+    completeTutorial
   };
 };

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Sparkles, Repeat, Link, BatteryLow } from 'lucide-react';
 import { Quest, CoreStats, Rank } from '../types';
@@ -13,9 +13,11 @@ interface QuestsViewProps {
   failQuest: (id: string) => void;
   resetQuest: (id: string) => void;
   deleteQuest: (id: string) => void;
+  tutorialStep?: number;
+  onTutorialAction?: (step: number) => void;
 }
 
-const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest, failQuest, resetQuest, deleteQuest }) => {
+const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest, failQuest, resetQuest, deleteQuest, tutorialStep, onTutorialAction }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filter, setFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ACTIVE');
   
@@ -27,6 +29,12 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
   const [isDaily, setIsDaily] = useState(false);
   const [trigger, setTrigger] = useState('');
   const [miniQuest, setMiniQuest] = useState('');
+
+  // Tutorial Logic: Force open modal when user clicks Add Quest in step 2 (transition to 3)
+  useEffect(() => {
+      // Step 2 waits for user to click Add Quest. 
+      // The button onClick handles the logic.
+  }, [tutorialStep]);
 
   // Logic: Filter Quests
   const filteredQuests = quests.filter(q => {
@@ -76,12 +84,11 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
     if (detectedCategory) setCategory(detectedCategory);
 
     // 2. Hierarchy Check for Rank (S > A > E > B > C > D)
-    // We check extremes first.
-    let detectedRank: Rank = 'D'; // Default
+    let detectedRank: Rank = 'D'; 
 
     if (rankKeywords.S.some(w => text.includes(w))) detectedRank = 'S';
     else if (rankKeywords.A.some(w => text.includes(w))) detectedRank = 'A';
-    else if (rankKeywords.E.some(w => text.includes(w))) detectedRank = 'E'; // Check Easy specifically
+    else if (rankKeywords.E.some(w => text.includes(w))) detectedRank = 'E'; 
     else if (rankKeywords.B.some(w => text.includes(w))) detectedRank = 'B';
     else if (rankKeywords.C.some(w => text.includes(w))) detectedRank = 'C';
     
@@ -118,6 +125,11 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
     setMiniQuest('');
     setRank('E');
     setIsDaily(false);
+
+    // Tutorial Action: If we were on Step 6 (Confirm), advance to Step 7 (Success)
+    if (tutorialStep === 6 && onTutorialAction) {
+        onTutorialAction(7);
+    }
   };
 
   return (
@@ -143,8 +155,15 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
              </div>
              
              <button 
-               onClick={() => setIsModalOpen(true)}
-               className="flex items-center gap-2 px-4 py-2 bg-system-neon text-black font-bold rounded hover:bg-white transition-colors text-xs font-mono"
+               id="tut-add-quest"
+               onClick={() => {
+                   setIsModalOpen(true);
+                   if (tutorialStep === 2 && onTutorialAction) {
+                       // Advance to Step 3 (Naming) when modal opens
+                       onTutorialAction(3);
+                   }
+               }}
+               className="flex items-center gap-2 px-4 py-2 bg-system-neon text-black font-bold rounded hover:bg-white transition-colors text-xs font-mono shadow-[0_0_15px_rgba(0,210,255,0.3)]"
              >
                <Plus size={16} /> ADD QUEST
              </button>
@@ -176,28 +195,29 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
        {/* Create Quest Modal */}
        <AnimatePresence>
          {isModalOpen && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+           <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-system-card border border-system-border w-full max-w-lg rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+                className="bg-system-card border border-system-border w-full max-w-lg rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto m-auto relative"
               >
-                 <div className="p-6 border-b border-system-border flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-white font-mono">NEW SYSTEM ASSIGNMENT</h3>
-                    <button onClick={() => handleAutoRank()} className="text-xs text-system-neon flex items-center gap-1 hover:underline group">
-                       <Sparkles size={12} className="group-hover:animate-spin" /> AUTO-ANALYZE
+                 <div className="p-3 sm:p-6 border-b border-system-border flex justify-between items-center sticky top-0 bg-system-card z-10">
+                    <h3 className="text-base sm:text-lg font-bold text-white font-mono">NEW ASSIGNMENT</h3>
+                    <button onClick={() => handleAutoRank()} className="text-[10px] sm:text-xs text-system-neon flex items-center gap-1 hover:underline group">
+                       <Sparkles size={12} className="group-hover:animate-spin" /> ANALYZE
                     </button>
                  </div>
                  
-                 <div className="p-6 space-y-4">
+                 <div className="p-3 sm:p-6 space-y-3 sm:space-y-4">
                     <div>
                        <label className="block text-xs text-gray-500 mb-1 font-mono">TITLE</label>
                        <input 
+                         id="tut-quest-title"
                          value={title}
                          onChange={e => setTitle(e.target.value)}
                          placeholder="e.g. Run 5km"
-                         className="w-full bg-system-bg border border-system-border rounded p-2 text-white focus:border-system-neon focus:outline-none"
+                         className="w-full bg-system-bg border border-system-border rounded p-2 text-white text-sm focus:border-system-neon focus:outline-none transition-colors"
                          autoFocus
                        />
                     </div>
@@ -208,20 +228,21 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                          value={description}
                          onChange={e => setDescription(e.target.value)}
                          placeholder="Additional details..."
-                         className="w-full bg-system-bg border border-system-border rounded p-2 text-white focus:border-system-neon focus:outline-none h-16"
+                         className="w-full bg-system-bg border border-system-border rounded p-2 text-white text-sm focus:border-system-neon focus:outline-none h-16"
                        />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                            <label className="block text-xs text-system-accent mb-1 font-mono flex items-center gap-1">
                              <Link size={10} /> TRIGGER (ANCHOR)
                            </label>
                            <input 
+                             id="tut-quest-trigger"
                              value={trigger}
                              onChange={e => setTrigger(e.target.value)}
                              placeholder="e.g. After coffee..."
-                             className="w-full bg-system-bg border border-system-accent/30 rounded p-2 text-white focus:border-system-accent focus:outline-none placeholder:text-gray-700 text-xs"
+                             className="w-full bg-system-bg border border-system-accent/30 rounded p-2 text-white text-sm focus:border-system-accent focus:outline-none placeholder:text-gray-700 text-xs transition-colors"
                            />
                         </div>
                         <div>
@@ -229,21 +250,22 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                              <BatteryLow size={10} /> MINI-QUEST (ACTIVATION)
                            </label>
                            <input 
+                             id="tut-quest-mini"
                              value={miniQuest}
                              onChange={e => setMiniQuest(e.target.value)}
                              placeholder="e.g. Just put on shoes"
-                             className="w-full bg-system-bg border border-yellow-500/30 rounded p-2 text-white focus:border-yellow-500 focus:outline-none placeholder:text-gray-700 text-xs"
+                             className="w-full bg-system-bg border border-yellow-500/30 rounded p-2 text-white text-sm focus:border-yellow-500 focus:outline-none placeholder:text-gray-700 text-xs transition-colors"
                            />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                        <div>
                           <label className="block text-xs text-gray-500 mb-1 font-mono">CATEGORY</label>
                           <select 
                             value={category}
                             onChange={e => setCategory(e.target.value as keyof CoreStats)}
-                            className="w-full bg-system-bg border border-system-border rounded p-2 text-white focus:border-system-neon focus:outline-none appearance-none"
+                            className="w-full bg-system-bg border border-system-border rounded p-2 text-white text-sm focus:border-system-neon focus:outline-none appearance-none"
                           >
                             <option value="strength">STRENGTH</option>
                             <option value="intelligence">INTELLIGENCE</option>
@@ -270,7 +292,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                     </div>
 
                     {/* Daily Toggle */}
-                    <div className="flex items-center gap-3 pt-2">
+                    <div className="flex items-center gap-3 pt-1">
                          <button 
                             onClick={() => setIsDaily(!isDaily)}
                             className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isDaily ? 'bg-system-neon border-system-neon text-black' : 'bg-transparent border-gray-600'}`}
@@ -283,7 +305,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                     </div>
                  </div>
 
-                 <div className="p-4 bg-system-bg border-t border-system-border flex justify-end gap-3">
+                 <div className="p-3 sm:p-4 bg-system-bg border-t border-system-border flex justify-end gap-3 sticky bottom-0 z-10">
                     <button 
                       onClick={() => setIsModalOpen(false)}
                       className="px-4 py-2 text-xs font-mono text-gray-500 hover:text-white"
@@ -291,11 +313,12 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                       CANCEL
                     </button>
                     <button 
+                      id="tut-confirm-quest"
                       onClick={handleCreate}
                       disabled={!title}
-                      className="px-6 py-2 bg-system-neon text-black font-bold rounded text-xs font-mono hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-6 py-2 bg-system-neon text-black font-bold rounded text-xs font-mono hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >
-                      CONFIRM ASSIGNMENT
+                      CONFIRM
                     </button>
                  </div>
               </motion.div>

@@ -15,6 +15,7 @@ import HealthView from './components/HealthView';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
 import PenaltyZone from './components/PenaltyZone';
+import TutorialOverlay from './components/TutorialOverlay';
 import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab, CoreStats } from './types';
 
@@ -207,7 +208,7 @@ const DashboardView: React.FC<{
                  </div>
 
                  {/* ATTRIBUTES COLUMN */}
-                 <div className="w-full lg:w-72 shrink-0 border-t lg:border-t-0 lg:border-l border-gray-800/50 pt-6 lg:pt-0 lg:pl-6 flex flex-col">
+                 <div className="w-full lg:w-72 shrink-0 border-t lg:border-t-0 lg:border-l border-gray-800/50 pt-6 lg:pt-0 lg:pl-6 flex flex-col" id="tut-stats">
                      <h3 className="text-sm text-gray-400 font-mono tracking-widest mb-4 flex items-center gap-2">
                         CORE ATTRIBUTES
                      </h3>
@@ -391,13 +392,70 @@ const App: React.FC = () => {
     addQuest, completeQuest, failQuest, resetQuest, deleteQuest, 
     purchaseItem, addShopItem, removeShopItem, removeNotification, 
     saveHealthProfile, addProgressPhoto, deleteProgressPhoto, logMeal, deleteMeal, 
-    completeWorkoutSession, failWorkout, logout 
+    completeWorkoutSession, failWorkout, logout,
+    advanceTutorial, completeTutorial
   } = useSystem();
 
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
   const [showSplash, setShowSplash] = useState(true);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+
+  // Tutorial Logic: Control Tabs based on step
+  useEffect(() => {
+      if (!player.tutorialComplete && player.isConfigured) {
+          // Automatic navigation logic for tutorial steps
+          if (player.tutorialStep === 2) {
+              setActiveTab('QUESTS');
+          } else if (player.tutorialStep === 8) {
+              setActiveTab('SHOP');
+          }
+      }
+  }, [player.tutorialStep, player.tutorialComplete, player.isConfigured]);
+
+  const handleTabChange = (tab: Tab) => {
+      // Tutorial Gatekeeping - prevent navigating away during key steps
+      if (!player.tutorialComplete) {
+          // Allow navigation if it matches the current required step direction
+          if (player.tutorialStep === 1 && tab === 'QUESTS') {
+              advanceTutorial(2);
+              setActiveTab(tab);
+              return;
+          }
+          if (player.tutorialStep === 7 && tab === 'SHOP') {
+              advanceTutorial(8);
+              setActiveTab(tab);
+              return;
+          }
+          
+          // Strict locking during tutorial: Only allow if stepping is aligned
+          // Otherwise, force stay on current tab if it's a critical step
+          const lockedSteps = [2, 3, 4, 5, 6, 8];
+          if (lockedSteps.includes(player.tutorialStep)) {
+              return; 
+          }
+      }
+      setActiveTab(tab);
+  };
+
+  const handleTutorialNext = () => {
+      // Logic for "Next" button in overlay
+      const nextStep = player.tutorialStep + 1;
+      
+      // Auto-switch tabs when clicking Next on specific steps
+      if (player.tutorialStep === 1) {
+          setActiveTab('QUESTS');
+      } else if (player.tutorialStep === 7) {
+          setActiveTab('SHOP');
+      }
+
+      advanceTutorial(nextStep);
+  };
+
+  const handleTutorialComplete = () => {
+      completeTutorial();
+      setActiveTab('HEALTH');
+  };
 
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
@@ -428,8 +486,7 @@ const App: React.FC = () => {
         endTime={player.penaltyEndTime} 
         task={player.penaltyTask}
         gold={player.gold}
-        // Dev bypass for penalty (simulated physical completion)
-        onSurvive={() => failWorkout()} // Placeholder to clear state via logic
+        onSurvive={() => failWorkout()}
         reducePenalty={() => {}}
         onSacrifice={() => purchaseItem({ id: 'sacrifice', title: 'Divine Intervention', description: 'Skip Penalty', cost: 500, icon: 'shield' })}
       />
@@ -440,8 +497,16 @@ const App: React.FC = () => {
     <>
       <SystemMessage notifications={notifications} removeNotification={removeNotification} />
       
+      {!player.tutorialComplete && (
+          <TutorialOverlay 
+              currentStep={player.tutorialStep} 
+              onNext={handleTutorialNext}
+              onComplete={handleTutorialComplete}
+          />
+      )}
+
       <Layout 
-        navigation={<Navigation activeTab={activeTab} onTabChange={setActiveTab} />}
+        navigation={<Navigation activeTab={activeTab} onTabChange={handleTabChange} />}
         playerLevel={player.level}
         streak={player.streak}
       >
@@ -461,13 +526,17 @@ const App: React.FC = () => {
               <HealthView 
                 playerData={player}
                 healthProfile={player.healthProfile}
-                onSaveProfile={saveHealthProfile}
+                onSaveProfile={(p, i) => {
+                    saveHealthProfile(p, i);
+                }}
                 onCompleteWorkout={completeWorkoutSession}
                 onFailWorkout={failWorkout}
                 onAddPhoto={addProgressPhoto}
                 onDeletePhoto={deleteProgressPhoto}
                 onLogMeal={logMeal}
                 onDeleteMeal={deleteMeal}
+                onTutorialAction={advanceTutorial}
+                tutorialStep={player.tutorialStep}
               />
             </motion.div>
           )}
@@ -476,11 +545,15 @@ const App: React.FC = () => {
             <motion.div key="quests" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
               <QuestsView 
                 quests={player.quests}
-                addQuest={addQuest}
+                addQuest={(q) => {
+                    addQuest(q);
+                }}
                 completeQuest={completeQuest}
                 failQuest={failQuest}
                 resetQuest={resetQuest}
                 deleteQuest={deleteQuest}
+                tutorialStep={player.tutorialStep}
+                onTutorialAction={(step) => advanceTutorial(step)}
               />
             </motion.div>
           )}

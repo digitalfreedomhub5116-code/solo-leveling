@@ -19,9 +19,11 @@ interface HealthViewProps {
   onLogMeal?: (meal: MealLog) => void;
   onDeleteMeal?: (id: string) => void;
   playerData: PlayerData;
+  onTutorialAction?: (step: number) => void;
+  tutorialStep?: number;
 }
 
-// --- ANIMATED RADAR COMPONENT ---
+// ... (Retain AnimatedRadar and helper functions as they are)
 const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
   return {
@@ -43,14 +45,12 @@ const AnimatedRadar = ({ data, color, label }: { data: { value: number; fullMark
 
     const pathD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ') + ' Z';
 
-    // Background Grid
     const gridLevels = [0.2, 0.4, 0.6, 0.8, 1];
     
     return (
-        <div className="relative flex flex-col items-center justify-center">
+        <div id="tut-health-radar" className="relative flex flex-col items-center justify-center">
             <h3 className="text-sm font-mono font-bold mb-4 tracking-[0.3em] uppercase" style={{ color }}>{label}</h3>
             <svg width={size} height={size} className="overflow-visible">
-                {/* Grid */}
                 {gridLevels.map((level, idx) => {
                     const gridPoints = data.map((_, i) => {
                         const angle = (360 / data.length) * i;
@@ -60,7 +60,6 @@ const AnimatedRadar = ({ data, color, label }: { data: { value: number; fullMark
                     return <path key={idx} d={gridPath} fill="none" stroke="#333" strokeWidth="1" strokeDasharray="4 4" />;
                 })}
 
-                {/* The Data Shape */}
                 <motion.path
                     d={pathD}
                     fill={color}
@@ -80,10 +79,8 @@ const AnimatedRadar = ({ data, color, label }: { data: { value: number; fullMark
                     transition={{ delay: 0.5, duration: 1.5, ease: "easeInOut" }}
                 />
 
-                {/* Vertices */}
                 {points.map((p, i) => (
                     <g key={i}>
-                        {/* Label */}
                         {(() => {
                              const angle = (360 / data.length) * i;
                              const labelPos = polarToCartesian(center, center, radius + 25, angle);
@@ -97,7 +94,6 @@ const AnimatedRadar = ({ data, color, label }: { data: { value: number; fullMark
                                  </text>
                              );
                         })()}
-                        {/* Dot */}
                         <motion.circle
                             cx={p.x} cy={p.y} r={4}
                             fill="#000" stroke={color} strokeWidth={2}
@@ -112,7 +108,6 @@ const AnimatedRadar = ({ data, color, label }: { data: { value: number; fullMark
     );
 };
 
-// --- HELPER FUNCTIONS ---
 const calculateNutritionPlan = (profile: Partial<HealthProfile>) => {
   const weight = profile.weight || 70;
   const height = profile.height || 175;
@@ -164,7 +159,9 @@ const HealthView: React.FC<HealthViewProps> = ({
   onDeletePhoto, 
   onLogMeal, 
   onDeleteMeal,
-  playerData
+  playerData,
+  onTutorialAction,
+  tutorialStep
 }) => {
   const [viewMode, setViewMode] = useState<'MAP' | 'OVERVIEW' | 'ACTIVE' | 'SETUP' | 'PROCESSING' | 'ANALYSIS' | 'FINALIZING'>('MAP');
   const [activeTab, setActiveTab] = useState<'WORKOUT' | 'NUTRITION' | 'BODY'>('WORKOUT');
@@ -189,19 +186,22 @@ const HealthView: React.FC<HealthViewProps> = ({
       targetWeight: 70
   });
 
-  // Nutrition State
   const [foodSearch, setFoodSearch] = useState('');
-
-  // Analysis Sequence State (1: Stats, 2: Current Radar, 3: Future Radar)
   const [analysisStage, setAnalysisStage] = useState(1);
-  
-  // Finalizing Logs
   const [finalizingLog, setFinalizingLog] = useState("Initializing...");
 
   // Initial Logic
   useEffect(() => {
       if (!healthProfile) setViewMode('SETUP');
   }, [healthProfile]);
+
+  // Tutorial Hook: Advance to form filling step
+  useEffect(() => {
+      if (viewMode === 'SETUP' && tutorialStep === 11) {
+          // Tutorial asks user to start setup. When user hits "Continue" on overlay step 11,
+          // it goes to 12 (filling form).
+      }
+  }, [viewMode, tutorialStep]);
 
   // Derived Values
   const calculatedPlan = useMemo(() => {
@@ -235,10 +235,19 @@ const HealthView: React.FC<HealthViewProps> = ({
 
   const startProcessing = () => {
       setViewMode('PROCESSING');
+      // Advance tutorial to Step 12 (Filling Form -> Processing state) if relevant
+      if (tutorialStep === 12 && onTutorialAction) {
+          // Keep tutorial on 12 ("Filling Form...") until analysis is ready
+      }
+
       // Simulate calculation time
       setTimeout(() => {
           setViewMode('ANALYSIS');
           setAnalysisStage(1);
+          // Tutorial Hook: Processing complete, show analysis confidence screen
+          if (tutorialStep === 12 && onTutorialAction) {
+              onTutorialAction(13); // Go to "Your Goal Is Achievable"
+          }
       }, 3500);
   };
 
@@ -276,7 +285,6 @@ const HealthView: React.FC<HealthViewProps> = ({
           targetWeight: formData.targetWeight || formData.weight
       } as HealthProfile;
 
-      // Determine Identity based on goal
       let identity = "Shadow Recruit";
       if (fullProfile.goal === 'LOSE_WEIGHT') identity = "Iron Vessel";
       if (fullProfile.goal === 'BUILD_MUSCLE') identity = "Titan Vanguard";
@@ -284,6 +292,11 @@ const HealthView: React.FC<HealthViewProps> = ({
 
       onSaveProfile(fullProfile, identity);
       setViewMode('MAP');
+      
+      // Tutorial Hook: Advance to final dashboard step
+      if (tutorialStep === 13 && onTutorialAction) {
+          onTutorialAction(14);
+      }
   };
 
   // --- RENDER: ACTIVE SESSION ---
@@ -467,6 +480,7 @@ const HealthView: React.FC<HealthViewProps> = ({
                       {analysisStage === 3 && (
                           <motion.div 
                             key="stage3"
+                            id="tut-analysis-container"
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             className="w-full space-y-8 flex flex-col items-center"
@@ -480,6 +494,7 @@ const HealthView: React.FC<HealthViewProps> = ({
                               <AnimatedRadar data={potentialStats} color="#00d2ff" label="POTENTIAL WITH US" />
 
                               <button 
+                                  id="tut-complete-btn"
                                   onClick={startJourneySequence}
                                   className="px-8 py-4 bg-system-neon text-black font-bold font-mono rounded-lg shadow-[0_0_20px_#00d2ff] hover:bg-white transition-all flex items-center gap-2 mx-auto animate-pulse"
                               >
@@ -495,6 +510,8 @@ const HealthView: React.FC<HealthViewProps> = ({
   }
 
   // --- RENDER: SETUP WIZARD ---
+  // ... (Retain existing setup wizard rendering code as it is, no changes needed for this block)
+  // Just ensure the id="tut-health-start" is on the first step container.
   if (viewMode === 'SETUP') {
       const progress = (step / TOTAL_STEPS) * 100;
 
@@ -532,6 +549,7 @@ const HealthView: React.FC<HealthViewProps> = ({
                         {/* STEP 1: GENDER */}
                         {step === 1 && (
                             <motion.div 
+                                id="tut-health-start"
                                 key="step1"
                                 initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                                 className="space-y-6"
@@ -747,6 +765,7 @@ const HealthView: React.FC<HealthViewProps> = ({
   }
 
   // --- RENDER: DASHBOARD ---
+  // ... (Retain existing dashboard logic)
   const currentDayIndex = playerData.logs.filter(l => l.type === 'WORKOUT').length;
 
   return (

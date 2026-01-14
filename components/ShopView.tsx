@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Coins, Plus, ShoppingBag, X } from 'lucide-react';
@@ -49,7 +50,7 @@ const ShopView: React.FC<ShopViewProps> = ({ gold, items, purchaseItem, addItem,
 
          <div className="flex items-center gap-4">
              {/* Gold Display */}
-             <div className="flex items-center gap-3 bg-system-warning/10 border border-system-warning/30 px-4 py-2 rounded-lg">
+             <div id="tut-gold-display" className="flex items-center gap-3 bg-system-warning/10 border border-system-warning/30 px-4 py-2 rounded-lg">
                 <Coins className="text-system-warning animate-pulse" size={24} />
                 <div className="flex flex-col items-end">
                    <span className="text-xs text-system-warning/80 font-mono">BALANCE</span>
@@ -68,7 +69,7 @@ const ShopView: React.FC<ShopViewProps> = ({ gold, items, purchaseItem, addItem,
       </div>
 
       {/* Item Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-10">
+      <div id="tut-shop-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-10">
          {items.map(item => (
            <ShopItemCard 
              key={item.id} 
