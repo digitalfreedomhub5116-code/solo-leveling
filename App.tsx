@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AnimatePresence, motion, Variants } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Zap, TrendingUp, Cpu, Scan, User, Shield, LogOut, Terminal } from 'lucide-react';
 import Layout from './components/Layout';
 import Navigation from './components/Navigation';
@@ -388,7 +388,7 @@ const DashboardView: React.FC<{
 const App: React.FC = () => {
   const { 
     player, isLoaded, notifications, registerUser, updateProfile, 
-    gainXp, addQuest, completeQuest, failQuest, resetQuest, deleteQuest, 
+    addQuest, completeQuest, failQuest, resetQuest, deleteQuest, 
     purchaseItem, addShopItem, removeShopItem, removeNotification, 
     saveHealthProfile, addProgressPhoto, deleteProgressPhoto, logMeal, deleteMeal, 
     completeWorkoutSession, failWorkout, logout 

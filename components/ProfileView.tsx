@@ -1,15 +1,17 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, User, Briefcase, Award, Shield, Terminal, Activity, Settings } from 'lucide-react';
+import { Save, User, Briefcase, Award, Shield, Terminal, Activity, Settings, LogOut, Lock } from 'lucide-react';
 import { PlayerData } from '../types';
 
 interface ProfileViewProps {
   player: PlayerData;
   onUpdate: (data: { name: string; job: string; title: string }) => void;
+  onAdminRequest: () => void;
+  onLogout: () => void;
 }
 
-const ProfileView: React.FC<ProfileViewProps> = ({ player, onUpdate }) => {
+const ProfileView: React.FC<ProfileViewProps> = ({ player, onUpdate, onAdminRequest, onLogout }) => {
   const [activeTab, setActiveTab] = useState<'STATS' | 'LOGS' | 'CONFIG'>('STATS');
   
   // Form State
@@ -238,6 +240,21 @@ const ProfileView: React.FC<ProfileViewProps> = ({ player, onUpdate }) => {
                              >
                                 <Save size={14} /> UPDATE REGISTRATION
                              </button>
+
+                             <div className="pt-4 mt-4 border-t border-gray-800 flex gap-3">
+                                <button 
+                                    onClick={onAdminRequest}
+                                    className="flex-1 border border-gray-700 text-gray-400 py-2 rounded flex items-center justify-center gap-2 hover:border-gray-500 hover:text-white transition-colors text-xs font-mono"
+                                >
+                                    <Lock size={12} /> ADMIN ACCESS
+                                </button>
+                                <button 
+                                    onClick={onLogout}
+                                    className="flex-1 bg-red-900/20 border border-red-900/50 text-red-500 py-2 rounded flex items-center justify-center gap-2 hover:bg-red-900/40 hover:text-red-400 transition-colors text-xs font-mono"
+                                >
+                                    <LogOut size={12} /> LOGOUT
+                                </button>
+                             </div>
                         </div>
                     </motion.div>
                 )}

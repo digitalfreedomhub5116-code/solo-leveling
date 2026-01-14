@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Scale, Zap, Dumbbell, Check, Brain, Loader2, Shield, Target, User, Cpu } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Zap, Dumbbell, Check, Cpu } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
@@ -170,7 +170,7 @@ const HealthView: React.FC<HealthViewProps> = ({
   const [activeTab, setActiveTab] = useState<'WORKOUT' | 'NUTRITION' | 'BODY'>('WORKOUT');
   
   // Workout State
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
+  const [, setSelectedDayIndex] = useState<number | null>(null);
   const [activePlan, setActivePlan] = useState<WorkoutDay | null>(null);
 
   // Setup Form State
