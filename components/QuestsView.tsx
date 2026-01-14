@@ -200,7 +200,8 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-system-card border border-system-border w-full max-w-lg rounded-xl shadow-2xl overflow-hidden max-h-[85vh] m-auto relative flex flex-col"
+                // Reduced height for mobile (70vh) to ensure visibility above nav bars/keyboards
+                className="bg-system-card border border-system-border w-full max-w-lg rounded-xl shadow-2xl overflow-hidden max-h-[70vh] md:max-h-[85vh] m-auto relative flex flex-col"
               >
                  <div className="p-3 sm:p-6 border-b border-system-border flex justify-between items-center bg-system-card z-10 shrink-0">
                     <h3 className="text-base sm:text-lg font-bold text-white font-mono">NEW ASSIGNMENT</h3>
@@ -209,7 +210,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                     </button>
                  </div>
                  
-                 <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
+                 <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1 custom-scrollbar">
                     <div>
                        <label className="block text-xs text-gray-500 mb-1 font-mono">TITLE</label>
                        <input 
@@ -305,7 +306,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                     </div>
                  </div>
 
-                 <div className="p-3 sm:p-4 bg-system-bg border-t border-system-border flex justify-end gap-3 z-10 shrink-0">
+                 <div className="p-3 sm:p-4 bg-system-bg border-t border-system-border flex justify-end gap-3 z-10 shrink-0 mb-safe pb-4">
                     <button 
                       onClick={() => setIsModalOpen(false)}
                       className="px-4 py-2 text-xs font-mono text-gray-500 hover:text-white"

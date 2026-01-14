@@ -100,6 +100,13 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
   const stepData = SCRIPT[currentStep];
 
   useEffect(() => {
+      // Apply forced position immediately if set, regardless of target detection
+      if (stepData?.forcePosition) {
+          setDialogPosition(stepData.forcePosition);
+      } else if (!stepData?.targetId) {
+          setDialogPosition('center');
+      }
+
       // Helper to lock/unlock scroll without layout shift
       const lockScroll = () => {
           if (scrollLockedRef.current) return;
@@ -134,9 +141,8 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                       return rect;
                   });
                   
-                  if (stepData.forcePosition) {
-                      setDialogPosition(stepData.forcePosition);
-                  } else {
+                  // Only calculate automatic position if not forced
+                  if (!stepData.forcePosition) {
                       const windowHeight = window.innerHeight;
                       const elementCenterY = rect.top + (rect.height / 2);
                       
@@ -150,7 +156,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
               }
           } else {
               setTargetRect(null);
-              setDialogPosition('center');
+              // Position handled by initial check if not targeted
           }
       };
 
@@ -215,7 +221,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
   if (!stepData || stepData.hideOverlay) return null;
 
   const positionClasses = {
-      'top': 'top-24', 
+      'top': 'top-16', // Moved up higher (was top-24)
       'bottom': 'bottom-12',
       'center': 'top-1/2 -translate-y-1/2'
   };
