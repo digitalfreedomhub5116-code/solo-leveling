@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Medal, Crown, Lock, AlertTriangle, ArrowUp, ArrowDown, Minus, Zap, Clock, TrendingUp } from 'lucide-react';
 import { PlayerData } from '../types';

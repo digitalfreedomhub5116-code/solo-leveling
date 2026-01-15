@@ -453,7 +453,7 @@ export const useSystem = () => {
           // 1. ATTEMPT CLOUD SYNC FIRST (Source of Truth)
           let cloudData = null;
           if (profile.userId && !profile.userId.startsWith('local-')) {
-              const { data, error } = await supabase
+              const { data } = await supabase
                   .from('profiles')
                   .select('raw_data')
                   .eq('id', profile.userId)
