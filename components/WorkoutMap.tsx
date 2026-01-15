@@ -94,7 +94,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
 
   return (
     <>
-        <div className="relative w-full h-[500px] md:h-[600px] bg-black/40 border border-gray-800 rounded-xl overflow-hidden backdrop-blur-sm group select-none shadow-inner">
+        <div className="relative w-full h-[500px] md:h-[600px] bg-black/40 border border-gray-800 rounded-xl overflow-hidden backdrop-blur-sm group select-none shadow-inner transform-gpu">
             
             {/* Scrollable Container */}
             <div 
@@ -117,14 +117,23 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                 <stop offset={`${(completedDays / totalDays) * 100 + 5}%`} stopColor="#333" stopOpacity="0.3"/>
                                 <stop offset="100%" stopColor="#333" stopOpacity="0.3"/>
                             </linearGradient>
-                            <filter id="glow">
-                                <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-                                <feMerge>
-                                    <feMergeNode in="coloredBlur"/>
-                                    <feMergeNode in="SourceGraphic"/>
-                                </feMerge>
-                            </filter>
                         </defs>
+                        
+                        {/* Glow Layer (Simulated with thick stroke for performance) */}
+                        <motion.path 
+                            d={svgPath}
+                            fill="none"
+                            stroke="#00d2ff"
+                            strokeWidth="12"
+                            strokeOpacity="0.15"
+                            strokeLinecap="round"
+                            initial={{ pathLength: 0 }}
+                            animate={{ pathLength: 1 }}
+                            transition={{ duration: 2, ease: "easeInOut" }}
+                            style={{ willChange: 'stroke-dashoffset' }}
+                        />
+                        
+                        {/* Main Path */}
                         <motion.path 
                             d={svgPath}
                             fill="none"
@@ -134,7 +143,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                             initial={{ pathLength: 0 }}
                             animate={{ pathLength: 1 }}
                             transition={{ duration: 2, ease: "easeInOut" }}
-                            filter="url(#glow)"
+                            style={{ willChange: 'stroke-dashoffset' }}
                         />
                     </svg>
 
@@ -160,17 +169,16 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                     x: '-50%',
                                     y: '-50%' 
                                 }}
-                                initial={{ scale: 0, opacity: 0 }}
+                                initial={false} // Disable initial animation for performance on scroll
                                 animate={{ scale: 1, opacity: 1 }}
-                                transition={{ delay: index * 0.05 }}
                                 onClick={() => setSelectedPreview(index)}
                             >
                                 {/* Visual Representation */}
                                 <div className={`
                                     relative flex items-center justify-center rounded-full transition-all duration-300
                                     ${point.isBoss ? 'w-14 h-14 md:w-16 md:h-16' : 'w-10 h-10 md:w-12 md:h-12'}
-                                    ${isCompleted ? 'bg-system-neon text-black shadow-[0_0_20px_#00d2ff]' : ''}
-                                    ${isCurrent ? 'bg-black border-2 border-system-neon text-system-neon animate-pulse shadow-[0_0_30px_#00d2ff]' : ''}
+                                    ${isCompleted ? 'bg-system-neon text-black shadow-[0_0_15px_rgba(0,210,255,0.5)]' : ''}
+                                    ${isCurrent ? 'bg-black border-2 border-system-neon text-system-neon animate-pulse shadow-[0_0_20px_rgba(0,210,255,0.6)]' : ''}
                                     ${isLocked ? 'bg-gray-900 border border-gray-700 text-gray-600' : ''}
                                 `}>
                                     {/* Icons */}
@@ -188,7 +196,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                     {(isCurrent || point.isBoss) && (
                                         <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 w-[180px] pointer-events-none flex justify-center">
                                             {/* Enhanced Tooltip */}
-                                            <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg p-3 shadow-[0_0_30px_rgba(0,0,0,0.9)] flex flex-col items-center gap-1.5 relative pointer-events-auto z-50 w-full">
+                                            <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg p-3 shadow-xl flex flex-col items-center gap-1.5 relative pointer-events-auto z-50 w-full">
                                                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#0a0a0a] border-t border-l border-gray-800 rotate-45" />
                                                  
                                                  {point.isFinal ? (
@@ -276,7 +284,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="relative z-10 w-full max-w-[320px] bg-[#0a0a0a] border border-gray-700 rounded-xl p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[80vh]"
+                        className="relative z-10 w-full max-w-[320px] bg-[#0a0a0a] border border-gray-700 rounded-xl p-6 shadow-2xl flex flex-col max-h-[80vh]"
                     >
                          {/* Decorative Header Line */}
                          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-system-neon to-transparent opacity-50" />

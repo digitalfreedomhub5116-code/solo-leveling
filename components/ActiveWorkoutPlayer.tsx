@@ -143,7 +143,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm z-20 flex flex-col items-center justify-center p-8 text-center"
+                        className="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center p-8 text-center"
                     >
                         <motion.div 
                             initial={{ scale: 0.8 }}
@@ -201,11 +201,12 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
         <div className="bg-[#050505] relative z-30 flex flex-col border-t border-white/5 shadow-[0_-10px_40px_rgba(0,0,0,0.8)]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
             
             {/* Progress Bar Line */}
-            <div className="w-full h-1 bg-gray-900">
+            <div className="w-full h-1 bg-gray-900 overflow-hidden">
                 <motion.div 
-                    className="h-full bg-system-neon shadow-[0_0_10px_#00d2ff]"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progressPercent}%` }}
+                    className="h-full bg-system-neon shadow-[0_0_10px_#00d2ff] origin-left"
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: progressPercent / 100 }}
+                    transition={{ ease: "linear", duration: 0.5 }}
                 />
             </div>
 
