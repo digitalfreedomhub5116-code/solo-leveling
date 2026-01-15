@@ -8,7 +8,7 @@ export enum SystemState {
   LOCKED = 'LOCKED'
 }
 
-export type Tab = 'DASHBOARD' | 'QUESTS' | 'SHOP' | 'PROFILE' | 'HEALTH';
+export type Tab = 'DASHBOARD' | 'QUESTS' | 'SHOP' | 'GROWTH' | 'HEALTH' | 'RANKING';
 
 export interface NavItem {
   label: string;
@@ -54,7 +54,7 @@ export interface Quest {
   expiresAt?: number; // New: For 24h temporary quests
   isDaily: boolean; // Identify repeatable quests
   trigger?: string; // The "When" condition/anchor for the habit
-  miniQuest?: string; // The "Activation Energy" version (e.g., Just do 5 reps)
+  miniQuest?: string; // The "Activation Energy" version (e.g. Just do 5 reps)
   completedAsMini?: boolean; // Track if completed in safe mode
 }
 
@@ -84,6 +84,7 @@ export interface HistoryEntry {
   stats: CoreStats;
   totalXp: number;
   dailyXp: number;
+  questCompletion: number; // 0 to 100 percentage
 }
 
 // --- ADMIN / DATABASE TYPES ---

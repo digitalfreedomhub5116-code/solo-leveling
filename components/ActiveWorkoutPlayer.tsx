@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, X, AlertOctagon, Check, Activity, Film, ChevronRight, Timer as TimerIcon } from 'lucide-react';
+import { Play, Pause, X, AlertOctagon, Check, Activity, Film, Timer as TimerIcon, ChevronRight } from 'lucide-react';
 import { WorkoutDay } from '../types';
 import { SpeechService } from '../utils/speechService';
 import { playSystemSoundEffect } from '../utils/soundEngine';
@@ -31,7 +31,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
   const [results, setResults] = useState<Record<string, number>>({});
 
   // Derived Data
-  const exercise = plan.exercises[currentIdx];
+  const exercise = plan.exercises[currentIdx] || plan.exercises[0]; // Fallback to avoid undefined crash
   const totalExercises = plan.exercises.length;
   
   // Resolve Video Source (DB priority -> Local fallback)
@@ -41,8 +41,10 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
   // --- LOGIC ---
 
   useEffect(() => {
-    SpeechService.announceStart(exercise.name, exercise.sets, exercise.reps);
-  }, [exercise.name, exercise.sets, exercise.reps]);
+    if (exercise) {
+        SpeechService.announceStart(exercise.name, exercise.sets, exercise.reps);
+    }
+  }, [exercise?.name, exercise?.sets, exercise?.reps]);
 
   const handleExerciseComplete = useCallback(() => {
     if (currentIdx < totalExercises - 1) {
@@ -80,7 +82,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
       } else {
         handleExerciseComplete();
       }
-  }, [currentSet, exercise.sets, exercise.name, handleExerciseComplete]);
+  }, [currentSet, exercise?.sets, exercise?.name, handleExerciseComplete]);
 
   const handleTimerComplete = useCallback(() => {
     if (phase === 'WORK') {
@@ -110,10 +112,14 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
   const confirmQuit = () => { SpeechService.announceFailure(); onFail(); };
 
   // --- UI CONSTANTS ---
-  const progressPercent = (currentIdx / totalExercises) * 100;
+  const progressPercent = totalExercises > 0 ? (currentIdx / totalExercises) * 100 : 0;
   
-  // Safe set count for array generation (prevents RangeError if sets is invalid)
-  const safeSetCount = Math.max(1, Math.floor(Number(exercise.sets) || 1));
+  // Safe set count for array generation (prevents RangeError if sets is invalid/float/negative)
+  const rawSets = Number(exercise?.sets || 0);
+  // Enforce integer range 1-20
+  const safeSetCount = Math.min(20, Math.max(1, Number.isFinite(rawSets) ? Math.floor(rawSets) : 1));
+
+  if (!exercise) return null; // Safety render
 
   return createPortal(
     <div className="fixed inset-0 z-[100] bg-black text-white font-sans h-[100dvh] flex flex-col overflow-hidden">

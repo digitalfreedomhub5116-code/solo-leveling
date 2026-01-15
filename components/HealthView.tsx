@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Zap, Dumbbell, Check, Cpu, Flame, Target, Map, Calendar, List, Swords, Layers, Grid, TrendingUp, ShieldCheck, Lock, Sparkles } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog } from '../types';
@@ -21,6 +21,7 @@ interface HealthViewProps {
   playerData: PlayerData;
   onTutorialAction?: (step: number) => void;
   tutorialStep?: number;
+  onToggleNav?: (visible: boolean) => void; // New Prop for controlling navigation
 }
 
 // --- TECH RADAR CHART UTILS ---
@@ -66,10 +67,6 @@ const TechRadar = ({ data, color, label }: { data: { value: number; fullMark: nu
 
     const pathD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ') + ' Z';
 
-    // Animation Timings: Dots first, then lines
-    const dotDelay = 0.15;
-    const totalDotTime = data.length * dotDelay;
-
     return (
         <div id="tut-health-radar" className="relative flex flex-col items-center justify-center w-full h-full">
             <h3 className="text-sm font-mono font-bold mb-4 tracking-[0.3em] uppercase transition-colors duration-500" style={{ color }}>{label}</h3>
@@ -92,27 +89,6 @@ const TechRadar = ({ data, color, label }: { data: { value: number; fullMark: nu
                     <line key={`axis-${i}`} {...line} stroke="#333" strokeWidth="1" strokeDasharray="4 4" />
                 ))}
 
-                {/* Animated Data Area (Appears last) */}
-                <motion.path
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: totalDotTime + 0.5, duration: 0.5 }}
-                    d={pathD}
-                    fill={`url(#radarFill-${label})`}
-                    stroke="none"
-                />
-                
-                {/* Animated Data Stroke (Draws after dots) */}
-                <motion.path
-                    d={pathD}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth="2"
-                    initial={{ pathLength: 0, opacity: 0 }}
-                    animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ delay: totalDotTime, duration: 1.5, ease: "easeInOut" }}
-                />
-
                 {/* Data Points (Dots) & Labels */}
                 {data.map((d, i) => {
                      const angle = (360 / data.length) * i;
@@ -120,7 +96,11 @@ const TechRadar = ({ data, color, label }: { data: { value: number; fullMark: nu
                      const point = points[i];
                      
                      return (
-                        <g key={i}>
+                        <motion.g key={i}
+                            initial={{ opacity: 0, scale: 0 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: i * 0.15, duration: 0.3, type: "spring" }}
+                        >
                              {/* Label */}
                              <text 
                                 x={labelPos.x} y={labelPos.y} 
@@ -135,13 +115,41 @@ const TechRadar = ({ data, color, label }: { data: { value: number; fullMark: nu
                                 cx={point.x} cy={point.y} 
                                 r={4}
                                 fill="#000" stroke={color} strokeWidth={2}
-                                initial={{ scale: 0, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ delay: i * dotDelay, type: "spring", stiffness: 300, damping: 20 }}
+                                animate={{ cx: point.x, cy: point.y, stroke: color }}
+                                transition={{ duration: 0.1 }}
                             />
-                        </g>
+                        </motion.g>
                      );
                 })}
+
+                {/* Data Stroke (The Link) - Animates after dots */}
+                <motion.path
+                    d={pathD}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth="2"
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1, d: pathD, stroke: color }}
+                    transition={{ 
+                        pathLength: { delay: data.length * 0.15, duration: 0.8, ease: "easeInOut" },
+                        opacity: { delay: data.length * 0.15, duration: 0.2 },
+                        d: { duration: 0.1 }, // Rapid update for transformation
+                        stroke: { duration: 0.5 }
+                    }}
+                />
+
+                {/* Data Area (Fill) - Fades in last */}
+                <motion.path
+                    d={pathD}
+                    fill={`url(#radarFill-${label})`}
+                    stroke="none"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1, d: pathD }}
+                    transition={{ 
+                        opacity: { delay: (data.length * 0.15) + 0.8, duration: 0.5 },
+                        d: { duration: 0.1 }
+                    }}
+                />
             </svg>
         </div>
     );
@@ -190,6 +198,23 @@ const calculateNutritionPlan = (profile: Partial<HealthProfile>) => {
   };
 };
 
+// Lerp Helper function for color and values
+const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
+
+// Color interpolator (Simple RGB)
+const lerpColor = (a: string, b: string, amount: number) => { 
+    // Expects hex strings like #RRGGBB
+    const ah = parseInt(a.replace(/#/g, ''), 16),
+          ar = ah >> 16, ag = ah >> 8 & 0xff, ab = ah & 0xff,
+          bh = parseInt(b.replace(/#/g, ''), 16),
+          br = bh >> 16, bg = bh >> 8 & 0xff, bb = bh & 0xff,
+          rr = ar + amount * (br - ar),
+          rg = ag + amount * (bg - ag),
+          rb = ab + amount * (bb - ab);
+
+    return '#' + ((1 << 24) + (Math.round(rr) << 16) + (Math.round(rg) << 8) + Math.round(rb)).toString(16).slice(1);
+}
+
 const HealthView: React.FC<HealthViewProps> = ({ 
   healthProfile, 
   onSaveProfile, 
@@ -201,14 +226,16 @@ const HealthView: React.FC<HealthViewProps> = ({
   onDeleteMeal,
   playerData,
   onTutorialAction,
-  tutorialStep
+  tutorialStep,
+  onToggleNav
 }) => {
   // New States: DIAGNOSIS (Current State) -> PROJECTION (Graph)
   const [viewMode, setViewMode] = useState<'MAP' | 'OVERVIEW' | 'ACTIVE' | 'SETUP' | 'PROCESSING' | 'DIAGNOSIS' | 'PROJECTION' | 'FINALIZING'>('MAP');
   const [activeTab, setActiveTab] = useState<'WORKOUT' | 'NUTRITION' | 'BODY'>('WORKOUT');
   
   // Projection Animation State
-  const [isTransformed, setIsTransformed] = useState(false);
+  const [transformProgress, setTransformProgress] = useState(0); // 0 to 1
+  const [isTransformed, setIsTransformed] = useState(false); // Completed state
 
   // Workout State
   const [, setSelectedDayIndex] = useState<number | null>(null);
@@ -233,6 +260,22 @@ const HealthView: React.FC<HealthViewProps> = ({
 
   const [foodSearch, setFoodSearch] = useState('');
   const [finalizingLog, setFinalizingLog] = useState("Initializing...");
+
+  // Control Navigation Visibility
+  useEffect(() => {
+      if (onToggleNav) {
+          // Hide nav during these "immersive" phases
+          const hideNavModes = ['SETUP', 'PROCESSING', 'DIAGNOSIS', 'PROJECTION', 'FINALIZING'];
+          if (hideNavModes.includes(viewMode)) {
+              onToggleNav(false);
+          } else {
+              onToggleNav(true);
+          }
+      }
+      return () => {
+          if (onToggleNav) onToggleNav(true); // Restore on unmount
+      };
+  }, [viewMode, onToggleNav]);
 
   // Initial Logic
   useEffect(() => {
@@ -336,11 +379,29 @@ const HealthView: React.FC<HealthViewProps> = ({
       }
   };
 
+  const handleSkipSetup = () => {
+      // Create a sensible default profile to allow app access
+      const defaultProfile = {
+          ...formData,
+          // Ensure critical fields exist
+          workoutPlan: calculatedPlan,
+          macros: nutritionInfo.macros,
+          bmi: parseFloat(currentBMI) || 22,
+          bmr: nutritionInfo.bmr || 1800,
+          category: 'Rookie',
+          injuries: []
+      } as HealthProfile;
+      
+      onSaveProfile(defaultProfile, "Novice Hunter");
+      setViewMode('MAP');
+  };
+
   // --- RENDER: SETUP WIZARD & PROCESSING ---
   
   if (viewMode === 'PROCESSING') {
       return (
           <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-8 bg-black/95 absolute inset-0 z-50">
+              {/* ... (processing visualization remains same) ... */}
               <div className="relative w-48 h-48 flex items-center justify-center mb-8">
                   {/* Outer Rings */}
                   <motion.div 
@@ -453,11 +514,38 @@ const HealthView: React.FC<HealthViewProps> = ({
           { subject: 'PERCEPTION', value: 95, fullMark: 100 }
       ];
 
+      // Calculate current interpolation based on progress
+      const currentStats = lowStats.map((stat, i) => ({
+          subject: stat.subject,
+          value: lerp(stat.value, highStats[i].value, transformProgress),
+          fullMark: 100
+      }));
+
+      // Interpolate Color: Red (#ef4444) to Neon Blue (#00d2ff)
+      const currentColor = lerpColor("#ef4444", "#00d2ff", transformProgress);
+
+      const handleInitiateTransformation = () => {
+          let progress = 0;
+          const duration = 2000; // 2 seconds expansion
+          const intervalRate = 16; // ~60fps
+          const step = 1 / (duration / intervalRate);
+
+          const timer = setInterval(() => {
+              progress += step;
+              if (progress >= 1) {
+                  progress = 1;
+                  setIsTransformed(true);
+                  clearInterval(timer);
+              }
+              setTransformProgress(progress);
+          }, intervalRate);
+      };
+
       return (
           <div className="flex flex-col items-center justify-center min-h-[70vh] bg-black/95 absolute inset-0 z-50 p-6">
               <div className="w-full max-w-sm flex flex-col items-center">
                   <h2 className="text-xl font-bold text-white font-mono mb-1 tracking-[0.2em] flex items-center gap-2">
-                      <TrendingUp size={20} className={isTransformed ? "text-system-neon" : "text-red-500"} /> 
+                      <TrendingUp size={20} style={{ color: currentColor }} /> 
                       {isTransformed ? "SYSTEM POTENTIAL" : "CURRENT LIMITS"}
                   </h2>
                   <div className="text-[10px] font-mono text-gray-500 mb-4 tracking-widest uppercase">
@@ -465,11 +553,11 @@ const HealthView: React.FC<HealthViewProps> = ({
                   </div>
                   
                   <div className="relative mb-8 w-full max-w-[320px] aspect-square">
-                      {/* Using TechRadar with specified colors */}
+                      {/* Using TechRadar with dynamic interpolated data */}
                       <TechRadar 
                           label={isTransformed ? "POTENTIAL" : "CURRENT"}
-                          color={isTransformed ? "#00d2ff" : "#ef4444"}
-                          data={isTransformed ? highStats : lowStats}
+                          color={currentColor}
+                          data={currentStats}
                       />
                       
                       {/* Transformation Particle Effects */}
@@ -486,30 +574,37 @@ const HealthView: React.FC<HealthViewProps> = ({
                   <div className="w-full space-y-4">
                       {/* Assurance Banner */}
                       <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 1 }}
-                        className="bg-gray-900/50 border border-gray-800 p-3 rounded flex items-start gap-3"
+                        layout
+                        className={`border p-3 rounded flex items-start gap-3 transition-colors duration-500 ${isTransformed ? 'bg-system-neon/10 border-system-neon/50' : 'bg-gray-900/50 border-gray-800'}`}
                       >
-                          <Lock size={16} className="text-system-neon mt-0.5 shrink-0" />
+                          <Lock size={16} className="mt-0.5 shrink-0" style={{ color: currentColor }} />
                           <div>
-                              <div className="text-[10px] text-system-neon font-bold font-mono uppercase mb-1">SYSTEM ASSURANCE</div>
+                              <div className="text-[10px] font-bold font-mono uppercase mb-1" style={{ color: currentColor }}>SYSTEM ASSURANCE</div>
                               <p className="text-[10px] text-gray-400 leading-relaxed font-mono">
                                   {isTransformed 
-                                    ? "By following the daily quests, reaching this potential is mathematically guaranteed."
+                                    ? "Growth potential verified. By following the daily quests, reaching this state is mathematically guaranteed."
                                     : "Current stats are temporary. System integration will initiate rapid growth."}
                               </p>
                           </div>
                       </motion.div>
 
-                      {!isTransformed ? (
+                      {!isTransformed && transformProgress === 0 && (
                           <button 
-                            onClick={() => setIsTransformed(true)}
+                            onClick={handleInitiateTransformation}
                             className="w-full py-4 bg-gradient-to-r from-red-600 to-red-900 text-white font-black font-mono text-sm rounded shadow-[0_0_20px_rgba(220,38,38,0.5)] hover:shadow-[0_0_30px_rgba(220,38,38,0.7)] hover:scale-105 transition-all flex items-center justify-center gap-2"
                           >
                               INITIATE TRANSFORMATION <Zap size={16} fill="currentColor" />
                           </button>
-                      ) : (
+                      )}
+                      
+                      {/* Show processing button if animating */}
+                      {transformProgress > 0 && !isTransformed && (
+                          <button disabled className="w-full py-4 bg-gray-900 border border-gray-800 text-gray-500 font-mono text-xs rounded flex items-center justify-center gap-2">
+                              EXPANDING PARAMETERS...
+                          </button>
+                      )}
+
+                      {isTransformed && (
                           <motion.button 
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -592,6 +687,7 @@ const HealthView: React.FC<HealthViewProps> = ({
       );
   }
 
+  // --- RENDER: SETUP WIZARD & PROCESSING ---
   if (viewMode === 'SETUP') {
       const progress = (step / TOTAL_STEPS) * 100;
 
@@ -656,6 +752,9 @@ const HealthView: React.FC<HealthViewProps> = ({
                             </motion.div>
                         )}
 
+                        {/* ... Steps 2 through 8 remain identical ... */}
+                        {/* Shortened for brevity, full content is preserved in the original flow below if expanded */}
+                        
                         {/* STEP 2: AGE */}
                         {step === 2 && (
                             <motion.div 
@@ -863,22 +962,31 @@ const HealthView: React.FC<HealthViewProps> = ({
                           <div /> // Spacer
                       )}
 
-                      {/* Logic: If Step 7 and Bodyweight, show Finish. Else show Next */}
-                      {(step < TOTAL_STEPS && formData.equipment !== 'BODYWEIGHT') || (step < 7) ? (
-                          <button 
-                            onClick={nextStep}
-                            className="flex items-center gap-2 bg-white text-black px-6 py-2 rounded-full font-bold font-mono hover:bg-system-neon transition-colors"
+                      <div className="flex gap-2">
+                          <button
+                              onClick={handleSkipSetup}
+                              className="text-[10px] text-gray-600 hover:text-white px-3 py-2 font-mono transition-colors tracking-widest uppercase hover:underline"
                           >
-                              NEXT <ArrowRight size={16} />
+                              I WILL DO IT LATER
                           </button>
-                      ) : (
-                          <button 
-                            onClick={startProcessing}
-                            className="flex items-center gap-2 bg-system-neon text-black px-6 py-2 rounded-full font-bold font-mono hover:bg-white shadow-[0_0_15px_#00d2ff] transition-colors"
-                          >
-                              INITIALIZE SYSTEM <Check size={16} />
-                          </button>
-                      )}
+
+                          {/* Logic: If Step 7 and Bodyweight, show Finish. Else show Next */}
+                          {(step < TOTAL_STEPS && formData.equipment !== 'BODYWEIGHT') || (step < 7) ? (
+                              <button 
+                                onClick={nextStep}
+                                className="flex items-center gap-2 bg-white text-black px-6 py-2 rounded-full font-bold font-mono hover:bg-system-neon transition-colors"
+                              >
+                                  NEXT <ArrowRight size={16} />
+                              </button>
+                          ) : (
+                              <button 
+                                onClick={startProcessing}
+                                className="flex items-center gap-2 bg-system-neon text-black px-6 py-2 rounded-full font-bold font-mono hover:bg-white shadow-[0_0_15px_#00d2ff] transition-colors"
+                              >
+                                  INITIALIZE <Check size={16} />
+                              </button>
+                          )}
+                      </div>
                   </div>
               </div>
           </div>

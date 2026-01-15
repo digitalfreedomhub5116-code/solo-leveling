@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Sparkles, Repeat, Link, BatteryLow, Calendar, Skull } from 'lucide-react';
+import { Plus, Sparkles, Repeat, Link, BatteryLow, Calendar, Skull, AlertTriangle } from 'lucide-react';
 import { Quest, CoreStats, Rank } from '../types';
 import QuestCard from './QuestCard';
 import { playSystemSoundEffect } from '../utils/soundEngine';
@@ -28,6 +28,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
   const [isDaily, setIsDaily] = useState(false);
   const [trigger, setTrigger] = useState('');
   const [miniQuest, setMiniQuest] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   // Tutorial Logic: Force open modal when user clicks Add Quest in step 2 (transition to 3)
   useEffect(() => {
@@ -99,7 +100,20 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
   };
 
   const handleCreate = () => {
-    if (!title) return;
+    setError(null);
+    if (!title.trim()) return;
+
+    // --- UNIQUENESS CHECK ---
+    // Prevent duplicate quests by checking if a quest with the exact same title exists and is incomplete
+    const isDuplicate = quests.some(q => 
+        q.title.toLowerCase().trim() === title.toLowerCase().trim() && !q.isCompleted && !q.failed
+    );
+
+    if (isDuplicate) {
+        setError("DUPLICATE QUEST DETECTED. COMPLETE EXISTING TASK FIRST.");
+        playSystemSoundEffect('WARNING');
+        return;
+    }
     
     // XP Mapping
     const xpMap: Record<Rank, number> = {
@@ -108,8 +122,8 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
 
     const newQuest: Quest = {
       id: Math.random().toString(36).substr(2, 9),
-      title,
-      description,
+      title: title.trim(),
+      description: description.trim(),
       rank,
       category,
       xpReward: xpMap[rank],
@@ -123,12 +137,15 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
 
     addQuest(newQuest);
     setIsModalOpen(false);
+    
+    // Reset Form
     setTitle('');
     setDescription('');
     setTrigger('');
     setMiniQuest('');
     setRank('E');
     setIsDaily(false);
+    setError(null);
 
     // Tutorial Action: If we were on Step 6 (Confirm), advance to Step 7 (Success)
     if (tutorialStep === 6 && onTutorialAction) {
@@ -230,6 +247,21 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                  </div>
                  
                  <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+                    
+                    {/* Error Banner */}
+                    <AnimatePresence>
+                        {error && (
+                            <motion.div 
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="bg-red-900/20 border border-red-900/50 p-2 rounded text-[10px] text-red-400 font-mono flex items-center gap-2"
+                            >
+                                <AlertTriangle size={12} /> {error}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
                     <div>
                        <label className="block text-xs text-gray-500 mb-1 font-mono">TITLE</label>
                        <input 

@@ -41,9 +41,12 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onRese
   // Handle Fail Animation Sequence
   const handleFailClick = () => {
       setIsFailing(true);
-      // Wait for animation to play before triggering actual fail logic
+      // Trigger fail logic immediately for responsiveness
+      onFail(quest.id);
+      
+      // Turn off active failing state after animation to settle into "failed" static state
       setTimeout(() => {
-          onFail(quest.id);
+          setIsFailing(false);
       }, 500);
   };
 
@@ -82,6 +85,7 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onRese
       visible: { opacity: 1, y: 0 },
       exit: { opacity: 0, scale: 0.95 },
       failing: { 
+          opacity: 1, // Critical: Ensure element stays visible during shake
           x: [0, -10, 10, -10, 10, 0],
           transition: { duration: 0.4 }
       }

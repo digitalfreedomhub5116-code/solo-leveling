@@ -316,14 +316,21 @@ export const useSystem = () => {
     if (today !== lastLogin) {
       hasChanges = true;
       
+      // Calculate previous day's quest stats before shifting history
+      const totalQuests = newData.quests.length;
+      const completedQuests = newData.quests.filter(q => q.isCompleted).length;
+      const questCompletion = totalQuests > 0 ? (completedQuests / totalQuests) * 100 : 0;
+
       const historyEntry = {
         date: lastLogin,
         stats: { ...newData.stats },
         totalXp: newData.totalXp,
-        dailyXp: newData.dailyXp || 0
+        dailyXp: newData.dailyXp || 0,
+        questCompletion: Math.round(questCompletion)
       };
       
-      newData.history = [historyEntry, ...newData.history].slice(0, 30);
+      // Keep up to 365 days of history for the Growth Grid
+      newData.history = [historyEntry, ...newData.history].slice(0, 365);
 
       const lastLoginDateObj = new Date(lastLogin);
       const todayDateObj = new Date(today);
@@ -550,11 +557,23 @@ export const useSystem = () => {
   const completeDaily = () => {};
 
   const addQuest = (quest: Quest) => {
-      setPlayer(prev => ({
-          ...prev,
-          quests: [quest, ...prev.quests],
-          logs: [createLog(`New Quest: ${quest.title}`, 'SYSTEM'), ...prev.logs]
-      }));
+      setPlayer(prev => {
+          // Double check for duplicate title (case insensitive) to ensure system consistency
+          if (prev.quests.some(q => q.title.toLowerCase() === quest.title.toLowerCase())) {
+              return prev; 
+          }
+
+          const updatedPlayer = {
+              ...prev,
+              quests: [quest, ...prev.quests],
+              logs: [createLog(`New Quest: ${quest.title}`, 'SYSTEM'), ...prev.logs]
+          };
+          
+          // CRITICAL: Sync to database immediately for persistence
+          syncToCloud(updatedPlayer);
+          
+          return updatedPlayer;
+      });
       addNotification("New Quest Assigned", "SYSTEM");
   };
 

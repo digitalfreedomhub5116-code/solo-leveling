@@ -8,7 +8,7 @@ import EvaluationMatrix from './components/StatsRadar';
 import QuestsView from './components/QuestsView';
 import ShopView from './components/ShopView';
 import SystemMessage from './components/SystemMessage'; 
-import ProfileView from './components/ProfileView';
+import GrowthView from './components/GrowthView'; // Changed from ProfileView
 import AuthView from './components/AuthView';
 import SplashScreen from './components/SplashScreen';
 import HealthView from './components/HealthView';
@@ -16,6 +16,7 @@ import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
 import PenaltyZone from './components/PenaltyZone';
 import TutorialOverlay from './components/TutorialOverlay';
+import RankingView from './components/RankingView'; // New Import
 import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab, CoreStats } from './types';
 
@@ -405,6 +406,9 @@ const App: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  
+  // NEW: State to control Navigation visibility
+  const [isNavVisible, setIsNavVisible] = useState(true);
 
   // Wrapper for tutorial completion to also switch tabs
   const handleTutorialComplete = () => {
@@ -475,7 +479,8 @@ const App: React.FC = () => {
   // 4. MAIN APP
   return (
     <Layout 
-      navigation={<Navigation activeTab={activeTab} onTabChange={setActiveTab} />}
+      // Conditionally render navigation based on state
+      navigation={isNavVisible ? <Navigation activeTab={activeTab} onTabChange={setActiveTab} /> : null}
       playerLevel={player.level}
       streak={player.streak}
     >
@@ -529,11 +534,18 @@ const App: React.FC = () => {
           </motion.div>
         )}
 
-        {activeTab === 'PROFILE' && (
-          <motion.div key="profile" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-            <ProfileView 
+        {activeTab === 'RANKING' && (
+          <motion.div key="ranking" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <RankingView 
+              currentPlayer={player}
+            />
+          </motion.div>
+        )}
+
+        {activeTab === 'GROWTH' && (
+          <motion.div key="growth" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <GrowthView 
               player={player}
-              onUpdate={updateProfile}
               onAdminRequest={() => setShowAdminLogin(true)}
               onLogout={logout}
             />
@@ -554,6 +566,8 @@ const App: React.FC = () => {
                playerData={player}
                tutorialStep={player.tutorialStep}
                onTutorialAction={advanceTutorial}
+               // Pass control function to HealthView
+               onToggleNav={setIsNavVisible}
             />
           </motion.div>
         )}

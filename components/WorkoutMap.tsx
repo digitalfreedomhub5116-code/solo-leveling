@@ -50,10 +50,13 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
 
   // 1. Calculate Journey Length
   const weightDiff = Math.abs((currentWeight || 0) - (targetWeight || 0));
+  // Ensure we are working with finite numbers
+  const safeWeightDiff = Number.isFinite(weightDiff) ? weightDiff : 0;
+  
   // Assumption: 0.5kg change per week roughly
   // CAP: Limit to 52 weeks (1 year) to prevent RangeError on huge numbers
-  const estimatedWeeks = Math.min(52, Math.max(4, Math.ceil(weightDiff / 0.5))); 
-  const totalDays = estimatedWeeks * 7;
+  const estimatedWeeks = Math.min(52, Math.max(4, Math.ceil(safeWeightDiff / 0.5))); 
+  const totalDays = Math.floor(estimatedWeeks * 7); // Ensure integer
   
   // 2. Generate Path Points
   const points = useMemo(() => {

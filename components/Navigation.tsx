@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { LayoutDashboard, Sword, ShoppingCart, User, Activity } from 'lucide-react';
+import React, { useState } from 'react';
+import { LayoutDashboard, Sword, ShoppingCart, TrendingUp, Activity, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Tab, NavItem } from '../types';
 
@@ -15,7 +15,8 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
     { id: 'HEALTH', label: 'Health', icon: <Activity size={20} /> },
     { id: 'QUESTS', label: 'Quests', icon: <Sword size={20} /> },
     { id: 'SHOP', label: 'Shop', icon: <ShoppingCart size={20} /> },
-    { id: 'PROFILE', label: 'ID', icon: <User size={20} /> },
+    { id: 'RANKING', label: 'Rank', icon: <Trophy size={20} /> },
+    { id: 'GROWTH', label: 'Growth', icon: <TrendingUp size={20} /> },
   ];
 
   return (
@@ -81,46 +82,52 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
 
       {/* Mobile Bottom Bar */}
       <motion.nav 
-        initial={{ y: 100 }}
-        animate={{ y: 0 }}
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="md:hidden fixed bottom-4 left-4 right-4 h-16 bg-[#0a0a0a]/90 backdrop-blur-xl border border-gray-800 rounded-2xl z-40 flex justify-around items-center shadow-2xl"
+        className="md:hidden fixed bottom-4 left-4 right-4 z-40 pointer-events-none"
       >
-        {navItems.map((item) => {
-          const isActive = activeTab === item.id;
-          const isQuest = item.id === 'QUESTS';
+        <motion.div
+          animate={{ y: [0, -6, 0] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          className="h-16 bg-[#0a0a0a]/90 backdrop-blur-xl border border-gray-800 rounded-2xl flex justify-around items-center shadow-2xl pointer-events-auto"
+        >
+          {navItems.map((item) => {
+            const isActive = activeTab === item.id;
+            const isQuest = item.id === 'QUESTS';
 
-          return (
-            <button
-              key={item.id}
-              id={`tut-nav-${item.id.toLowerCase()}-mob`}
-              onClick={() => onTabChange(item.id)}
-              className="flex-1 flex flex-col items-center justify-center h-full relative"
-            >
-              {isActive && (
-                <motion.div 
-                  layoutId="active-nav-mobile"
-                  className="absolute inset-2 bg-gray-800/60 rounded-xl"
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                />
-              )}
-              
-              <div className={`relative z-10 transition-all duration-300 ${isActive ? 'text-system-neon -translate-y-1' : 'text-gray-500'} ${isQuest && isActive ? 'drop-shadow-[0_0_8px_rgba(0,210,255,0.8)]' : ''}`}>
-                  {item.icon}
-              </div>
-              
-              {isActive && (
-                <motion.span 
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="absolute bottom-2 text-[9px] font-mono text-system-neon font-bold"
-                >
-                  {item.label}
-                </motion.span>
-              )}
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={item.id}
+                id={`tut-nav-${item.id.toLowerCase()}-mob`}
+                onClick={() => onTabChange(item.id)}
+                className="flex-1 flex flex-col items-center justify-center h-full relative"
+              >
+                {isActive && (
+                  <motion.div 
+                    layoutId="active-nav-mobile"
+                    className="absolute inset-2 bg-gray-800/60 rounded-xl"
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  />
+                )}
+                
+                <div className={`relative z-10 transition-all duration-300 ${isActive ? 'text-system-neon -translate-y-1' : 'text-gray-500'} ${isQuest && isActive ? 'drop-shadow-[0_0_8px_rgba(0,210,255,0.8)]' : ''}`}>
+                    {item.icon}
+                </div>
+                
+                {isActive && (
+                  <motion.span 
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="absolute bottom-2 text-[9px] font-mono text-system-neon font-bold"
+                  >
+                    {item.label}
+                  </motion.span>
+                )}
+              </button>
+            );
+          })}
+        </motion.div>
       </motion.nav>
     </>
   );
