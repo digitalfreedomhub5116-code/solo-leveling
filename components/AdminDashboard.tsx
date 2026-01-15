@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, Database, Save, X, RefreshCw, Video, CheckCircle, Link, Map, Layers, Users, Search, Activity, AlertTriangle, Shield, Trash2, AlertOctagon } from 'lucide-react';
+import { LogOut, Database, Save, X, RefreshCw, Video, CheckCircle, Link, Map, Layers, Search, Activity, Trash2, AlertOctagon } from 'lucide-react';
 import { AdminExercise, PlayerData } from '../types';
 import { useSystem, DUMMY_VIDEO, sanitizeVideoUrl, isEmbed } from '../hooks/useSystem';
 import { supabase } from '../lib/supabase';
