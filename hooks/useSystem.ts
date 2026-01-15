@@ -97,7 +97,8 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   personalBests: {},
   exerciseDatabase: [], 
   focusVideos: {},
-  nutritionLogs: []
+  nutritionLogs: [],
+  tournament: { pendingReward: null }
 };
 
 // Default S-Rank Quests for New Users (24h Expiry)
@@ -248,6 +249,7 @@ export const useSystem = () => {
     if (!newData.history) newData.history = [];
     if (!newData.nutritionLogs) newData.nutritionLogs = [];
     if (typeof newData.streak !== 'number') newData.streak = 1;
+    if (!newData.tournament) newData.tournament = { pendingReward: null };
     
     // Sanitize Stat Buckets
     newData.stats = sanitizeStats(newData.stats);
@@ -275,6 +277,33 @@ export const useSystem = () => {
     // 1. Daily Reset (Every 24h at midnight)
     if (now > getMidnight(newData.lastDailyReset)) {
         hasChanges = true;
+        
+        // --- TOURNAMENT REWARD CALCULATION ---
+        const yesterdayXp = newData.dailyXp || 0;
+        let rank = 15; // Default low rank
+        let rewardGold = 0;
+        
+        // Simulating Leaderboard Competition Logic
+        if (yesterdayXp > 1000) rank = 1;
+        else if (yesterdayXp > 750) rank = 2;
+        else if (yesterdayXp > 500) rank = 3;
+        else if (yesterdayXp > 0) rank = Math.floor(Math.random() * 10) + 4; // 4-14
+        else rank = 999; // No participation
+
+        if (rank <= 15 && yesterdayXp > 0) {
+            rewardGold += 50; // Base Participation Reward
+            if (rank === 1) rewardGold += 500;
+            if (rank === 2) rewardGold += 300;
+            if (rank === 3) rewardGold += 250;
+            
+            // Queue the reward for the player to claim on next login
+            newData.tournament.pendingReward = {
+                rank: rank,
+                gold: rewardGold,
+                date: new Date(newData.lastDailyReset).toISOString()
+            };
+        }
+
         newData.dailyStats = { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 };
         newData.dailyXp = 0;
         newData.nutritionLogs = [];
@@ -972,6 +1001,25 @@ export const useSystem = () => {
       addNotification("Penalty Duration Reduced.", "SYSTEM");
   };
 
+  const claimTournamentReward = () => {
+      setPlayer(prev => {
+          if (!prev.tournament.pendingReward) return prev;
+          
+          const reward = prev.tournament.pendingReward;
+          const updated = {
+              ...prev,
+              gold: prev.gold + reward.gold,
+              logs: [createLog(`Tournament Reward: Rank #${reward.rank} (+${reward.gold} G)`, 'TOURNAMENT'), ...prev.logs],
+              tournament: {
+                  pendingReward: null
+              }
+          };
+          syncToCloud(updated);
+          return updated;
+      });
+      addNotification("Reward Claimed.", "SUCCESS");
+  };
+
   return {
     player,
     isLoaded,
@@ -1004,6 +1052,7 @@ export const useSystem = () => {
     completeTutorial,
     updateAwakening,
     resolvePenalty,
-    reducePenalty
+    reducePenalty,
+    claimTournamentReward
   };
 };

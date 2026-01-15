@@ -17,8 +17,10 @@ import AdminDashboard from './components/AdminDashboard';
 import PenaltyZone from './components/PenaltyZone';
 import TutorialOverlay from './components/TutorialOverlay';
 import RankingView from './components/RankingView'; // New Import
+import TournamentResultModal from './components/TournamentResultModal'; // New Import
 import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab, CoreStats } from './types';
+import { playSystemSoundEffect } from './utils/soundEngine';
 
 // Animation Variants
 const staggerContainer = {
@@ -355,6 +357,7 @@ const DashboardView: React.FC<{
                               <span className={
                                 log.type === 'PENALTY' ? "text-red-400" : 
                                 log.type === 'LEVEL_UP' ? "text-system-neon" :
+                                log.type === 'TOURNAMENT' ? "text-yellow-500 font-bold" :
                                 "text-gray-400"
                               }>
                                 {log.message}
@@ -399,7 +402,8 @@ const App: React.FC = () => {
     failQuest, resetQuest, deleteQuest, purchaseItem, addShopItem, removeShopItem, 
     notifications, removeNotification, saveHealthProfile, addProgressPhoto, 
     deleteProgressPhoto, logMeal, deleteMeal, completeWorkoutSession, failWorkout,
-    logout, advanceTutorial, completeTutorial: completeTutorialAction, resolvePenalty, reducePenalty
+    logout, advanceTutorial, completeTutorial: completeTutorialAction, resolvePenalty, reducePenalty,
+    claimTournamentReward
   } = useSystem();
 
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
@@ -409,6 +413,11 @@ const App: React.FC = () => {
   
   // NEW: State to control Navigation visibility
   const [isNavVisible, setIsNavVisible] = useState(true);
+
+  // Scroll to top on tab change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [activeTab]);
 
   // Wrapper for tutorial completion to also switch tabs
   const handleTutorialComplete = () => {
@@ -486,6 +495,19 @@ const App: React.FC = () => {
     >
       <SystemMessage notifications={notifications} removeNotification={removeNotification} />
       
+      {/* TOURNAMENT REWARD MODAL - Displays if reward is pending */}
+      <AnimatePresence>
+          {player.tournament?.pendingReward && (
+              <TournamentResultModal 
+                  reward={player.tournament.pendingReward} 
+                  onClaim={() => {
+                      playSystemSoundEffect('PURCHASE');
+                      claimTournamentReward();
+                  }}
+              />
+          )}
+      </AnimatePresence>
+
       {/* TUTORIAL OVERLAY */}
       {!player.tutorialComplete && (
           <TutorialOverlay 

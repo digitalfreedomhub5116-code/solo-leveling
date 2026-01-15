@@ -38,7 +38,7 @@ export interface ActivityLog {
   id: string;
   message: string;
   timestamp: number;
-  type: 'XP' | 'LEVEL_UP' | 'PENALTY' | 'SYSTEM' | 'PURCHASE' | 'STREAK' | 'WORKOUT';
+  type: 'XP' | 'LEVEL_UP' | 'PENALTY' | 'SYSTEM' | 'PURCHASE' | 'STREAK' | 'WORKOUT' | 'TOURNAMENT';
 }
 
 export interface Quest {
@@ -195,6 +195,12 @@ export interface PenaltyTask {
   duration?: number;
 }
 
+export interface TournamentReward {
+  rank: number;
+  gold: number;
+  date: string;
+}
+
 export interface PlayerData {
   userId?: string; 
   isConfigured: boolean; // Tracks if user has entered their name
@@ -260,4 +266,9 @@ export interface PlayerData {
   // Global Database (Mock Backend)
   exerciseDatabase: AdminExercise[];
   focusVideos: Record<string, string>; // Configuration for region videos
+  
+  // Tournament
+  tournament: {
+      pendingReward: TournamentReward | null;
+  };
 }
