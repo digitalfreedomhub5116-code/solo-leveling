@@ -35,7 +35,13 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   gold: 0,
   streak: 1,
   stats: { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 },
+  dailyStats: { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 },
+  weeklyStats: { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 },
+  monthlyStats: { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 },
   lastStatUpdate: { strength: Date.now(), intelligence: Date.now(), focus: Date.now(), social: Date.now(), willpower: Date.now() },
+  lastDailyReset: Date.now(),
+  lastWeeklyReset: Date.now(),
+  lastMonthlyReset: Date.now(),
   history: [],
   hp: 100,
   maxHp: 100,
@@ -93,8 +99,84 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   nutritionLogs: []
 };
 
+// Default S-Rank Quests for New Users (24h Expiry)
+const WELCOME_QUESTS: Quest[] = [
+    {
+        id: 'wq_1',
+        title: "Take Decisions To Change Your Life",
+        description: "The moment you decide, destiny changes. Commit to the path.",
+        rank: 'S',
+        category: 'willpower',
+        xpReward: 100,
+        isCompleted: false,
+        isDaily: false,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 86400000 // 24h
+    },
+    {
+        id: 'wq_2',
+        title: "First Mover Advantage",
+        description: "Speed is life. You started today, not tomorrow.",
+        rank: 'S',
+        category: 'focus',
+        xpReward: 100,
+        isCompleted: false,
+        isDaily: false,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 86400000
+    },
+    {
+        id: 'wq_3',
+        title: "Showed Up Today",
+        description: "Consistency beats intensity. You are here.",
+        rank: 'S',
+        category: 'social',
+        xpReward: 100,
+        isCompleted: false,
+        isDaily: false,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 86400000
+    },
+    {
+        id: 'wq_4',
+        title: "Streak Starter!",
+        description: "Ignite the flame. Do not let it go out.",
+        rank: 'S',
+        category: 'strength',
+        xpReward: 100,
+        isCompleted: false,
+        isDaily: false,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 86400000
+    },
+    {
+        id: 'wq_5',
+        title: "Make Your First Quest",
+        description: "Define your own path. (Completed via Tutorial)",
+        rank: 'S',
+        category: 'intelligence',
+        xpReward: 100,
+        isCompleted: false,
+        isDaily: false,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 86400000
+    }
+];
+
 // Helper to ensure clean initial state copy
 const getInitialState = (): PlayerData => JSON.parse(JSON.stringify(INITIAL_PLAYER_DATA));
+
+// Helper to ensure stats are valid numbers
+const sanitizeStats = (stats: any): CoreStats => {
+    const safeStat = (val: any) => (typeof val === 'number' && !isNaN(val)) ? val : 0;
+    return {
+        strength: safeStat(stats?.strength),
+        intelligence: safeStat(stats?.intelligence),
+        focus: safeStat(stats?.focus),
+        social: safeStat(stats?.social),
+        willpower: safeStat(stats?.willpower),
+    };
+};
 
 export const useSystem = () => {
   const [player, setPlayer] = useState<PlayerData>(getInitialState());
@@ -132,11 +214,6 @@ export const useSystem = () => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  const checkDailyQuests = (data: PlayerData): PlayerData => {
-     // Placeholder for daily quest logic extension if needed
-     return data;
-  };
-
   const processSystemLogic = useCallback((data: PlayerData): PlayerData => {
     const today = getLocalDate();
     const lastLogin = data.lastLoginDate;
@@ -144,44 +221,88 @@ export const useSystem = () => {
     let newData = { ...data };
     let hasChanges = false;
 
+    // --- DATA SANITIZATION ---
     if (!newData.logs) newData.logs = [];
     if (!newData.quests) newData.quests = [];
     if (!newData.history) newData.history = [];
     if (!newData.nutritionLogs) newData.nutritionLogs = [];
-    if (newData.streak === undefined) newData.streak = 1;
-    // Default tutorial state if missing from old saves
+    if (typeof newData.streak !== 'number') newData.streak = 1;
+    
+    // Sanitize Stat Buckets
+    newData.stats = sanitizeStats(newData.stats);
+    newData.dailyStats = sanitizeStats(newData.dailyStats);
+    newData.weeklyStats = sanitizeStats(newData.weeklyStats);
+    newData.monthlyStats = sanitizeStats(newData.monthlyStats);
+
+    // Default timestamps if missing
+    if (!newData.lastDailyReset) newData.lastDailyReset = now;
+    if (!newData.lastWeeklyReset) newData.lastWeeklyReset = now;
+    if (!newData.lastMonthlyReset) newData.lastMonthlyReset = now;
+
+    // Default tutorial state
     if (newData.tutorialStep === undefined) newData.tutorialStep = 0;
     if (newData.tutorialComplete === undefined) newData.tutorialComplete = false;
 
+    // --- MIDNIGHT RESET LOGIC ---
+    // Helper to get midnight of a specific timestamp
+    const getMidnight = (ts: number) => {
+        const d = new Date(ts);
+        d.setHours(24, 0, 0, 0); // Next midnight
+        return d.getTime();
+    };
+
+    // 1. Daily Reset (Every 24h at midnight)
+    if (now > getMidnight(newData.lastDailyReset)) {
+        hasChanges = true;
+        newData.dailyStats = { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 };
+        newData.dailyXp = 0;
+        newData.nutritionLogs = [];
+        newData.lastDailyReset = now;
+        
+        // Reset Daily Quests
+        let resetCount = 0;
+        newData.quests = newData.quests.map(q => {
+            if (q.isDaily && q.isCompleted) {
+                resetCount++;
+                return { ...q, isCompleted: false, completedAsMini: false, failed: false }; 
+            }
+            return q;
+        });
+        if (resetCount > 0) {
+            newData.logs.unshift(createLog(`Daily Reset: ${resetCount} Quests Refreshed`, 'SYSTEM'));
+        }
+    }
+
+    // 2. Weekly Reset (Every 7 days at midnight)
+    const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+    if (now - newData.lastWeeklyReset > ONE_WEEK) {
+        hasChanges = true;
+        newData.weeklyStats = { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 };
+        newData.lastWeeklyReset = now;
+        newData.logs.unshift(createLog('Weekly Stats Reset', 'SYSTEM'));
+    }
+
+    // 3. Monthly Reset (Every 30 days at midnight)
+    const ONE_MONTH = 30 * 24 * 60 * 60 * 1000;
+    if (now - newData.lastMonthlyReset > ONE_MONTH) {
+        hasChanges = true;
+        newData.monthlyStats = { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 };
+        newData.lastMonthlyReset = now;
+        newData.logs.unshift(createLog('Monthly Stats Reset', 'SYSTEM'));
+    }
+
+    // --- LOGIN STREAK LOGIC ---
     if (today !== lastLogin) {
       hasChanges = true;
       
       const historyEntry = {
         date: lastLogin,
-        stats: { ...data.stats },
-        totalXp: data.totalXp,
-        dailyXp: data.dailyXp || 0
+        stats: { ...newData.stats },
+        totalXp: newData.totalXp,
+        dailyXp: newData.dailyXp || 0
       };
       
       newData.history = [historyEntry, ...newData.history].slice(0, 30);
-      newData.dailyXp = 0;
-      
-      // DAILY RESET: Clear Nutrition Logs
-      newData.nutritionLogs = [];
-      
-      let resetCount = 0;
-      newData.quests = newData.quests.map(q => {
-        if (q.isDaily && q.isCompleted) {
-            resetCount++;
-            return { ...q, isCompleted: false, completedAsMini: false }; 
-        }
-        return q;
-      });
-      if (resetCount > 0) {
-        newData.logs.unshift(createLog(`Daily Reset: ${resetCount} Quests Refreshed`, 'SYSTEM'));
-      }
-
-      newData = checkDailyQuests(newData);
 
       const lastLoginDateObj = new Date(lastLogin);
       const todayDateObj = new Date(today);
@@ -213,6 +334,17 @@ export const useSystem = () => {
       newData.lastLoginDate = today;
     }
 
+    // --- WELCOME QUEST CLEANUP ---
+    const initialQuestCount = newData.quests.length;
+    newData.quests = newData.quests.filter(q => {
+        if (q.expiresAt && now > q.expiresAt) return false;
+        return true;
+    });
+    if (newData.quests.length !== initialQuestCount) {
+        hasChanges = true;
+    }
+
+    // Passive Decay Logic
     const DECAY_THRESHOLD = 172800000; 
     const statKeys = Object.keys(newData.stats) as (keyof CoreStats)[];
     statKeys.forEach((key) => {
@@ -270,7 +402,15 @@ export const useSystem = () => {
   useEffect(() => {
     if (isLoaded && player.isConfigured && player.username) {
         const key = `shadow_system_v4_${player.username}`;
-        localStorage.setItem(key, JSON.stringify(player));
+        // Verify we aren't saving NaN
+        const cleanPlayer = {
+            ...player,
+            stats: sanitizeStats(player.stats),
+            dailyStats: sanitizeStats(player.dailyStats),
+            weeklyStats: sanitizeStats(player.weeklyStats),
+            monthlyStats: sanitizeStats(player.monthlyStats),
+        };
+        localStorage.setItem(key, JSON.stringify(cleanPlayer));
     }
   }, [player, isLoaded]);
 
@@ -294,19 +434,27 @@ export const useSystem = () => {
                   username: profile.username || processed.username,
                   pin: profile.pin || processed.pin,
                   userId: profile.userId || processed.userId,
-                  // Explicitly preserve local stats if they exist
-                  stats: processed.stats || INITIAL_PLAYER_DATA.stats,
+                  // Explicitly preserve local stats if they exist, sanitized
+                  stats: sanitizeStats(processed.stats || INITIAL_PLAYER_DATA.stats),
+                  dailyStats: sanitizeStats(processed.dailyStats || INITIAL_PLAYER_DATA.dailyStats),
+                  weeklyStats: sanitizeStats(processed.weeklyStats || INITIAL_PLAYER_DATA.weeklyStats),
+                  monthlyStats: sanitizeStats(processed.monthlyStats || INITIAL_PLAYER_DATA.monthlyStats),
                   isConfigured: true 
               };
               addNotification(`Welcome back, ${finalData.username || finalData.name}.`, "SUCCESS");
           } catch (e) {
               console.error("Save Corrupt", e);
-              // Fallback to fresh if corrupt
               finalData = { ...getInitialState(), ...profile, username, isConfigured: true };
           }
       } else {
-          // New User Setup - Stats will be 0 from getInitialState()
-          finalData = { ...getInitialState(), ...profile, username, isConfigured: true };
+          // New User Setup
+          finalData = { 
+              ...getInitialState(), 
+              ...profile, 
+              username, 
+              isConfigured: true,
+              quests: [...WELCOME_QUESTS] // Inject Welcome Quests
+          };
           addNotification("Identity Confirmed. System Link Established.", "SUCCESS");
       }
       
@@ -408,7 +556,6 @@ export const useSystem = () => {
 
           // Use the quest's stored XP if available (for custom values), otherwise default to tier
           const baseXp = quest.xpReward > 0 ? quest.xpReward : tier.xp;
-          // Force gold to match tier structure
           const baseGold = tier.gold;
 
           const rewardXp = asMini ? Math.floor(baseXp * 0.1) : baseXp;
@@ -419,8 +566,19 @@ export const useSystem = () => {
             : `Quest Complete: ${quest.title} (+${rewardXp} XP, +${rewardGold} G)`;
             
           const statKey = quest.category;
+          
+          // UPDATE STAT BUCKETS (Accumulate)
           const newStats = { ...prev.stats };
-          newStats[statKey] += 1;
+          const newDailyStats = { ...prev.dailyStats };
+          const newWeeklyStats = { ...prev.weeklyStats };
+          const newMonthlyStats = { ...prev.monthlyStats };
+
+          const increment = 1;
+
+          if (typeof newStats[statKey] === 'number') newStats[statKey] += increment;
+          if (typeof newDailyStats[statKey] === 'number') newDailyStats[statKey] += increment;
+          if (typeof newWeeklyStats[statKey] === 'number') newWeeklyStats[statKey] += increment;
+          if (typeof newMonthlyStats[statKey] === 'number') newMonthlyStats[statKey] += increment;
           
           let newXp = prev.currentXp + rewardXp;
           let newTotalXp = prev.totalXp + rewardXp;
@@ -441,7 +599,24 @@ export const useSystem = () => {
           if (leveledUp) {
                addNotification(`LEVEL UP! REACHED LEVEL ${newLevel}`, "LEVEL_UP");
           } else {
-               addNotification(`Quest Complete +${rewardXp} XP, +${rewardGold} G`, "SUCCESS");
+               // Fix: Don't show notification for welcome quests to avoid blocking UI
+               if (!['wq_1', 'wq_2', 'wq_3', 'wq_4', 'wq_5'].includes(id)) {
+                   addNotification(`Quest Complete +${rewardXp} XP, +${rewardGold} G`, "SUCCESS");
+               }
+          }
+
+          // --- TUTORIAL CHECK: Force complete all welcome quests ---
+          let newTutorialStep = prev.tutorialStep;
+          if (prev.tutorialStep === 7) {
+              const welcomeIds = ['wq_1', 'wq_2', 'wq_3', 'wq_4', 'wq_5'];
+              // Check if all *other* welcome quests are completed + current one
+              // updatedQuests contains the current one marked as completed.
+              const pendingWelcome = updatedQuests.filter(q => welcomeIds.includes(q.id) && !q.isCompleted);
+              
+              if (pendingWelcome.length === 0) {
+                  newTutorialStep = 8;
+                  // Auto-advance
+              }
           }
 
           return {
@@ -454,8 +629,12 @@ export const useSystem = () => {
               requiredXp: newRequiredXp,
               gold: prev.gold + rewardGold,
               stats: newStats,
+              dailyStats: newDailyStats,
+              weeklyStats: newWeeklyStats,
+              monthlyStats: newMonthlyStats,
               lastStatUpdate: { ...prev.lastStatUpdate, [statKey]: Date.now() },
-              logs: [createLog(logMsg, 'XP'), ...prev.logs]
+              logs: [createLog(logMsg, 'XP'), ...prev.logs],
+              tutorialStep: newTutorialStep
           };
       });
   };
@@ -463,20 +642,45 @@ export const useSystem = () => {
   const failQuest = (id: string) => {
        setPlayer(prev => {
            const quest = prev.quests.find(q => q.id === id);
-           if (!quest) return prev;
+           if (!quest || quest.failed) return prev; // Prevent double failing
+           
+           // PENALTY LOGIC
+           const newStats = { ...prev.stats };
+           const penalty = 1;
+           
+           // 1. Willpower Penalty (Always)
+           newStats.willpower = Math.max(0, (newStats.willpower || 0) - penalty);
+           
+           // 2. Focus Penalty (Always)
+           newStats.focus = Math.max(0, (newStats.focus || 0) - penalty);
+           
+           // 3. Category Penalty
+           if (quest.category && typeof newStats[quest.category] === 'number') {
+                newStats[quest.category] = Math.max(0, newStats[quest.category] - penalty);
+           }
+           
+           // 4. XP Penalty (50 or 10%)
+           const xpPenalty = 50;
+           const newXp = Math.max(0, prev.currentXp - xpPenalty);
+
+           // Mark as failed, do NOT remove
+           const updatedQuests = prev.quests.map(q => q.id === id ? { ...q, failed: true } : q);
+
            return {
                ...prev,
-               quests: prev.quests.filter(q => q.id !== id),
-               logs: [createLog(`Quest Failed: ${quest.title}`, 'PENALTY'), ...prev.logs]
+               quests: updatedQuests,
+               stats: newStats,
+               currentXp: newXp,
+               logs: [createLog(`Quest Failed: ${quest.title} (-1 WIL, -1 FOC, -${xpPenalty} XP)`, 'PENALTY'), ...prev.logs]
            };
        });
-       addNotification("Quest Failed", "WARNING");
+       addNotification("Quest Failed. System Penalty Applied.", "DANGER");
   };
   
   const resetQuest = (id: string) => {
       setPlayer(prev => ({
           ...prev,
-          quests: prev.quests.map(q => q.id === id ? { ...q, isCompleted: false, completedAsMini: false } : q)
+          quests: prev.quests.map(q => q.id === id ? { ...q, isCompleted: false, completedAsMini: false, failed: false } : q)
       }));
   };
 
@@ -588,7 +792,7 @@ export const useSystem = () => {
       
       setPlayer(prev => ({
           ...prev,
-          stats: { ...prev.stats, strength: prev.stats.strength + 1 },
+          stats: { ...prev.stats, strength: (prev.stats.strength || 0) + 1 },
           lastStatUpdate: { ...prev.lastStatUpdate, strength: Date.now() },
           personalBests: { ...prev.personalBests, ...results },
           logs: [createLog(`Workout Complete: +${totalReward} XP`, 'WORKOUT'), ...prev.logs]
@@ -621,6 +825,39 @@ export const useSystem = () => {
       }));
   };
 
+  // New Dashboard Helper Functions
+  const updateAwakening = (type: 'vision' | 'antiVision', items: string[]) => {
+      setPlayer(prev => ({
+          ...prev,
+          awakening: {
+              ...prev.awakening,
+              [type]: items
+          }
+      }));
+  };
+
+  const resolvePenalty = () => {
+      setPlayer(prev => ({
+          ...prev,
+          isPenaltyActive: false,
+          penaltyEndTime: undefined,
+          penaltyTask: undefined,
+          logs: [createLog("Penalty Cleared.", "SYSTEM"), ...prev.logs]
+      }));
+      addNotification("System Access Restored.", "SUCCESS");
+  };
+
+  const reducePenalty = (ms: number) => {
+      setPlayer(prev => {
+          if (!prev.penaltyEndTime) return prev;
+          return {
+              ...prev,
+              penaltyEndTime: prev.penaltyEndTime - ms
+          };
+      });
+      addNotification("Penalty Duration Reduced.", "SYSTEM");
+  };
+
   return {
     player,
     isLoaded,
@@ -650,6 +887,9 @@ export const useSystem = () => {
     updateExerciseDatabase,
     updateFocusVideos,
     advanceTutorial,
-    completeTutorial
+    completeTutorial,
+    updateAwakening,
+    resolvePenalty,
+    reducePenalty
   };
 };

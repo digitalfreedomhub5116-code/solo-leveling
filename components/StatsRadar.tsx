@@ -1,14 +1,17 @@
 
 import React, { useState, useMemo } from 'react';
-import { ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
+import { ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { Activity, Calendar, BarChart3, Hexagon, TrendingUp } from 'lucide-react';
+import { Activity, Calendar, BarChart3, Hexagon, TrendingUp, Zap } from 'lucide-react';
 import { CoreStats, HistoryEntry } from '../types';
 
 interface EvaluationMatrixProps {
-  stats: CoreStats;
+  stats: CoreStats; // Current Totals (Lifetime)
   history: HistoryEntry[];
-  dailyXp: number;
+  dailyXp: number; 
+  dailyStats?: CoreStats; 
+  weeklyStats?: CoreStats; // New Prop
+  monthlyStats?: CoreStats; // New Prop
 }
 
 // Animation Variants for Panel Transitions
@@ -43,42 +46,10 @@ const RadarTooltip = ({ active, payload, label }: any) => {
         
         <div className="flex items-baseline gap-2">
             <span className="text-white font-mono text-3xl font-black leading-none tracking-tighter drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
-              {value}
+              {Math.floor(value)}
             </span>
             <span className="text-[10px] text-gray-600 font-mono font-bold">PTS</span>
         </div>
-        
-        <div className="mt-3 pt-2 border-t border-gray-800/50 flex items-center justify-between">
-           <span className="text-[9px] text-gray-500 font-mono tracking-wider">GROWTH</span>
-           {growth > 0 ? (
-             <div className="text-[10px] font-mono text-system-success font-bold flex items-center gap-1 bg-system-success/10 px-2 py-0.5 rounded border border-system-success/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                <TrendingUp size={10} />
-                <span>+{growth}%</span>
-             </div>
-           ) : (
-             <div className="text-[10px] font-mono text-gray-600 flex items-center gap-1 px-2 py-0.5">
-                <span>--%</span>
-             </div>
-           )}
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
-
-// Custom Tooltip for Graphs
-const GraphTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-black/90 border border-system-accent/50 p-2 rounded text-xs font-mono shadow-lg backdrop-blur-sm">
-        <p className="text-gray-400 mb-1 font-bold border-b border-gray-800 pb-1">{label}</p>
-        {payload.map((entry: any, index: number) => (
-          <p key={index} style={{ color: entry.color }} className="flex items-center gap-2 mt-1">
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-            <span>{entry.name}: {entry.value}</span>
-          </p>
-        ))}
       </div>
     );
   }
@@ -94,11 +65,15 @@ const polarToCartesian = (centerX: number, centerY: number, radius: number, angl
   };
 };
 
-const CustomRadarChart = ({ data, domainMax, onHover }: any) => {
+// Reusable Radar Chart Component
+const CustomRadarChart = ({ data, domainMax, onHover, color1, color2, fillOpacity = 0.4 }: any) => {
     const size = 300;
     const center = size / 2;
     const radius = 100; // Max radius fitting in 300x300 with labels
     
+    // Safety check for empty data
+    if (!data || data.length === 0) return null;
+
     // Grid Levels
     const gridLevels = 5;
     const gridPaths = [];
@@ -122,24 +97,30 @@ const CustomRadarChart = ({ data, domainMax, onHover }: any) => {
     // Data Points & Path
     const dataPoints = data.map((d: any, i: number) => {
         const angle = (360 / 5) * i;
-        // Clamp value to domainMax to avoid overflow
-        const val = Math.min(d.value, domainMax);
-        const valRadius = (val / domainMax) * radius;
+        // Clamp value to domainMax to avoid overflow, handle NaNs
+        const safeValue = isNaN(d.value) ? 0 : d.value;
+        const safeMax = (!domainMax || isNaN(domainMax) || domainMax === 0) ? 100 : domainMax;
+        
+        const val = Math.min(safeValue, safeMax);
+        const valRadius = (val / safeMax) * radius;
         return polarToCartesian(center, center, valRadius, angle);
     });
     
     const pathD = dataPoints.map((p: any, i: number) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ') + ' Z';
 
+    const c1 = color1 || "#00d2ff";
+    const c2 = color2 || "#8b5cf6";
+
     return (
         <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full overflow-visible select-none">
             <defs>
-                <linearGradient id="radarStrokeGradient" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#00d2ff" />
-                    <stop offset="100%" stopColor="#8b5cf6" />
+                <linearGradient id={`radarStroke-${c1}-${c2}`} x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor={c1} />
+                    <stop offset="100%" stopColor={c2} />
                 </linearGradient>
-                <linearGradient id="radarFillGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#00d2ff" stopOpacity={0.4}/>
-                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                <linearGradient id={`radarFill-${c1}-${c2}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={c1} stopOpacity={fillOpacity}/>
+                    <stop offset="100%" stopColor={c2} stopOpacity={0.05}/>
                 </linearGradient>
             </defs>
 
@@ -175,22 +156,22 @@ const CustomRadarChart = ({ data, domainMax, onHover }: any) => {
             {/* Fill Area (Fade In Last) */}
             <motion.path
                 d={pathD}
-                fill="url(#radarFillGradient)"
+                fill={`url(#radarFill-${c1}-${c2})`}
                 stroke="none"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 1.5, duration: 0.5 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
             />
 
             {/* Stroke Line (Draw Animation after dots) */}
             <motion.path
                 d={pathD}
                 fill="none"
-                stroke="url(#radarStrokeGradient)"
+                stroke={`url(#radarStroke-${c1}-${c2})`}
                 strokeWidth="3"
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: 1, opacity: 1 }}
-                transition={{ delay: 0.8, duration: 1.5, ease: "easeInOut" }}
+                transition={{ delay: 0.1, duration: 1, ease: "easeInOut" }}
             />
 
             {/* Dots (Sequential Pop in) */}
@@ -207,11 +188,11 @@ const CustomRadarChart = ({ data, domainMax, onHover }: any) => {
                     <motion.circle
                         cx={p.x} cy={p.y} r={4}
                         fill="#fff"
-                        stroke="#00d2ff"
+                        stroke={c1}
                         strokeWidth={1}
                         initial={{ scale: 0, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: i * 0.15, type: "spring", stiffness: 300, damping: 20 }}
+                        transition={{ delay: i * 0.1, type: "spring", stiffness: 300, damping: 20 }}
                     />
                 </g>
             ))}
@@ -219,56 +200,45 @@ const CustomRadarChart = ({ data, domainMax, onHover }: any) => {
     );
 };
 
-const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dailyXp }) => {
-  const [view, setView] = useState<'CURRENT' | 'DAILY' | 'WEEKLY' | 'MONTHLY'>('CURRENT');
+const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dailyStats, weeklyStats, monthlyStats }) => {
+  const [view, setView] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('DAILY');
   const [tooltipConfig, setTooltipConfig] = useState<{data: any, x: number, y: number} | null>(null);
 
-  // Calculate Growth based on history
-  const oldestEntry = history && history.length > 0 ? history[history.length - 1] : null;
-  
-  const getGrowth = (statKey: keyof CoreStats) => {
-      if (!oldestEntry || !oldestEntry.stats) return 0;
-      const oldVal = oldestEntry.stats[statKey];
-      const currentVal = stats[statKey];
+  // Helper to format data for radar
+  const getRadarData = (statObj: CoreStats | undefined) => {
+      const safeStats = statObj || { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 };
+      const values = Object.values(safeStats).map(v => typeof v === 'number' && !isNaN(v) ? v : 0);
+      const maxVal = Math.max(...values);
+      // Dynamic domain with minimum of 5 for visibility
+      const domain = Math.max(5, Math.ceil(maxVal / 5) * 5); 
       
-      // Handle start from 0 case
-      if (!oldVal || oldVal === 0) {
-          return currentVal > 0 ? 100 : 0;
-      }
-      // Calculate percentage increase
-      return Math.round(((currentVal - oldVal) / oldVal) * 100);
+      return {
+          data: [
+            { subject: 'STRENGTH', value: safeStats.strength || 0, fullMark: domain },
+            { subject: 'INTELLIGENCE', value: safeStats.intelligence || 0, fullMark: domain },
+            { subject: 'FOCUS', value: safeStats.focus || 0, fullMark: domain },
+            { subject: 'SOCIAL', value: safeStats.social || 0, fullMark: domain },
+            { subject: 'WILLPOWER', value: safeStats.willpower || 0, fullMark: domain },
+          ],
+          domain
+      };
   };
 
-  // Calculate Dynamic Domain
-  const maxStatValue = useMemo(() => {
-      return Math.max(
-          stats.strength, 
-          stats.intelligence, 
-          stats.focus, 
-          stats.social, 
-          stats.willpower
-      );
-  }, [stats]);
+  // 1. DAILY DATA
+  const dailyData = useMemo(() => getRadarData(dailyStats), [dailyStats]);
 
-  // Set domain to slightly larger than max stat (min 10) to make small stats visible
-  const domainMax = Math.max(10, Math.ceil(maxStatValue * 1.2));
+  // 2. WEEKLY DATA
+  const weeklyRadarData = useMemo(() => getRadarData(weeklyStats), [weeklyStats]);
 
-  // Prepare Radar Data
-  const radarData = useMemo(() => [
-    { subject: 'STRENGTH', value: stats.strength, fullMark: domainMax, growth: getGrowth('strength') },
-    { subject: 'INTELLIGENCE', value: stats.intelligence, fullMark: domainMax, growth: getGrowth('intelligence') },
-    { subject: 'FOCUS', value: stats.focus, fullMark: domainMax, growth: getGrowth('focus') },
-    { subject: 'SOCIAL', value: stats.social, fullMark: domainMax, growth: getGrowth('social') },
-    { subject: 'WILLPOWER', value: stats.willpower, fullMark: domainMax, growth: getGrowth('willpower') },
-  ], [stats, domainMax]);
+  // 3. MONTHLY DATA
+  const monthlyData = useMemo(() => getRadarData(monthlyStats), [monthlyStats]);
 
-  // Handle Tooltip for Custom Radar
+  // Handle Tooltip
   const handleRadarHover = (e: React.MouseEvent, data: any) => {
       if (!data) {
           setTooltipConfig(null);
           return;
       }
-      // Get raw coordinate relative to viewport
       const rect = (e.target as Element).getBoundingClientRect();
       setTooltipConfig({
           data,
@@ -276,30 +246,6 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
           y: rect.top
       });
   };
-
-  // Prepare Graph Data
-  const sortedHistory = history ? [...history].reverse() : [];
-
-  // Weekly: Last 7 days
-  const weeklyData = sortedHistory.slice(-7).map(entry => ({
-    name: entry.date ? entry.date.split('-').slice(1).join('/') : '??', // MM/DD
-    xp: entry.totalXp,
-    str: entry.stats?.strength || 0,
-    int: entry.stats?.intelligence || 0
-  }));
-  
-  // Monthly: Last 30 days (Aggregate or raw)
-  const monthlyData = sortedHistory.slice(-30).map(entry => ({
-    name: entry.date ? entry.date.split('-').slice(1).join('/') : '??',
-    xp: entry.totalXp,
-  }));
-
-  // Daily: Just Yesterday vs Today
-  const yesterdayXp = history && history.length > 0 ? history[0].dailyXp : 0;
-  const dailyData = [
-    { name: 'YESTERDAY', xp: yesterdayXp },
-    { name: 'TODAY', xp: dailyXp }
-  ];
 
   return (
     <div className="w-full h-full relative flex flex-col">
@@ -311,32 +257,22 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
          </div>
          <div className="flex gap-1 bg-black/40 p-1 rounded-lg border border-white/5">
             <button 
-              onClick={() => setView('CURRENT')}
-              className={`p-1.5 rounded transition-all duration-300 ${view === 'CURRENT' ? 'bg-system-neon text-black shadow-[0_0_10px_#00d2ff]' : 'text-gray-600 hover:text-white'}`}
-              title="Current Stats"
-            >
-              <Hexagon size={14} />
-            </button>
-            <button 
               onClick={() => setView('DAILY')}
-              className={`p-1.5 rounded transition-all duration-300 ${view === 'DAILY' ? 'bg-system-neon text-black shadow-[0_0_10px_#00d2ff]' : 'text-gray-600 hover:text-white'}`}
-              title="Daily Performance"
+              className={`px-3 py-1 rounded transition-all duration-300 text-[10px] font-mono font-bold flex items-center gap-1 ${view === 'DAILY' ? 'bg-system-neon text-black shadow-[0_0_10px_#00d2ff]' : 'text-gray-600 hover:text-white'}`}
             >
-              <BarChart3 size={14} />
+              <Zap size={10} /> DAILY
             </button>
             <button 
               onClick={() => setView('WEEKLY')}
-              className={`p-1.5 rounded transition-all duration-300 ${view === 'WEEKLY' ? 'bg-system-neon text-black shadow-[0_0_10px_#00d2ff]' : 'text-gray-600 hover:text-white'}`}
-              title="Weekly Trend"
+              className={`px-3 py-1 rounded transition-all duration-300 text-[10px] font-mono font-bold flex items-center gap-1 ${view === 'WEEKLY' ? 'bg-purple-500 text-white shadow-[0_0_10px_#8b5cf6]' : 'text-gray-600 hover:text-white'}`}
             >
-              <span className="text-[10px] font-mono font-bold block w-[14px] text-center">7D</span>
+              <BarChart3 size={10} /> WEEKLY
             </button>
             <button 
               onClick={() => setView('MONTHLY')}
-              className={`p-1.5 rounded transition-all duration-300 ${view === 'MONTHLY' ? 'bg-system-neon text-black shadow-[0_0_10px_#00d2ff]' : 'text-gray-600 hover:text-white'}`}
-              title="Monthly Trend"
+              className={`px-3 py-1 rounded transition-all duration-300 text-[10px] font-mono font-bold flex items-center gap-1 ${view === 'MONTHLY' ? 'bg-yellow-500 text-black shadow-[0_0_10px_#eab308]' : 'text-gray-600 hover:text-white'}`}
             >
-               <Calendar size={14} />
+               <Hexagon size={10} /> MONTHLY
             </button>
          </div>
       </div>
@@ -355,115 +291,69 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
 
         <AnimatePresence mode="wait">
           
-          {/* VIEW: CURRENT (CUSTOM RADAR) */}
-          {view === 'CURRENT' && (
+          {/* VIEW: DAILY (NEON BLUE) */}
+          {view === 'DAILY' && (
             <motion.div 
-              key="radar"
+              key="radar-daily"
               variants={panelVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
               className="absolute inset-0 w-full h-full p-4"
             >
-              <CustomRadarChart data={radarData} domainMax={domainMax} onHover={handleRadarHover} />
-              
-              {/* Decorative Tech Corners */}
-              <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-system-neon/40 rounded-tl-sm"></div>
-              <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-system-neon/40 rounded-br-sm"></div>
+              <CustomRadarChart 
+                data={dailyData.data} 
+                domainMax={dailyData.domain} 
+                onHover={handleRadarHover}
+                color1="#00d2ff" // Neon Blue
+                color2="#3b82f6" // Blue 500
+                fillOpacity={0.6}
+              />
+              <div className="absolute top-2 left-2 text-[9px] text-system-neon font-mono tracking-widest bg-system-neon/10 px-2 py-1 rounded">24H PERFORMANCE</div>
             </motion.div>
           )}
 
-          {/* VIEW: DAILY (BAR CHART) */}
-          {view === 'DAILY' && (
+          {/* VIEW: WEEKLY (PURPLE) */}
+          {view === 'WEEKLY' && (
             <motion.div 
-              key="daily"
+              key="radar-weekly"
               variants={panelVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="absolute inset-0 w-full h-full"
+              className="absolute inset-0 w-full h-full p-4"
             >
-               <div className="absolute top-2 left-3 text-[10px] text-gray-500 font-mono tracking-wider">XP GAINED (24H)</div>
-               <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={dailyData} margin={{ top: 30, right: 10, left: -20, bottom: 0 }}>
-                     <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                     <XAxis dataKey="name" stroke="#555" fontSize={10} tickLine={false} axisLine={false} />
-                     <YAxis stroke="#555" fontSize={10} tickLine={false} axisLine={false} domain={[0, 'auto']} />
-                     <Tooltip content={<GraphTooltip />} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
-                     <Bar dataKey="xp" name="XP" fill="#00d2ff" radius={[4, 4, 0, 0]} barSize={40} animationDuration={1500} />
-                  </BarChart>
-               </ResponsiveContainer>
+              <CustomRadarChart 
+                data={weeklyRadarData.data} 
+                domainMax={weeklyRadarData.domain} 
+                onHover={handleRadarHover}
+                color1="#a855f7" // Purple
+                color2="#d8b4fe" // Light Purple
+                fillOpacity={0.3}
+              />
+              <div className="absolute top-2 left-2 text-[9px] text-purple-400 font-mono tracking-widest bg-purple-900/20 px-2 py-1 rounded">7-DAY ACCUMULATION</div>
             </motion.div>
           )}
 
-          {/* VIEW: WEEKLY (AREA CHART) */}
-          {view === 'WEEKLY' && (
-             <motion.div 
-               key="weekly"
-               variants={panelVariants}
-               initial="hidden"
-               animate="visible"
-               exit="exit"
-               className="absolute inset-0 w-full h-full"
-             >
-                {weeklyData.length < 2 ? (
-                   <div className="flex items-center justify-center h-full text-gray-600 text-xs font-mono">INSUFFICIENT DATA FOR TREND ANALYSIS</div>
-                ) : (
-                  <>
-                    <div className="absolute top-2 left-3 text-[10px] text-gray-500 font-mono tracking-wider">STATS GROWTH (7 DAYS)</div>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <AreaChart data={weeklyData} margin={{ top: 30, right: 10, left: -20, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="colorXp" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                          <XAxis dataKey="name" stroke="#555" fontSize={10} tickLine={false} axisLine={false} />
-                          <YAxis stroke="#555" fontSize={10} tickLine={false} axisLine={false} domain={[0, 'auto']} />
-                          <Tooltip content={<GraphTooltip />} />
-                          <Area type="monotone" dataKey="str" name="STR" stackId="1" stroke="#ef4444" fill="none" strokeWidth={2} animationDuration={2000} />
-                          <Area type="monotone" dataKey="int" name="INT" stackId="1" stroke="#00d2ff" fill="none" strokeWidth={2} animationDuration={2000} />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                  </>
-                )}
-             </motion.div>
-          )}
-
-          {/* VIEW: MONTHLY (AREA CHART) */}
+          {/* VIEW: MONTHLY (GOLD - IDENTITY) */}
           {view === 'MONTHLY' && (
              <motion.div 
-               key="monthly"
+               key="radar-monthly"
                variants={panelVariants}
                initial="hidden"
                animate="visible"
                exit="exit"
-               className="absolute inset-0 w-full h-full"
+               className="absolute inset-0 w-full h-full p-4"
              >
-                 {monthlyData.length < 2 ? (
-                   <div className="flex items-center justify-center h-full text-gray-600 text-xs font-mono">INSUFFICIENT DATA FOR TREND ANALYSIS</div>
-                ) : (
-                  <>
-                    <div className="absolute top-2 left-3 text-[10px] text-gray-500 font-mono tracking-wider">TOTAL XP GROWTH (30 DAYS)</div>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <AreaChart data={monthlyData} margin={{ top: 30, right: 10, left: -20, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#00d2ff" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="#00d2ff" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                          <XAxis dataKey="name" stroke="#555" fontSize={10} tickLine={false} axisLine={false} />
-                          <YAxis stroke="#555" fontSize={10} tickLine={false} axisLine={false} domain={[0, 'auto']} />
-                          <Tooltip content={<GraphTooltip />} />
-                          <Area type="monotone" dataKey="xp" name="Total XP" stroke="#00d2ff" fill="url(#colorTotal)" strokeWidth={2} animationDuration={2000} />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                  </>
-                )}
+                <CustomRadarChart 
+                    data={monthlyData.data} 
+                    domainMax={monthlyData.domain} 
+                    onHover={handleRadarHover}
+                    color1="#fbbf24" // Amber
+                    color2="#f59e0b" // Amber Dark
+                    fillOpacity={0.15}
+                />
+                <div className="absolute top-2 left-2 text-[9px] text-yellow-500 font-mono tracking-widest bg-yellow-900/20 px-2 py-1 rounded">30-DAY ACCUMULATION</div>
              </motion.div>
           )}
 
@@ -471,7 +361,7 @@ const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dai
       </div>
 
       {/* Manual Tooltip Portal for Radar */}
-      {view === 'CURRENT' && tooltipConfig && (
+      {tooltipConfig && (
           <div 
             style={{ 
                 position: 'fixed', 

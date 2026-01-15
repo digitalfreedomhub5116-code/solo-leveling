@@ -1,5 +1,6 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, ArrowRight, CheckCircle, Info, Lock, FastForward, ArrowUp, ArrowDown, ShieldAlert } from 'lucide-react';
 import { playSystemSoundEffect } from '../utils/soundEngine';
@@ -8,6 +9,7 @@ interface TutorialOverlayProps {
   currentStep: number;
   onNext: () => void;
   onComplete: () => void;
+  dynamicTargetId?: string | null;
 }
 
 interface ScriptStep {
@@ -15,18 +17,20 @@ interface ScriptStep {
   body: string;
   buttonText: string;
   targetId?: string;
-  waitForAction?: boolean; // If true, Next button is hidden (user must perform action)
-  allowInteraction?: boolean; // If true, allows clicking the TARGET only.
-  hideOverlay?: boolean; // Fully hidden (for background processing)
+  mobileTargetId?: string; // Fallback ID for mobile view
+  waitForAction?: boolean; 
+  allowInteraction?: boolean; 
+  hideOverlay?: boolean; 
   requireInput?: boolean; 
   forcePosition?: 'top' | 'bottom' | 'center'; 
 }
 
-const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, onComplete }) => {
+const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, onComplete, dynamicTargetId }) => {
   const [dialogPosition, setDialogPosition] = useState<'top' | 'bottom' | 'center'>('bottom');
   const [isError, setIsError] = useState(false);
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
   const [spotlightStyles, setSpotlightStyles] = useState<React.CSSProperties>({ opacity: 0 });
+  const observerRef = useRef<ResizeObserver | null>(null);
   
   // Script Configuration
   const SCRIPT: Record<number, ScriptStep> = {
@@ -36,15 +40,15 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           buttonText: "Next",
           targetId: 'tut-stats',
           allowInteraction: true, 
-          forcePosition: 'center'
+          forcePosition: 'bottom'
       },
       1: { 
           title: "The Compound Effect",
           body: "Motivation fades. Attributes last.\nImproving your stats makes progress automatic.",
           buttonText: "Go to Quests",
-          targetId: 'tut-stats',
+          targetId: 'tut-stats', 
           allowInteraction: true,
-          forcePosition: 'center'
+          forcePosition: 'bottom'
       },
       2: { 
           title: "Create a Quest",
@@ -90,10 +94,13 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           forcePosition: 'top'
       },
       7: { 
-          title: "Quest Active",
-          body: "Excellent.\nCompleting this grants XP and Gold.\nConsistency is the only cheat code.",
-          buttonText: "To Shop",
-          forcePosition: 'center'
+          title: "Calibration Required",
+          body: "The System has issued 5 Welcome Quests.\n\nYou must complete ALL of them to proceed.\n\nWatch how each completion impacts your Daily, Weekly, and Monthly attributes.",
+          buttonText: "Complete Task",
+          targetId: 'quest-list-container', 
+          waitForAction: true,
+          allowInteraction: true, 
+          forcePosition: 'bottom'
       },
       8: { 
           title: "The Reward Shop",
@@ -105,15 +112,60 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
       }
   };
 
-  const stepData = SCRIPT[currentStep];
+  const stepData = { ...SCRIPT[currentStep] };
+
+  // Dynamic override for Step 7 (Sequential Highlighting)
+  if (currentStep === 7 && dynamicTargetId) {
+      stepData.targetId = dynamicTargetId;
+      stepData.body = "Focus on this specific task.\nComplete it to calibrate your stats.\n\nThe System requires full compliance.";
+  }
+
+  // --- SCROLL LOCK & AUTO-NAV ---
+  useEffect(() => {
+    // Strict Scroll Locking Logic
+    if (targetElement && !stepData.hideOverlay) {
+        // 1. Force layout recalculation before locking
+        const rect = targetElement.getBoundingClientRect();
+        
+        // 2. Center element vertically, accounting for sticky headers (approx 100px offset)
+        const offset = 100;
+        const bodyRect = document.body.getBoundingClientRect().top;
+        const elementRect = rect.top;
+        const elementPosition = elementRect - bodyRect;
+        const offsetPosition = elementPosition - (window.innerHeight / 2) + (rect.height / 2);
+
+        // Smooth scroll to target
+        window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+        });
+
+        // 3. Lock Scroll after small delay to allow smooth scroll to finish
+        const lockTimer = setTimeout(() => {
+            document.body.style.overflow = 'hidden';
+            document.body.style.touchAction = 'none'; // Disable touch scroll on mobile
+        }, 600);
+
+        return () => {
+            clearTimeout(lockTimer);
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+        };
+    } else {
+        document.body.style.overflow = '';
+        document.body.style.touchAction = '';
+    }
+  }, [targetElement, stepData.hideOverlay]);
 
   // --- SPOTLIGHT TRACKING ---
   useEffect(() => {
       const updateSpotlight = () => {
           if (targetElement && stepData && !stepData.hideOverlay) {
               const rect = targetElement.getBoundingClientRect();
-              // Calculate slight padding
-              const padding = 8;
+              
+              // Mobile adjustment: Ensure spotlight covers full touch targets comfortably
+              const padding = window.innerWidth < 768 ? 12 : 12;
+              
               setSpotlightStyles({
                   opacity: 1,
                   top: rect.top - padding,
@@ -121,17 +173,42 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                   width: rect.width + (padding * 2),
                   height: rect.height + (padding * 2),
                   borderRadius: '12px',
-                  // The box-shadow creates the dark overlay everywhere EXCEPT the element
                   boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.85)' 
               });
+
+              // Smart Dialog Positioning
+              if (!stepData.forcePosition) {
+                  const spaceBelow = window.innerHeight - rect.bottom;
+                  const spaceAbove = rect.top;
+                  const minSpaceNeeded = 280; // Dialog height approx
+
+                  if (spaceBelow > minSpaceNeeded) {
+                      setDialogPosition('bottom');
+                  } else if (spaceAbove > minSpaceNeeded) {
+                      setDialogPosition('top');
+                  } else {
+                      setDialogPosition(spaceBelow > spaceAbove ? 'bottom' : 'top');
+                  }
+              } else {
+                  setDialogPosition(stepData.forcePosition);
+              }
+
           } else {
               setSpotlightStyles({ opacity: 0 });
           }
       };
 
+      // Initial Update
       updateSpotlight();
       
-      // Update on scroll/resize or when target animates (using rAF loop)
+      // Setup Resize Observer for robust tracking
+      if (targetElement) {
+          observerRef.current = new ResizeObserver(updateSpotlight);
+          observerRef.current.observe(targetElement);
+          observerRef.current.observe(document.body);
+      }
+
+      // Animation Frame Loop for smooth tracking during scrolls/transitions
       const frameId = requestAnimationFrame(function loop() {
           updateSpotlight();
           requestAnimationFrame(loop);
@@ -144,6 +221,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           cancelAnimationFrame(frameId);
           window.removeEventListener('resize', updateSpotlight);
           window.removeEventListener('scroll', updateSpotlight, true);
+          if (observerRef.current) observerRef.current.disconnect();
       };
   }, [targetElement, stepData]);
 
@@ -161,9 +239,9 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
         }
 
         // 2. If allowInteraction is ON, check if target is the highlighted element
-        if (stepData.allowInteraction && targetElement) {
-            // Check if clicking inside the target
-            if (targetElement.contains(target) || targetElement === target) {
+        if (stepData.allowInteraction) {
+            // Check if user is clicking inside the highlighted target
+            if (targetElement && (targetElement.contains(target) || targetElement === target)) {
                 return; // Allow
             }
         }
@@ -172,30 +250,31 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
         e.preventDefault();
         e.stopPropagation();
         
-        // Visual/Audio Feedback for blocked action
-        if (e.type === 'click' || e.type === 'mousedown') {
+        if (['click', 'mousedown', 'touchstart'].includes(e.type)) {
             playSystemSoundEffect('WARNING');
             setIsError(true);
             setTimeout(() => setIsError(false), 300);
         }
     };
 
-    // Use capture phase to intercept before React or other listeners
+    // Capture phase blocking
     window.addEventListener('click', handleInteraction, true);
     window.addEventListener('mousedown', handleInteraction, true);
+    window.addEventListener('touchstart', handleInteraction, { capture: true, passive: false });
     window.addEventListener('keydown', handleInteraction, true);
 
     return () => {
         window.removeEventListener('click', handleInteraction, true);
         window.removeEventListener('mousedown', handleInteraction, true);
+        window.removeEventListener('touchstart', handleInteraction, true);
         window.removeEventListener('keydown', handleInteraction, true);
     };
-  }, [stepData, targetElement]);
+  }, [stepData, targetElement, currentStep]);
 
 
-  // --- HIGHLIGHT LOGIC ---
+  // --- TARGET ELEMENT FINDER ---
   useEffect(() => {
-      // 1. Cleanup previous highlights
+      // Cleanup previous highlights
       document.querySelectorAll('.tutorial-highlight').forEach(el => {
           el.classList.remove('tutorial-highlight', 'tutorial-highlight-inset');
       });
@@ -205,59 +284,47 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           return;
       }
 
-      // 2. Find and Highlight new target
-      if (stepData.targetId) {
-          const el = document.getElementById(stepData.targetId);
-          if (el) {
-              setTargetElement(el);
-              
-              if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
-                  el.classList.add('tutorial-highlight-inset');
-                  // Auto focus inputs for better UX
-                  if (stepData.allowInteraction) el.focus();
-              } else {
-                  el.classList.add('tutorial-highlight');
-              }
-              
-              // Smooth Scroll
-              el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      // Find Target (Retry logic for async rendering)
+      const findAndSetTarget = () => {
+          let targetId = stepData.targetId;
+          
+          // Mobile Fallback Logic
+          if (window.innerWidth < 768 && stepData.mobileTargetId) {
+              targetId = stepData.mobileTargetId;
+          }
 
-              // Position Dialog
-              if (!stepData.forcePosition) {
-                  const rect = el.getBoundingClientRect();
-                  if (rect.top > window.innerHeight / 2) {
-                      setDialogPosition('top');
+          if (targetId) {
+              const el = document.getElementById(targetId);
+              if (el) {
+                  setTargetElement(el);
+                  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) {
+                      el.classList.add('tutorial-highlight-inset');
+                      if (stepData.allowInteraction) el.focus();
                   } else {
-                      setDialogPosition('bottom');
+                      el.classList.add('tutorial-highlight');
                   }
-              } else {
-                  setDialogPosition(stepData.forcePosition);
               }
           } else {
-              // Retry for async renders
-              setTimeout(() => {
-                  const retryEl = document.getElementById(stepData.targetId!);
-                  if (retryEl) {
-                      setTargetElement(retryEl);
-                      if (retryEl.tagName === 'INPUT' || retryEl.tagName === 'TEXTAREA' || retryEl.tagName === 'SELECT') {
-                          retryEl.classList.add('tutorial-highlight-inset');
-                      } else {
-                          retryEl.classList.add('tutorial-highlight');
-                      }
-                  }
-              }, 500);
+              setTargetElement(null);
+              setDialogPosition(stepData.forcePosition || 'center');
           }
-      } else {
-          setTargetElement(null);
-          setDialogPosition(stepData.forcePosition || 'center');
-      }
+      };
+
+      findAndSetTarget();
+      // Retry aggressively to catch mount animations/tab switches
+      const retryTimer1 = setTimeout(findAndSetTarget, 100);
+      const retryTimer2 = setTimeout(findAndSetTarget, 500);
+      const retryTimer3 = setTimeout(findAndSetTarget, 1000);
 
       return () => {
+          clearTimeout(retryTimer1);
+          clearTimeout(retryTimer2);
+          clearTimeout(retryTimer3);
           document.querySelectorAll('.tutorial-highlight, .tutorial-highlight-inset').forEach(el => {
               el.classList.remove('tutorial-highlight', 'tutorial-highlight-inset');
           });
       };
-  }, [currentStep, stepData]);
+  }, [currentStep, stepData.targetId]); 
 
   const handleNextClick = () => {
       if (stepData?.requireInput && stepData.targetId) {
@@ -276,62 +343,61 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
 
   // Dialog Position Classes
   const positionClasses = {
-      'top': 'top-4', 
-      'bottom': 'bottom-24 md:bottom-12', 
+      'top': 'top-4 md:top-12', 
+      'bottom': 'bottom-4 md:bottom-12', 
       'center': 'top-1/2 -translate-y-1/2'
   };
 
-  return (
+  // --- RENDER VIA PORTAL ---
+  // Using Portal ensures the fixed overlay is relative to the VIEWPORT, 
+  // ignoring any parent transforms (which caused the "wrong side" issue).
+  return createPortal(
     <>
-        {/* Inject Styles for Aggressive Highlighting */}
+        {/* Inject Styles */}
         <style>{`
             @keyframes tutorial-pulse-aggressive {
-                0% { border-color: #00d2ff; transform: scale(1); box-shadow: 0 0 10px rgba(0,210,255,0.2); }
-                50% { border-color: #ffffff; transform: scale(1.01); box-shadow: 0 0 25px rgba(0,210,255,0.5); }
-                100% { border-color: #00d2ff; transform: scale(1); box-shadow: 0 0 10px rgba(0,210,255,0.2); }
+                0% { box-shadow: 0 0 0 2px #00d2ff, 0 0 15px rgba(0,210,255,0.3); transform: scale(1); }
+                50% { box-shadow: 0 0 0 2px #ffffff, 0 0 30px rgba(0,210,255,0.6); transform: scale(1.02); }
+                100% { box-shadow: 0 0 0 2px #00d2ff, 0 0 15px rgba(0,210,255,0.3); transform: scale(1); }
             }
             .tutorial-highlight {
                 animation: tutorial-pulse-aggressive 2s infinite !important;
-                z-index: 9999 !important; /* Must rise above spotlight */
+                z-index: 9999 !important;
                 position: relative !important;
-                border-radius: 8px !important;
-                border: 2px solid #00d2ff !important;
-                transition: all 0.2s ease;
+                /* NOTE: Do NOT set background-color here, it overrides button styles */
             }
             .tutorial-highlight-inset {
                 animation: tutorial-pulse-aggressive 2s infinite !important;
                 z-index: 9999 !important;
                 position: relative !important;
-                border: 2px solid #00d2ff !important;
+                /* NOTE: Do NOT set background-color here */
             }
         `}</style>
 
-        {/* 
-            DYNAMIC SPOTLIGHT
-            - Creates a 'hole' over the target using box-shadow.
-            - pointer-events-none ensures it's purely visual.
-            - The Strict Interaction Blocker handles the actual logic.
-        */}
+        {/* SPOTLIGHT OVERLAY */}
         {targetElement ? (
-            <div 
-                className="fixed z-[9998] pointer-events-none transition-all duration-300 ease-out"
+            <motion.div 
+                className="fixed z-[9998] pointer-events-none"
+                initial={{ opacity: 0 }}
+                animate={spotlightStyles as any}
+                transition={{ duration: 0.3, ease: "easeOut" }}
                 style={{
                     ...spotlightStyles,
-                    // Note: We use a massive box-shadow to darken the rest of the screen
+                    // Use a subtle border on the spotlight itself to define the hole
+                    border: '1px solid rgba(0, 210, 255, 0.3)',
                 }}
             />
         ) : (
             // Full backdrop for text-only steps
-            <div className="fixed inset-0 z-[9998] pointer-events-none bg-black/85 backdrop-blur-sm" />
+            <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="fixed inset-0 z-[9998] pointer-events-none bg-black/90 backdrop-blur-sm" 
+            />
         )}
 
-        {/* 
-            UI LAYER (DIALOG)
-            - z-[9999]: Floats above everything.
-        */}
+        {/* DIALOG BOX */}
         <div className="fixed inset-0 z-[9999] pointer-events-none font-sans flex flex-col items-center justify-center">
-            
-            {/* Tutorial Dialog Box */}
             <motion.div 
                 id="tutorial-dialog"
                 layout 
@@ -342,7 +408,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
             >
                 <div className={`bg-[#0a0a0a] border rounded-xl shadow-2xl overflow-hidden flex flex-col transition-colors ${isError ? 'border-red-500 shadow-[0_0_30px_rgba(220,38,38,0.5)]' : 'border-system-neon shadow-[0_0_30px_rgba(0,210,255,0.3)]'}`}>
                     
-                    {/* Decorative Header */}
+                    {/* Header Line */}
                     <motion.div 
                         layoutId="tutorial-header-line"
                         className={`h-1 w-full shrink-0 ${isError ? 'bg-red-500' : 'bg-gradient-to-r from-system-neon via-system-accent to-system-neon'}`} 
@@ -354,7 +420,6 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                                 key={currentStep}
                                 initial={{ scale: 0.5, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
-                                transition={{ type: "spring", stiffness: 300, damping: 20 }}
                                 className={`hidden sm:block p-2 rounded-full border shrink-0 ${isError ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-system-neon/10 border-system-neon/20 text-system-neon'}`}
                             >
                                 {isError ? <ShieldAlert size={20} /> : <Terminal size={20} />}
@@ -363,7 +428,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                             <div className="flex-1 min-w-0">
                                 <AnimatePresence mode="wait">
                                     <motion.div
-                                        key={`content-${currentStep}`}
+                                        key={`content-${currentStep}-${dynamicTargetId || 'static'}`}
                                         initial={{ opacity: 0, x: 10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         exit={{ opacity: 0, x: -10 }}
@@ -381,7 +446,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                             </div>
                         </div>
 
-                        {/* Interactive Hint Arrow */}
+                        {/* Interactive Hint */}
                         {stepData.targetId && (
                             <motion.div 
                                 initial={{ opacity: 0, height: 0 }}
@@ -457,7 +522,8 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                 </div>
             </motion.div>
         </div>
-    </>
+    </>,
+    document.body
   );
 };
 

@@ -111,6 +111,9 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
 
   // --- UI CONSTANTS ---
   const progressPercent = (currentIdx / totalExercises) * 100;
+  
+  // Safe set count for array generation (prevents RangeError if sets is invalid)
+  const safeSetCount = Math.max(1, Math.floor(Number(exercise.sets) || 1));
 
   return createPortal(
     <div className="fixed inset-0 z-[100] bg-black text-white font-sans h-[100dvh] flex flex-col overflow-hidden">
@@ -240,7 +243,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
 
                 {/* Set Indicators */}
                 <div className="flex gap-1.5 h-1.5 w-full">
-                    {Array.from({ length: exercise.sets }).map((_, i) => {
+                    {Array.from({ length: safeSetCount }).map((_, i) => {
                         let statusColor = 'bg-gray-800';
                         if (i < currentSet - 1) statusColor = 'bg-system-neon'; // Completed
                         if (i === currentSet - 1) statusColor = phase === 'WORK' ? 'bg-white animate-pulse' : 'bg-system-success'; // Current

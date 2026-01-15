@@ -203,11 +203,18 @@ const DashboardView: React.FC<{
                      </div>
                      
                      <div className="h-[300px] md:h-[350px] w-full">
-                        <EvaluationMatrix stats={player.stats} history={player.history} dailyXp={player.dailyXp || 0} />
+                        <EvaluationMatrix 
+                            stats={player.stats} 
+                            history={player.history} 
+                            dailyXp={player.dailyXp || 0}
+                            dailyStats={player.dailyStats} 
+                            weeklyStats={player.weeklyStats} 
+                            monthlyStats={player.monthlyStats} 
+                        />
                      </div>
                  </div>
 
-                 {/* ATTRIBUTES COLUMN */}
+                 {/* ATTRIBUTES COLUMN - ID placed here for Tutorial Targeting */}
                  <div className="w-full lg:w-72 shrink-0 border-t lg:border-t-0 lg:border-l border-gray-800/50 pt-6 lg:pt-0 lg:pl-6 flex flex-col" id="tut-stats">
                      <h3 className="text-sm text-gray-400 font-mono tracking-widest mb-4 flex items-center gap-2">
                         CORE ATTRIBUTES
@@ -388,201 +395,171 @@ const DashboardView: React.FC<{
 
 const App: React.FC = () => {
   const { 
-    player, isLoaded, notifications, registerUser, updateProfile, 
-    addQuest, completeQuest, failQuest, resetQuest, deleteQuest, 
-    purchaseItem, addShopItem, removeShopItem, removeNotification, 
-    saveHealthProfile, addProgressPhoto, deleteProgressPhoto, logMeal, deleteMeal, 
-    completeWorkoutSession, failWorkout, logout,
-    advanceTutorial, completeTutorial
+    player, registerUser, updateProfile, gainXp, addQuest, completeQuest, 
+    failQuest, resetQuest, deleteQuest, purchaseItem, addShopItem, removeShopItem, 
+    notifications, removeNotification, saveHealthProfile, addProgressPhoto, 
+    deleteProgressPhoto, logMeal, deleteMeal, completeWorkoutSession, failWorkout,
+    logout, advanceTutorial, completeTutorial: completeTutorialAction, updateAwakening, resolvePenalty, reducePenalty
   } = useSystem();
 
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
   const [showSplash, setShowSplash] = useState(true);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
 
-  // Tutorial Logic: Control Tabs based on step
-  useEffect(() => {
-      if (!player.tutorialComplete && player.isConfigured) {
-          // Automatic navigation logic for tutorial steps
-          if (player.tutorialStep === 2) {
-              setActiveTab('QUESTS');
-          } else if (player.tutorialStep === 8) {
-              setActiveTab('SHOP');
-          }
-      }
-  }, [player.tutorialStep, player.tutorialComplete, player.isConfigured]);
-
-  const handleTabChange = (tab: Tab) => {
-      // Tutorial Gatekeeping - prevent navigating away during key steps
-      if (!player.tutorialComplete) {
-          // Allow navigation if it matches the current required step direction
-          if (player.tutorialStep === 1 && tab === 'QUESTS') {
-              advanceTutorial(2);
-              setActiveTab(tab);
-              return;
-          }
-          if (player.tutorialStep === 7 && tab === 'SHOP') {
-              advanceTutorial(8);
-              setActiveTab(tab);
-              return;
-          }
-          
-          // Strict locking during tutorial: Only allow if stepping is aligned
-          // Otherwise, force stay on current tab if it's a critical step
-          const lockedSteps = [2, 3, 4, 5, 6, 8];
-          if (lockedSteps.includes(player.tutorialStep)) {
-              return; 
-          }
-      }
-      setActiveTab(tab);
-  };
-
-  const handleTutorialNext = () => {
-      // Logic for "Next" button in overlay
-      const nextStep = player.tutorialStep + 1;
-      
-      // Auto-switch tabs when clicking Next on specific steps
-      if (player.tutorialStep === 1) {
-          setActiveTab('QUESTS');
-      } else if (player.tutorialStep === 7) {
-          setActiveTab('SHOP');
-      }
-
-      advanceTutorial(nextStep);
-  };
-
+  // Wrapper for tutorial completion to also switch tabs
   const handleTutorialComplete = () => {
-      completeTutorial();
+      completeTutorialAction();
       setActiveTab('HEALTH');
   };
+
+  // Determine active welcome quest ID for tutorial highlighting
+  // Finds the first incomplete quest from the welcome set
+  const activeWelcomeQuest = player.quests.find(q => 
+      ['wq_1', 'wq_2', 'wq_3', 'wq_4', 'wq_5'].includes(q.id) && !q.isCompleted
+  );
+  // Note: QuestsView sorts quests, but the ID we pass needs to match the element ID
+  const activeWelcomeQuestId = activeWelcomeQuest ? `quest-card-${activeWelcomeQuest.id}` : null;
+
+  // Tutorial Tab Synchronization
+  useEffect(() => {
+    if (!player.tutorialComplete) {
+      if (player.tutorialStep === 2) {
+        setActiveTab('QUESTS');
+      } else if (player.tutorialStep === 7) {
+        setActiveTab('QUESTS'); // Force Quest view on Calibration Step
+      } else if (player.tutorialStep === 8) {
+        setActiveTab('SHOP');
+      }
+    }
+  }, [player.tutorialStep, player.tutorialComplete]);
 
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
 
-  if (!isLoaded) return null;
-
+  // 1. AUTH CHECK
   if (!player.isConfigured) {
-    return <AuthView onLogin={registerUser} onAdminAccess={() => setIsAdminOpen(true)} />;
+    if (showAdminLogin) {
+        return <AdminLogin onLoginSuccess={() => { setShowAdminLogin(false); setShowAdmin(true); }} onBack={() => setShowAdminLogin(false)} />;
+    }
+    if (showAdmin) {
+        return <AdminDashboard onLogout={() => setShowAdmin(false)} />;
+    }
+    return <AuthView onLogin={registerUser} onAdminAccess={() => setShowAdminLogin(true)} />;
   }
 
-  if (isAdminOpen && !isAdminAuthenticated) {
-    return (
-      <AdminLogin 
-        onLoginSuccess={() => setIsAdminAuthenticated(true)}
-        onBack={() => setIsAdminOpen(false)}
-      />
-    );
+  // 2. PENALTY ZONE
+  if (player.isPenaltyActive && player.penaltyEndTime && Date.now() < player.penaltyEndTime) {
+      return (
+          <PenaltyZone 
+              endTime={player.penaltyEndTime}
+              task={player.penaltyTask}
+              gold={player.gold}
+              onSurvive={resolvePenalty}
+              reducePenalty={reducePenalty}
+              onSacrifice={() => {
+                  if (player.gold >= 500) {
+                      purchaseItem({ id: 'penalty_skip', title: 'Divine Intervention', description: 'Skip Penalty', cost: 500, icon: 'lock' });
+                      resolvePenalty();
+                  }
+              }}
+          />
+      );
   }
 
-  if (isAdminAuthenticated) {
-    return <AdminDashboard onLogout={() => { setIsAdminAuthenticated(false); setIsAdminOpen(false); }} />;
+  // 3. ADMIN DASHBOARD (Authenticated)
+  if (showAdmin) {
+      return <AdminDashboard onLogout={() => setShowAdmin(false)} />;
   }
 
-  if (player.isPenaltyActive) {
-    return (
-      <PenaltyZone 
-        endTime={player.penaltyEndTime} 
-        task={player.penaltyTask}
-        gold={player.gold}
-        onSurvive={() => failWorkout()}
-        reducePenalty={() => {}}
-        onSacrifice={() => purchaseItem({ id: 'sacrifice', title: 'Divine Intervention', description: 'Skip Penalty', cost: 500, icon: 'shield' })}
-      />
-    );
-  }
-
+  // 4. MAIN APP
   return (
-    <>
+    <Layout 
+      navigation={<Navigation activeTab={activeTab} onTabChange={setActiveTab} />}
+      playerLevel={player.level}
+      streak={player.streak}
+    >
       <SystemMessage notifications={notifications} removeNotification={removeNotification} />
       
+      {/* TUTORIAL OVERLAY */}
       {!player.tutorialComplete && (
           <TutorialOverlay 
               currentStep={player.tutorialStep} 
-              onNext={handleTutorialNext}
+              onNext={() => advanceTutorial(player.tutorialStep + 1)}
               onComplete={handleTutorialComplete}
+              dynamicTargetId={activeWelcomeQuestId}
           />
       )}
 
-      <Layout 
-        navigation={<Navigation activeTab={activeTab} onTabChange={handleTabChange} />}
-        playerLevel={player.level}
-        streak={player.streak}
-      >
-        <AnimatePresence mode="wait">
-          {activeTab === 'DASHBOARD' && (
-            <motion.div key="dashboard" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
-              <DashboardView 
+      <AnimatePresence mode="wait">
+        {activeTab === 'DASHBOARD' && (
+          <motion.div key="dash" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <DashboardView 
                 player={player} 
                 onLogout={logout} 
-                onAdminRequest={() => setIsAdminOpen(true)} 
-              />
-            </motion.div>
-          )}
-          
-          {activeTab === 'HEALTH' && (
-            <motion.div key="health" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
-              <HealthView 
-                playerData={player}
-                healthProfile={player.healthProfile}
-                onSaveProfile={(p, i) => {
-                    saveHealthProfile(p, i);
-                }}
-                onCompleteWorkout={completeWorkoutSession}
-                onFailWorkout={failWorkout}
-                onAddPhoto={addProgressPhoto}
-                onDeletePhoto={deleteProgressPhoto}
-                onLogMeal={logMeal}
-                onDeleteMeal={deleteMeal}
-                onTutorialAction={advanceTutorial}
-                tutorialStep={player.tutorialStep}
-              />
-            </motion.div>
-          )}
+                onAdminRequest={() => setShowAdminLogin(true)}
+            />
+          </motion.div>
+        )}
 
-          {activeTab === 'QUESTS' && (
-            <motion.div key="quests" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
-              <QuestsView 
-                quests={player.quests}
-                addQuest={(q) => {
-                    addQuest(q);
-                }}
-                completeQuest={completeQuest}
-                failQuest={failQuest}
-                resetQuest={resetQuest}
-                deleteQuest={deleteQuest}
-                tutorialStep={player.tutorialStep}
-                onTutorialAction={(step) => advanceTutorial(step)}
-              />
-            </motion.div>
-          )}
+        {activeTab === 'QUESTS' && (
+          <motion.div key="quests" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <QuestsView 
+              quests={player.quests}
+              addQuest={addQuest}
+              completeQuest={completeQuest}
+              failQuest={failQuest}
+              resetQuest={resetQuest}
+              deleteQuest={deleteQuest}
+              tutorialStep={player.tutorialStep}
+              onTutorialAction={advanceTutorial}
+            />
+          </motion.div>
+        )}
 
-          {activeTab === 'SHOP' && (
-            <motion.div key="shop" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
-              <ShopView 
-                gold={player.gold}
-                items={player.shopItems}
-                purchaseItem={purchaseItem}
-                addItem={addShopItem}
-                removeItem={removeShopItem}
-              />
-            </motion.div>
-          )}
+        {activeTab === 'SHOP' && (
+          <motion.div key="shop" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <ShopView 
+              gold={player.gold}
+              items={player.shopItems}
+              purchaseItem={purchaseItem}
+              addItem={addShopItem}
+              removeItem={removeShopItem}
+            />
+          </motion.div>
+        )}
 
-          {activeTab === 'PROFILE' && (
-            <motion.div key="profile" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
-              <ProfileView 
-                player={player}
-                onUpdate={updateProfile}
-                onAdminRequest={() => setIsAdminOpen(true)}
-                onLogout={logout}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </Layout>
-    </>
+        {activeTab === 'PROFILE' && (
+          <motion.div key="profile" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <ProfileView 
+              player={player}
+              onUpdate={updateProfile}
+              onAdminRequest={() => setShowAdminLogin(true)}
+              onLogout={logout}
+            />
+          </motion.div>
+        )}
+
+        {activeTab === 'HEALTH' && (
+          <motion.div key="health" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <HealthView 
+               healthProfile={player.healthProfile}
+               onSaveProfile={saveHealthProfile}
+               onCompleteWorkout={completeWorkoutSession}
+               onFailWorkout={failWorkout}
+               onAddPhoto={addProgressPhoto}
+               onDeletePhoto={deleteProgressPhoto}
+               onLogMeal={logMeal}
+               onDeleteMeal={deleteMeal}
+               playerData={player}
+               tutorialStep={player.tutorialStep}
+               onTutorialAction={advanceTutorial}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Layout>
   );
 };
 

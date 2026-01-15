@@ -49,7 +49,9 @@ export interface Quest {
   category: keyof CoreStats;
   xpReward: number;
   isCompleted: boolean;
+  failed?: boolean; // New: Tracks if the system rejected this quest
   createdAt: number;
+  expiresAt?: number; // New: For 24h temporary quests
   isDaily: boolean; // Identify repeatable quests
   trigger?: string; // The "When" condition/anchor for the habit
   miniQuest?: string; // The "Activation Energy" version (e.g., Just do 5 reps)
@@ -215,8 +217,18 @@ export interface PlayerData {
   streak: number;        // Consecutive days logged in
   
   // Attributes
-  stats: CoreStats;
+  stats: CoreStats; // Lifetime Stats
+  dailyStats: CoreStats; // Reset Daily
+  weeklyStats: CoreStats; // Reset Weekly
+  monthlyStats: CoreStats; // Reset Monthly
+  
   lastStatUpdate: StatTimestamps;
+  
+  // Reset Timestamps (Epoch ms)
+  lastDailyReset: number;
+  lastWeeklyReset: number;
+  lastMonthlyReset: number;
+
   history: HistoryEntry[]; // Historical data for graphs
   
   // Status

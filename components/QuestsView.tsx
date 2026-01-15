@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Sparkles, Repeat, Link, BatteryLow } from 'lucide-react';
+import { Plus, Sparkles, Repeat, Link, BatteryLow, Calendar, Skull } from 'lucide-react';
 import { Quest, CoreStats, Rank } from '../types';
 import QuestCard from './QuestCard';
 import { playSystemSoundEffect } from '../utils/soundEngine';
@@ -19,7 +19,6 @@ interface QuestsViewProps {
 
 const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest, failQuest, resetQuest, deleteQuest, tutorialStep, onTutorialAction }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [filter, setFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ACTIVE');
   
   // New Quest Form State
   const [title, setTitle] = useState('');
@@ -36,12 +35,37 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
       // The button onClick handles the logic.
   }, [tutorialStep]);
 
-  // Logic: Filter Quests
-  const filteredQuests = quests.filter(q => {
-    if (filter === 'ACTIVE') return !q.isCompleted;
-    if (filter === 'COMPLETED') return q.isCompleted;
-    return true;
-  }).sort((a, b) => b.createdAt - a.createdAt); // Newest first
+  // Logic: Timeline Sorting
+  // 1. Active Quests (Top, sorted by Rank S->E)
+  // 2. Completed Quests (Middle, sorted by Recency)
+  // 3. Failed Quests (Bottom, sorted by Recency)
+  const timelineQuests = [...quests].sort((a, b) => {
+      // Primary Sort: Status Grouping
+      const getStatusScore = (q: Quest) => {
+          if (q.failed) return 3; // Bottom
+          if (q.isCompleted) return 2; // Middle
+          return 1; // Top
+      };
+      
+      const scoreA = getStatusScore(a);
+      const scoreB = getStatusScore(b);
+      
+      if (scoreA !== scoreB) return scoreA - scoreB;
+      
+      // Secondary Sort:
+      if (scoreA === 1) {
+          // Active: Sort by Rank Value (S=5, E=0) descending
+          const rankValue = (r: Rank) => ({'S':5, 'A':4, 'B':3, 'C':2, 'D':1, 'E':0}[r]);
+          return rankValue(b.rank) - rankValue(a.rank);
+      } else {
+          // Completed/Failed: Sort by CreatedAt descending (Newest first)
+          return b.createdAt - a.createdAt;
+      }
+  });
+
+  const activeCount = quests.filter(q => !q.isCompleted && !q.failed).length;
+  const completedCount = quests.filter(q => q.isCompleted).length;
+  const failedCount = quests.filter(q => q.failed).length;
 
   // Feature: Auto-Ranker Logic
   const handleAutoRank = () => {
@@ -111,6 +135,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
       category,
       xpReward: xpMap[rank],
       isCompleted: false,
+      failed: false,
       createdAt: Date.now(),
       isDaily: isDaily,
       trigger: trigger.trim() || undefined,
@@ -135,60 +160,75 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
   return (
     <div className="space-y-6">
        {/* Header & Controls */}
-       <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 border-b border-system-border pb-4">
+       <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 border-b border-system-border pb-4 sticky top-0 bg-system-bg z-20 pt-2">
           <div>
-            <h2 className="text-2xl font-bold text-white font-mono tracking-tighter">QUEST LOG</h2>
-            <p className="text-xs text-gray-500 font-mono">MANAGE YOUR ASSIGNMENTS</p>
+            <h2 className="text-2xl font-bold text-white font-mono tracking-tighter flex items-center gap-2">
+                <Calendar size={24} className="text-system-neon" />
+                DAILY TIMELINE
+            </h2>
+            <div className="flex gap-3 text-[10px] font-mono mt-1 text-gray-500">
+                <span>ACTIVE: {activeCount}</span>
+                <span className="text-system-success">COMPLETED: {completedCount}</span>
+                <span className="text-red-500">FAILED: {failedCount}</span>
+            </div>
           </div>
           
-          <div className="flex gap-2">
-             <div className="flex bg-system-card border border-system-border rounded p-1">
-                {(['ACTIVE', 'COMPLETED', 'ALL'] as const).map(f => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={`px-3 py-1 rounded text-[10px] font-mono transition-colors ${filter === f ? 'bg-system-accent text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                  >
-                    {f}
-                  </button>
-                ))}
-             </div>
-             
-             <button 
-               id="tut-add-quest"
-               onClick={() => {
-                   setIsModalOpen(true);
-                   if (tutorialStep === 2 && onTutorialAction) {
-                       // Advance to Step 3 (Naming) when modal opens
-                       onTutorialAction(3);
-                   }
-               }}
-               className="flex items-center gap-2 px-4 py-2 bg-system-neon text-black font-bold rounded hover:bg-white transition-colors text-xs font-mono shadow-[0_0_15px_rgba(0,210,255,0.3)]"
-             >
-               <Plus size={16} /> ADD QUEST
-             </button>
-          </div>
+          <button 
+            id="tut-add-quest"
+            onClick={() => {
+                setIsModalOpen(true);
+                if (tutorialStep === 2 && onTutorialAction) {
+                    onTutorialAction(3);
+                }
+            }}
+            className="flex items-center gap-2 px-6 py-3 bg-system-neon text-black font-bold rounded hover:bg-white transition-colors text-xs font-mono shadow-[0_0_15px_rgba(0,210,255,0.3)] hover:scale-105"
+          >
+            <Plus size={16} /> INITIALIZE QUEST
+          </button>
        </div>
 
-       {/* Quest List */}
-       <div className="space-y-4 min-h-[50vh]">
+       {/* Quest List (Timeline) */}
+       <div id="quest-list-container" className="space-y-4 min-h-[50vh] pb-20 relative">
+          
+          {/* Vertical Timeline Line */}
+          <div className="absolute left-6 top-0 bottom-0 w-px bg-gray-800 z-0 hidden md:block" />
+
           <AnimatePresence mode='popLayout'>
-            {filteredQuests.map(quest => (
-              <QuestCard 
-                key={quest.id} 
-                quest={quest} 
-                onComplete={completeQuest} 
-                onFail={failQuest}
-                onReset={resetQuest}
-                onDelete={deleteQuest} 
-              />
+            {timelineQuests.map((quest, index) => (
+              <motion.div
+                key={quest.id}
+                id={`quest-card-${quest.id}`} // Targeted ID for tutorial
+                layout
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+                className="relative z-10"
+              >
+                  <QuestCard 
+                    quest={quest} 
+                    onComplete={completeQuest} 
+                    onFail={failQuest}
+                    onReset={resetQuest}
+                    onDelete={deleteQuest} 
+                  />
+              </motion.div>
             ))}
           </AnimatePresence>
           
-          {filteredQuests.length === 0 && (
-             <div className="text-center py-20 text-gray-600 font-mono text-sm border-2 border-dashed border-system-border rounded-lg">
-                NO {filter === 'ALL' ? '' : filter} QUESTS FOUND.
+          {timelineQuests.length === 0 && (
+             <div className="text-center py-20 text-gray-600 font-mono text-sm border-2 border-dashed border-system-border rounded-lg bg-black/20">
+                NO ACTIVE PROTOCOLS. INITIATE QUEST.
              </div>
+          )}
+          
+          {/* Timeline End Marker */}
+          {timelineQuests.length > 0 && (
+              <div className="flex justify-center mt-8">
+                  <div className="text-[10px] text-gray-700 font-mono flex items-center gap-2">
+                      <Skull size={12} /> END OF LINE
+                  </div>
+              </div>
           )}
        </div>
 

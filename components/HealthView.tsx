@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Zap, Dumbbell, Check, Cpu, Flame, Target, Map, Calendar, List, Swords, Layers, Grid } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Zap, Dumbbell, Check, Cpu, Flame, Target, Map, Calendar, List, Swords, Layers, Grid, AlertTriangle, TrendingUp, ShieldCheck, Lock, Sparkles } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
@@ -23,6 +23,7 @@ interface HealthViewProps {
   tutorialStep?: number;
 }
 
+// --- TECH RADAR CHART UTILS ---
 const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
   return {
@@ -31,11 +32,32 @@ const polarToCartesian = (centerX: number, centerY: number, radius: number, angl
   };
 };
 
-const AnimatedRadar = ({ data, color, label }: { data: { value: number; fullMark: number; subject: string }[], color: string, label: string }) => {
+const TechRadar = ({ data, color, label }: { data: { value: number; fullMark: number; subject: string }[], color: string, label: string }) => {
     const size = 300;
     const center = size / 2;
     const radius = 100;
     
+    // Grid Generation
+    const gridLevels = 4;
+    const gridPaths = [];
+    for (let level = 1; level <= gridLevels; level++) {
+        const levelRadius = (radius / gridLevels) * level;
+        const pts = data.map((_, i) => {
+            const angle = (360 / data.length) * i;
+            const { x, y } = polarToCartesian(center, center, levelRadius, angle);
+            return `${x},${y}`;
+        });
+        gridPaths.push(pts.join(' '));
+    }
+
+    // Axes Generation
+    const axesLines = data.map((_, i) => {
+        const angle = (360 / data.length) * i;
+        const { x, y } = polarToCartesian(center, center, radius, angle);
+        return { x1: center, y1: center, x2: x, y2: y };
+    });
+
+    // Data Points Calculation
     const points = data.map((d, i) => {
         const angle = (360 / data.length) * i;
         const valRadius = (d.value / d.fullMark) * radius;
@@ -44,64 +66,82 @@ const AnimatedRadar = ({ data, color, label }: { data: { value: number; fullMark
 
     const pathD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ') + ' Z';
 
-    const gridLevels = [0.2, 0.4, 0.6, 0.8, 1];
-    
-    return (
-        <div id="tut-health-radar" className="relative flex flex-col items-center justify-center">
-            <h3 className="text-sm font-mono font-bold mb-4 tracking-[0.3em] uppercase" style={{ color }}>{label}</h3>
-            <svg width={size} height={size} className="overflow-visible">
-                {gridLevels.map((level, idx) => {
-                    const gridPoints = data.map((_, i) => {
-                        const angle = (360 / data.length) * i;
-                        return polarToCartesian(center, center, radius * level, angle);
-                    });
-                    const gridPath = gridPoints.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ') + ' Z';
-                    return <path key={idx} d={gridPath} fill="none" stroke="#333" strokeWidth="1" strokeDasharray="4 4" />;
-                })}
+    // Animation Timings: Dots first, then lines
+    const dotDelay = 0.15;
+    const totalDotTime = data.length * dotDelay;
 
+    return (
+        <div id="tut-health-radar" className="relative flex flex-col items-center justify-center w-full h-full">
+            <h3 className="text-sm font-mono font-bold mb-4 tracking-[0.3em] uppercase transition-colors duration-500" style={{ color }}>{label}</h3>
+            
+            <svg width={size} height={size} className="overflow-visible">
+                <defs>
+                    <linearGradient id={`radarFill-${label}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={color} stopOpacity={0.4}/>
+                        <stop offset="100%" stopColor={color} stopOpacity={0.05}/>
+                    </linearGradient>
+                </defs>
+
+                {/* Grid Polygons */}
+                {gridPaths.map((pts, i) => (
+                    <polygon key={`grid-${i}`} points={pts} fill="none" stroke="#333" strokeWidth="1" strokeDasharray="4 4" />
+                ))}
+                
+                {/* Axis Lines */}
+                {axesLines.map((line, i) => (
+                    <line key={`axis-${i}`} {...line} stroke="#333" strokeWidth="1" strokeDasharray="4 4" />
+                ))}
+
+                {/* Animated Data Area (Appears last) */}
                 <motion.path
-                    d={pathD}
-                    fill={color}
-                    fillOpacity={0.2}
-                    stroke="none"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 1.5, duration: 0.5 }}
+                    transition={{ delay: totalDotTime + 0.5, duration: 0.5 }}
+                    d={pathD}
+                    fill={`url(#radarFill-${label})`}
+                    stroke="none"
                 />
+                
+                {/* Animated Data Stroke (Draws after dots) */}
                 <motion.path
                     d={pathD}
                     fill="none"
                     stroke={color}
                     strokeWidth="2"
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ delay: 0.5, duration: 1.5, ease: "easeInOut" }}
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    transition={{ delay: totalDotTime, duration: 1.5, ease: "easeInOut" }}
                 />
 
-                {points.map((p, i) => (
-                    <g key={i}>
-                        {(() => {
-                             const angle = (360 / data.length) * i;
-                             const labelPos = polarToCartesian(center, center, radius + 25, angle);
-                             return (
-                                 <text 
-                                    x={labelPos.x} y={labelPos.y} 
-                                    textAnchor="middle" dominantBaseline="middle" 
-                                    fill="#666" fontSize="9" fontFamily="monospace" fontWeight="bold"
-                                 >
-                                     {data[i].subject}
-                                 </text>
-                             );
-                        })()}
-                        <motion.circle
-                            cx={p.x} cy={p.y} r={4}
-                            fill="#000" stroke={color} strokeWidth={2}
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ delay: i * 0.1, type: "spring" }}
-                        />
-                    </g>
-                ))}
+                {/* Data Points (Dots) & Labels */}
+                {data.map((d, i) => {
+                     const angle = (360 / data.length) * i;
+                     const labelPos = polarToCartesian(center, center, radius + 35, angle);
+                     const point = points[i];
+                     
+                     return (
+                        <g key={i}>
+                             {/* Label */}
+                             <text 
+                                x={labelPos.x} y={labelPos.y} 
+                                textAnchor="middle" dominantBaseline="middle" 
+                                fill="#666" fontSize="8" fontFamily="monospace" fontWeight="bold" letterSpacing="1px"
+                             >
+                                 {d.subject}
+                             </text>
+                             
+                             {/* Animated Dot */}
+                             <motion.circle
+                                cx={point.x} cy={point.y} 
+                                r={4}
+                                fill="#000" stroke={color} strokeWidth={2}
+                                initial={{ scale: 0, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ delay: i * dotDelay, type: "spring", stiffness: 300, damping: 20 }}
+                            />
+                        </g>
+                     );
+                })}
             </svg>
         </div>
     );
@@ -163,9 +203,13 @@ const HealthView: React.FC<HealthViewProps> = ({
   onTutorialAction,
   tutorialStep
 }) => {
-  const [viewMode, setViewMode] = useState<'MAP' | 'OVERVIEW' | 'ACTIVE' | 'SETUP' | 'PROCESSING' | 'ANALYSIS' | 'FINALIZING'>('MAP');
+  // New States: DIAGNOSIS (Current State) -> PROJECTION (Graph)
+  const [viewMode, setViewMode] = useState<'MAP' | 'OVERVIEW' | 'ACTIVE' | 'SETUP' | 'PROCESSING' | 'DIAGNOSIS' | 'PROJECTION' | 'FINALIZING'>('MAP');
   const [activeTab, setActiveTab] = useState<'WORKOUT' | 'NUTRITION' | 'BODY'>('WORKOUT');
   
+  // Projection Animation State
+  const [isTransformed, setIsTransformed] = useState(false);
+
   // Workout State
   const [, setSelectedDayIndex] = useState<number | null>(null);
   const [activePlan, setActivePlan] = useState<WorkoutDay | null>(null);
@@ -188,7 +232,6 @@ const HealthView: React.FC<HealthViewProps> = ({
   });
 
   const [foodSearch, setFoodSearch] = useState('');
-  const [analysisStage, setAnalysisStage] = useState(1);
   const [finalizingLog, setFinalizingLog] = useState("Initializing...");
 
   // Initial Logic
@@ -204,6 +247,14 @@ const HealthView: React.FC<HealthViewProps> = ({
   }, [healthProfile, formData]);
 
   const nutritionInfo = useMemo(() => calculateNutritionPlan(healthProfile || formData), [healthProfile, formData]);
+  
+  // BMI calc for Diagnosis
+  const currentBMI = useMemo(() => {
+      if(formData.weight && formData.height) {
+          return (formData.weight / ((formData.height/100) ** 2)).toFixed(1);
+      }
+      return "0.0";
+  }, [formData.weight, formData.height]);
 
   // Handlers
   const handleDaySelect = (index: number) => {
@@ -229,22 +280,22 @@ const HealthView: React.FC<HealthViewProps> = ({
   const startProcessing = () => {
       setViewMode('PROCESSING');
       setTimeout(() => {
-          setViewMode('ANALYSIS');
-          setAnalysisStage(1);
+          // Jump to Diagnosis (Current Situation) instead of Analysis
+          setViewMode('DIAGNOSIS');
           if (tutorialStep === 12 && onTutorialAction) {
               onTutorialAction(13);
           }
-      }, 3500);
+      }, 4500); // Extended time to enjoy the animation
   };
 
   const startJourneySequence = () => {
       setViewMode('FINALIZING');
       const sequence = [
-          "Building personalized plan...",
-          "Calculating metabolic thresholds...",
-          "Adding nutritional ingredients...",
-          "Syncing workout protocols...",
-          "Finalizing System..."
+          "REWRITING BIOLOGICAL LIMITS...",
+          "UNLOCKING HIDDEN POTENTIAL...",
+          "YOUR OLD SELF IS BEING ARCHIVED...",
+          "CONSTRUCTING A NEW REALITY...",
+          "SYSTEM ONLINE. ASCENSION BEGINS."
       ];
       
       let i = 0;
@@ -253,15 +304,15 @@ const HealthView: React.FC<HealthViewProps> = ({
           i++;
           if (i >= sequence.length) {
               clearInterval(interval);
-              setTimeout(() => finalizeSetup(), 1000);
+              setTimeout(() => finalizeSetup(), 2500);
           }
-      }, 800);
+      }, 2000); 
   };
 
   const finalizeSetup = () => {
       const fullProfile = {
           ...formData,
-          bmi: parseFloat((formData.weight! / ((formData.height!/100) ** 2)).toFixed(1)),
+          bmi: parseFloat(currentBMI),
           bmr: nutritionInfo.bmr,
           workoutPlan: calculatedPlan,
           macros: nutritionInfo.macros,
@@ -290,63 +341,253 @@ const HealthView: React.FC<HealthViewProps> = ({
   if (viewMode === 'PROCESSING') {
       return (
           <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-8 bg-black/95 absolute inset-0 z-50">
-              <motion.div 
-                animate={{ rotate: 360 }}
-                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                className="mb-8 relative"
-              >
-                  <div className="w-24 h-24 rounded-full border-t-2 border-l-2 border-system-neon opacity-80" />
-                  <Cpu className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-system-neon animate-pulse" size={40} />
-              </motion.div>
+              <div className="relative w-48 h-48 flex items-center justify-center mb-8">
+                  {/* Outer Rings */}
+                  <motion.div 
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                    className="absolute inset-0 border border-system-neon/20 rounded-full border-dashed"
+                  />
+                  <motion.div 
+                    animate={{ rotate: -360 }}
+                    transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+                    className="absolute inset-4 border border-system-accent/20 rounded-full border-dotted"
+                  />
+                  
+                  {/* Scanning Bar */}
+                  <motion.div 
+                    animate={{ height: ['0%', '100%', '0%'] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute w-full bg-gradient-to-b from-transparent via-system-neon/30 to-transparent"
+                    style={{ height: '50%', top: '0%' }}
+                  />
+
+                  {/* Center Icon */}
+                  <Cpu className="text-system-neon animate-pulse" size={40} />
+              </div>
+
               <h2 className="text-2xl font-black text-white font-mono tracking-tighter mb-2">CALIBRATING SYSTEM</h2>
-              <p className="text-xs text-gray-500 font-mono">Analyzing biometrics...</p>
+              
+              <div className="h-6 overflow-hidden relative w-full max-w-xs">
+                  <motion.div 
+                    animate={{ y: -120 }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                    className="absolute top-full left-0 w-full text-center space-y-2"
+                  >
+                      <p className="text-[10px] text-gray-500 font-mono">ANALYZING BIOMETRICS...</p>
+                      <p className="text-[10px] text-system-neon font-mono">CALCULATING POTENTIAL...</p>
+                      <p className="text-[10px] text-system-accent font-mono">OPTIMIZING PATHWAYS...</p>
+                      <p className="text-[10px] text-green-500 font-mono">SUCCESS PROBABILITY: 100%</p>
+                      <p className="text-[10px] text-gray-500 font-mono">GENERATING GRAPH...</p>
+                  </motion.div>
+              </div>
           </div>
       );
   }
 
-  if (viewMode === 'ANALYSIS') {
+  // --- STEP 1: CURRENT DIAGNOSIS ---
+  if (viewMode === 'DIAGNOSIS') {
       return (
           <div className="flex flex-col items-center justify-center min-h-[70vh] bg-black/95 absolute inset-0 z-50 p-6">
-              <h2 className="text-xl font-bold text-white font-mono mb-8 tracking-[0.2em] flex items-center gap-2">
-                  <Terminal size={20} className="text-system-accent" /> SYSTEM ANALYSIS
-              </h2>
-              
-              <AnimatedRadar 
-                  label="PROJECTION"
-                  color="#8b5cf6"
-                  data={[
-                      { subject: 'STR', value: analysisStage > 0 ? 80 : 20, fullMark: 100 },
-                      { subject: 'VIT', value: analysisStage > 0 ? 75 : 30, fullMark: 100 },
-                      { subject: 'AGI', value: analysisStage > 0 ? 90 : 40, fullMark: 100 },
-                      { subject: 'INT', value: analysisStage > 0 ? 85 : 50, fullMark: 100 },
-                      { subject: 'PER', value: analysisStage > 0 ? 70 : 25, fullMark: 100 }
-                  ]}
-              />
+              <div className="w-full max-w-md relative">
+                  {/* Decorative corner lines */}
+                  <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-red-500" />
+                  <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-red-500" />
+                  
+                  {/* Updated Header */}
+                  <div className="mb-8 border-b border-gray-800 pb-4">
+                      <h2 className="text-2xl font-black text-white font-mono tracking-tighter flex items-center gap-2">
+                          <Terminal size={24} className="text-system-neon" /> SYSTEM ANALYSIS
+                      </h2>
+                      <div className="flex items-center gap-2 mt-2">
+                          <ShieldCheck size={12} className="text-system-success" />
+                          <span className="text-[10px] text-system-success font-mono tracking-wider">SYSTEM GUARANTEE: GOAL ACHIEVEMENT INEVITABLE</span>
+                      </div>
+                  </div>
 
-              <div className="mt-12 w-full max-w-xs">
+                  <div className="grid grid-cols-2 gap-4 mb-8">
+                      <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="bg-gray-900/30 border border-gray-800 p-4 rounded-lg">
+                          <div className="text-[10px] text-gray-500 font-mono">CURRENT BMI</div>
+                          <div className="text-2xl text-white font-mono font-bold">{currentBMI}</div>
+                      </motion.div>
+                      <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="bg-gray-900/30 border border-gray-800 p-4 rounded-lg">
+                          <div className="text-[10px] text-gray-500 font-mono">EST. TIME TO GOAL</div>
+                          <div className="text-xl text-yellow-500 font-mono font-bold">{calculateTimeEstimate(formData)}</div>
+                      </motion.div>
+                      <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="bg-gray-900/30 border border-gray-800 p-4 rounded-lg">
+                          <div className="text-[10px] text-gray-500 font-mono">DAILY CALORIES</div>
+                          <div className="text-xl text-blue-400 font-mono font-bold">{nutritionInfo.macros.calories}</div>
+                      </motion.div>
+                      <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="bg-gray-900/30 border border-gray-800 p-4 rounded-lg">
+                          <div className="text-[10px] text-gray-500 font-mono">SYSTEM RANK</div>
+                          <div className="text-2xl text-white font-mono font-bold">C-RANK</div>
+                      </motion.div>
+                  </div>
+
                   <button 
-                    onClick={startJourneySequence}
-                    className="w-full py-4 bg-white text-black font-black font-mono text-sm rounded hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                    onClick={() => setViewMode('PROJECTION')}
+                    className="w-full py-4 bg-white text-black font-black font-mono text-sm rounded hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 group shadow-[0_0_20px_rgba(255,255,255,0.3)]"
                   >
-                      ACCEPT PROTOCOL <Check size={16} />
+                      VIEW POTENTIAL <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                   </button>
               </div>
           </div>
       );
   }
 
+  // --- STEP 2: PROJECTION & TRANSFORMATION ---
+  if (viewMode === 'PROJECTION') {
+      const lowStats = [
+          { subject: 'STRENGTH', value: 40, fullMark: 100 },
+          { subject: 'VITALITY', value: 45, fullMark: 100 },
+          { subject: 'AGILITY', value: 35, fullMark: 100 },
+          { subject: 'INTELLIGENCE', value: 50, fullMark: 100 },
+          { subject: 'PERCEPTION', value: 40, fullMark: 100 }
+      ];
+
+      const highStats = [
+          { subject: 'STRENGTH', value: 85, fullMark: 100 },
+          { subject: 'VITALITY', value: 90, fullMark: 100 },
+          { subject: 'AGILITY', value: 80, fullMark: 100 },
+          { subject: 'INTELLIGENCE', value: 75, fullMark: 100 },
+          { subject: 'PERCEPTION', value: 95, fullMark: 100 }
+      ];
+
+      return (
+          <div className="flex flex-col items-center justify-center min-h-[70vh] bg-black/95 absolute inset-0 z-50 p-6">
+              <div className="w-full max-w-sm flex flex-col items-center">
+                  <h2 className="text-xl font-bold text-white font-mono mb-1 tracking-[0.2em] flex items-center gap-2">
+                      <TrendingUp size={20} className={isTransformed ? "text-system-neon" : "text-red-500"} /> 
+                      {isTransformed ? "SYSTEM POTENTIAL" : "CURRENT LIMITS"}
+                  </h2>
+                  <div className="text-[10px] font-mono text-gray-500 mb-4 tracking-widest uppercase">
+                      RANK: {isTransformed ? "S-CLASS" : "C-CLASS"}
+                  </div>
+                  
+                  <div className="relative mb-8 w-full max-w-[320px] aspect-square">
+                      {/* Using TechRadar with specified colors */}
+                      <TechRadar 
+                          label={isTransformed ? "POTENTIAL" : "CURRENT"}
+                          color={isTransformed ? "#00d2ff" : "#ef4444"}
+                          data={isTransformed ? highStats : lowStats}
+                      />
+                      
+                      {/* Transformation Particle Effects */}
+                      {isTransformed && (
+                          <motion.div 
+                            initial={{ opacity: 0, scale: 0 }}
+                            animate={{ opacity: [0, 1, 0], scale: 1.5 }}
+                            transition={{ duration: 0.8 }}
+                            className="absolute inset-0 bg-system-neon/20 rounded-full blur-xl pointer-events-none"
+                          />
+                      )}
+                  </div>
+
+                  <div className="w-full space-y-4">
+                      {/* Assurance Banner */}
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1 }}
+                        className="bg-gray-900/50 border border-gray-800 p-3 rounded flex items-start gap-3"
+                      >
+                          <Lock size={16} className="text-system-neon mt-0.5 shrink-0" />
+                          <div>
+                              <div className="text-[10px] text-system-neon font-bold font-mono uppercase mb-1">SYSTEM ASSURANCE</div>
+                              <p className="text-[10px] text-gray-400 leading-relaxed font-mono">
+                                  {isTransformed 
+                                    ? "By following the daily quests, reaching this potential is mathematically guaranteed."
+                                    : "Current stats are temporary. System integration will initiate rapid growth."}
+                              </p>
+                          </div>
+                      </motion.div>
+
+                      {!isTransformed ? (
+                          <button 
+                            onClick={() => setIsTransformed(true)}
+                            className="w-full py-4 bg-gradient-to-r from-red-600 to-red-900 text-white font-black font-mono text-sm rounded shadow-[0_0_20px_rgba(220,38,38,0.5)] hover:shadow-[0_0_30px_rgba(220,38,38,0.7)] hover:scale-105 transition-all flex items-center justify-center gap-2"
+                          >
+                              INITIATE TRANSFORMATION <Zap size={16} fill="currentColor" />
+                          </button>
+                      ) : (
+                          <motion.button 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            onClick={startJourneySequence}
+                            className="w-full py-4 bg-system-neon text-black font-black font-mono text-sm rounded shadow-[0_0_20px_#00d2ff] hover:bg-white transition-all flex items-center justify-center gap-2"
+                          >
+                              ACCEPT PROTOCOL <Check size={16} />
+                          </motion.button>
+                      )}
+                  </div>
+              </div>
+          </div>
+      );
+  }
+
+  // --- STEP 3: FINALIZING (High Fidelity) ---
   if (viewMode === 'FINALIZING') {
       return (
-          <div className="flex flex-col items-center justify-center min-h-[70vh] bg-black text-green-500 font-mono text-xs absolute inset-0 z-50">
-              <div className="w-full max-w-md space-y-1">
-                  {finalizingLog}
+          <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono overflow-hidden">
+              
+              {/* Background Ambience */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1a1a1a_0%,_#000000_100%)] z-0" />
+              <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] brightness-100 contrast-150 z-0 pointer-events-none" />
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(0,210,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,255,0.05)_1px,transparent_1px)] bg-[size:50px_50px] pointer-events-none opacity-20 z-0" />
+
+              {/* Central Core Animation */}
+              <div className="relative z-10 mb-16 scale-150">
                   <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ repeat: Infinity, duration: 0.5 }}
-                    className="inline-block w-2 h-4 bg-green-500 ml-1"
+                    animate={{ rotate: 360 }} 
+                    transition={{ duration: 10, ease: "linear", repeat: Infinity }} 
+                    className="absolute inset-[-40px] border border-dashed border-system-neon/20 rounded-full"
+                  />
+                  <motion.div 
+                    animate={{ rotate: -360 }} 
+                    transition={{ duration: 15, ease: "linear", repeat: Infinity }} 
+                    className="absolute inset-[-20px] border border-dotted border-system-accent/30 rounded-full"
+                  />
+                  {/* Glowing Core */}
+                  <div className="w-12 h-12 bg-system-neon rounded-full blur-[20px] absolute inset-0 m-auto animate-pulse" />
+                  <div className="w-12 h-12 flex items-center justify-center relative bg-black rounded-full border border-system-neon/50 shadow-[0_0_30px_#00d2ff]">
+                      <Sparkles className="text-white" size={24} />
+                  </div>
+              </div>
+
+              {/* Cinematic Text */}
+              <div className="h-20 relative z-10 flex items-center justify-center w-full max-w-2xl px-4 text-center">
+                  <AnimatePresence mode="wait">
+                      <motion.div
+                          key={finalizingLog}
+                          initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
+                          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                          exit={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
+                          transition={{ duration: 0.5 }}
+                          className="text-xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-500 tracking-[0.1em] uppercase leading-tight drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+                      >
+                          {finalizingLog}
+                      </motion.div>
+                  </AnimatePresence>
+              </div>
+
+              {/* Progress Line */}
+              <div className="w-64 h-1 bg-gray-900 mt-12 rounded-full overflow-hidden relative z-10 border border-gray-800">
+                  <motion.div
+                      className="h-full bg-gradient-to-r from-system-neon to-white shadow-[0_0_15px_#00d2ff]"
+                      initial={{ width: "0%" }}
+                      animate={{ width: "100%" }}
+                      transition={{ duration: 12, ease: "easeInOut" }} // Matches approx sequence length
                   />
               </div>
+              
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1 }}
+                className="mt-4 text-[9px] text-gray-500 font-mono tracking-widest uppercase z-10"
+              >
+                  Integration in progress...
+              </motion.div>
           </div>
       );
   }

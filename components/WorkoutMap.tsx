@@ -49,9 +49,10 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
   }, [completedDays]);
 
   // 1. Calculate Journey Length
-  const weightDiff = Math.abs(currentWeight - targetWeight);
+  const weightDiff = Math.abs((currentWeight || 0) - (targetWeight || 0));
   // Assumption: 0.5kg change per week roughly
-  const estimatedWeeks = Math.max(4, Math.ceil(weightDiff / 0.5)); 
+  // CAP: Limit to 52 weeks (1 year) to prevent RangeError on huge numbers
+  const estimatedWeeks = Math.min(52, Math.max(4, Math.ceil(weightDiff / 0.5))); 
   const totalDays = estimatedWeeks * 7;
   
   // 2. Generate Path Points
@@ -72,6 +73,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
 
   // 3. Generate SVG Path String
   const svgPath = useMemo(() => {
+    if (points.length === 0) return "";
     let path = `M ${points[0].x} ${points[0].y}`;
     for (let i = 0; i < points.length - 1; i++) {
         const p1 = points[i];
@@ -88,7 +90,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
     return path;
   }, [points]);
 
-  const mapHeight = points[points.length - 1].y + 250; // Increased padding at bottom for tooltip space
+  const mapHeight = points.length > 0 ? points[points.length - 1].y + 250 : 600;
 
   return (
     <>
