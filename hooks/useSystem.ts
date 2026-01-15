@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { PlayerData, Quest, SystemNotification, NotificationType, ShopItem, ActivityLog, Rank, CoreStats, HealthProfile, AdminExercise, ProgressPhoto, MealLog } from '../types';
+import { supabase } from '../lib/supabase';
 
 export const DUMMY_VIDEO = 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-a-human-body-scan-9662-large.mp4';
 
@@ -185,6 +186,26 @@ export const useSystem = () => {
 
   // Helpers
   const getLocalDate = () => new Date().toISOString().split('T')[0];
+
+  // --- CLOUD SYNC HELPER ---
+  const syncToCloud = async (updatedPlayer: PlayerData) => {
+      // Only sync if user has a real DB ID and not a local fallback
+      if (updatedPlayer.userId && !updatedPlayer.userId.startsWith('local-')) {
+          try {
+              // We push the entire player state to 'raw_data' column
+              // This allows the Admin Dashboard to read biometrics, quest status, etc.
+              await supabase
+                  .from('profiles')
+                  .update({ 
+                      raw_data: updatedPlayer,
+                      updated_at: new Date().toISOString()
+                  })
+                  .eq('id', updatedPlayer.userId);
+          } catch (err) {
+              console.error("Cloud Sync Error:", err);
+          }
+      }
+  };
 
   const createLog = (message: string, type: ActivityLog['type']): ActivityLog => ({
     id: Math.random().toString(36).substr(2, 9),
@@ -619,7 +640,7 @@ export const useSystem = () => {
               }
           }
 
-          return {
+          const updatedPlayer = {
               ...prev,
               quests: updatedQuests,
               currentXp: newXp,
@@ -634,8 +655,14 @@ export const useSystem = () => {
               monthlyStats: newMonthlyStats,
               lastStatUpdate: { ...prev.lastStatUpdate, [statKey]: Date.now() },
               logs: [createLog(logMsg, 'XP'), ...prev.logs],
-              tutorialStep: newTutorialStep
+              tutorialStep: newTutorialStep,
+              dailyQuestComplete: true // Flag for Admin View
           };
+
+          // Sync progress to cloud
+          syncToCloud(updatedPlayer);
+
+          return updatedPlayer;
       });
   };
 
@@ -721,12 +748,17 @@ export const useSystem = () => {
   };
 
   const saveHealthProfile = (profile: HealthProfile, identity: string) => {
-      setPlayer(prev => ({
-          ...prev,
-          healthProfile: profile,
-          identity: identity,
-          logs: [createLog(`Health Protocol Updated: ${identity}`, 'SYSTEM'), ...prev.logs]
-      }));
+      setPlayer(prev => {
+          const updatedPlayer = {
+              ...prev,
+              healthProfile: profile,
+              identity: identity,
+              logs: [createLog(`Health Protocol Updated: ${identity}`, 'SYSTEM'), ...prev.logs]
+          };
+          // Sync calibration data to cloud immediately
+          syncToCloud(updatedPlayer);
+          return updatedPlayer;
+      });
       addNotification("Health Profile Saved", "SUCCESS");
   };
 
@@ -790,13 +822,17 @@ export const useSystem = () => {
       
       gainXp(totalReward);
       
-      setPlayer(prev => ({
-          ...prev,
-          stats: { ...prev.stats, strength: (prev.stats.strength || 0) + 1 },
-          lastStatUpdate: { ...prev.lastStatUpdate, strength: Date.now() },
-          personalBests: { ...prev.personalBests, ...results },
-          logs: [createLog(`Workout Complete: +${totalReward} XP`, 'WORKOUT'), ...prev.logs]
-      }));
+      setPlayer(prev => {
+          const updatedPlayer = {
+              ...prev,
+              stats: { ...prev.stats, strength: (prev.stats.strength || 0) + 1 },
+              lastStatUpdate: { ...prev.lastStatUpdate, strength: Date.now() },
+              personalBests: { ...prev.personalBests, ...results },
+              logs: [createLog(`Workout Complete: +${totalReward} XP`, 'WORKOUT'), ...prev.logs]
+          };
+          syncToCloud(updatedPlayer);
+          return updatedPlayer;
+      });
       addNotification(`Workout Complete! +${totalReward} XP`, "SUCCESS");
   };
 

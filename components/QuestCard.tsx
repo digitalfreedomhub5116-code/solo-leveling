@@ -46,6 +46,13 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onRese
           onFail(quest.id);
       }, 500);
   };
+
+  const handleDeleteClick = () => {
+      const confirmDelete = window.confirm("WARNING: This will permanently delete the quest and all associated data. This action cannot be undone. Are you sure?");
+      if (confirmDelete) {
+          onDelete(quest.id);
+      }
+  };
   
   // Dynamic styles based on state
   let borderColor = 'border-gray-800';
@@ -226,18 +233,20 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onRese
                 )}
             </>
           ) : (
-            // Completed or Failed -> Reset Option
-            <button 
-                onClick={() => onReset(quest.id)}
-                className="flex-1 md:flex-none px-4 py-2 rounded-lg bg-gray-800/50 text-gray-400 hover:text-white hover:bg-gray-700 transition-colors text-xs font-mono font-bold"
-            >
-                RESET
-            </button>
+            // Completed -> Reset Option. FAILED -> NO OPTION (Hidden)
+            !quest.failed && (
+                <button 
+                    onClick={() => onReset(quest.id)}
+                    className="flex-1 md:flex-none px-4 py-2 rounded-lg bg-gray-800/50 text-gray-400 hover:text-white hover:bg-gray-700 transition-colors text-xs font-mono font-bold"
+                >
+                    RESET
+                </button>
+            )
           )}
           
-          {/* Permanent Delete (Hidden for Failed usually, but kept for cleanup) */}
+          {/* Permanent Delete */}
           <button 
-             onClick={() => onDelete(quest.id)}
+             onClick={handleDeleteClick}
              disabled={isFailing}
              className="p-2.5 rounded-lg text-gray-700 hover:text-red-500 hover:bg-red-500/10 transition-colors"
              title="Permanently Delete"

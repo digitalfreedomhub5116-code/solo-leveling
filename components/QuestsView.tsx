@@ -36,31 +36,10 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
   }, [tutorialStep]);
 
   // Logic: Timeline Sorting
-  // 1. Active Quests (Top, sorted by Rank S->E)
-  // 2. Completed Quests (Middle, sorted by Recency)
-  // 3. Failed Quests (Bottom, sorted by Recency)
+  // Modified to keep all quests mixed together sorted by Recency (Newest First),
+  // regardless of whether they are active, completed, or failed.
   const timelineQuests = [...quests].sort((a, b) => {
-      // Primary Sort: Status Grouping
-      const getStatusScore = (q: Quest) => {
-          if (q.failed) return 3; // Bottom
-          if (q.isCompleted) return 2; // Middle
-          return 1; // Top
-      };
-      
-      const scoreA = getStatusScore(a);
-      const scoreB = getStatusScore(b);
-      
-      if (scoreA !== scoreB) return scoreA - scoreB;
-      
-      // Secondary Sort:
-      if (scoreA === 1) {
-          // Active: Sort by Rank Value (S=5, E=0) descending
-          const rankValue = (r: Rank) => ({'S':5, 'A':4, 'B':3, 'C':2, 'D':1, 'E':0}[r]);
-          return rankValue(b.rank) - rankValue(a.rank);
-      } else {
-          // Completed/Failed: Sort by CreatedAt descending (Newest first)
-          return b.createdAt - a.createdAt;
-      }
+      return b.createdAt - a.createdAt;
   });
 
   const activeCount = quests.filter(q => !q.isCompleted && !q.failed).length;
