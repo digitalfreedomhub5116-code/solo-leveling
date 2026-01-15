@@ -443,57 +443,91 @@ export const useSystem = () => {
   }, [player, isLoaded]);
 
   // Actions
-  const registerUser = (profile: Partial<PlayerData>) => {
+  const registerUser = async (profile: Partial<PlayerData>) => {
       const username = profile.username || profile.name || 'Hunter';
-      const key = `shadow_system_v4_${username}`;
-      const savedData = localStorage.getItem(key);
+      const localKey = `shadow_system_v4_${username}`;
       
       let finalData: PlayerData;
 
-      if (savedData) {
-          try {
-              const parsed = JSON.parse(savedData);
-              const processed = processSystemLogic(parsed);
-              // CRITICAL: Prefer local game state (stats, xp) over auth profile data to prevent reset/corruption
+      try {
+          // 1. ATTEMPT CLOUD SYNC FIRST (Source of Truth)
+          let cloudData = null;
+          if (profile.userId && !profile.userId.startsWith('local-')) {
+              const { data, error } = await supabase
+                  .from('profiles')
+                  .select('raw_data')
+                  .eq('id', profile.userId)
+                  .single();
+                  
+              if (data && data.raw_data) {
+                  cloudData = data.raw_data;
+              }
+          }
+
+          // 2. FALLBACK TO LOCAL STORAGE
+          const localData = localStorage.getItem(localKey);
+          let loadedData = cloudData; // Default to cloud
+
+          if (!loadedData && localData) {
+              loadedData = JSON.parse(localData);
+          }
+
+          if (loadedData) {
+              // 3. PROCESS LOGIC (Midnight reset, etc.)
+              const processed = processSystemLogic(loadedData);
+              
               finalData = { 
                   ...processed, 
-                  // Only update identity fields from auth profile
+                  // Ensure identity fields are consistent with auth
                   name: profile.name || processed.name,
                   username: profile.username || processed.username,
                   pin: profile.pin || processed.pin,
                   userId: profile.userId || processed.userId,
-                  // Explicitly preserve local stats if they exist, sanitized
-                  stats: sanitizeStats(processed.stats || INITIAL_PLAYER_DATA.stats),
-                  dailyStats: sanitizeStats(processed.dailyStats || INITIAL_PLAYER_DATA.dailyStats),
-                  weeklyStats: sanitizeStats(processed.weeklyStats || INITIAL_PLAYER_DATA.weeklyStats),
-                  monthlyStats: sanitizeStats(processed.monthlyStats || INITIAL_PLAYER_DATA.monthlyStats),
+                  
+                  // Restore Stats & Progress from Cloud/Local
+                  stats: sanitizeStats(processed.stats),
+                  dailyStats: sanitizeStats(processed.dailyStats),
+                  weeklyStats: sanitizeStats(processed.weeklyStats),
+                  monthlyStats: sanitizeStats(processed.monthlyStats),
+                  quests: processed.quests || [],
+                  level: processed.level,
+                  currentXp: processed.currentXp,
+                  totalXp: processed.totalXp,
+                  
                   isConfigured: true 
               };
-              addNotification(`Welcome back, ${finalData.username || finalData.name}.`, "SUCCESS");
-          } catch (e) {
-              console.error("Save Corrupt", e);
-              finalData = { ...getInitialState(), ...profile, username, isConfigured: true };
+              addNotification(`System Synchronized. Welcome back, ${finalData.username || finalData.name}.`, "SUCCESS");
+          } else {
+              // 4. NEW USER INITIALIZATION
+              finalData = { 
+                  ...getInitialState(), 
+                  ...profile, 
+                  username, 
+                  isConfigured: true,
+                  quests: [...WELCOME_QUESTS] 
+              };
+              addNotification("Identity Confirmed. System Link Established.", "SUCCESS");
           }
-      } else {
-          // New User Setup
-          finalData = { 
-              ...getInitialState(), 
-              ...profile, 
-              username, 
-              isConfigured: true,
-              quests: [...WELCOME_QUESTS] // Inject Welcome Quests
-          };
-          addNotification("Identity Confirmed. System Link Established.", "SUCCESS");
+      } catch (e) {
+          console.error("Login Sync Error", e);
+          finalData = { ...getInitialState(), ...profile, username, isConfigured: true };
+          addNotification("Connection Unstable. Local Protocol Active.", "WARNING");
       }
       
-      // Store Last User for Auto-Login
+      // Store Last User
       localStorage.setItem('shadow_system_last_user', username);
       
+      // Update State & Cloud Immediately
       setPlayer(finalData);
+      syncToCloud(finalData);
   };
 
   const updateProfile = (data: { name: string; job: string; title: string }) => {
-      setPlayer(prev => ({ ...prev, ...data }));
+      setPlayer(prev => {
+          const updated = { ...prev, ...data };
+          syncToCloud(updated);
+          return updated;
+      });
       addNotification("Profile Updated", "SUCCESS");
   };
 
@@ -506,11 +540,15 @@ export const useSystem = () => {
   };
 
   const completeTutorial = () => {
-      setPlayer(prev => ({
-          ...prev,
-          tutorialComplete: true,
-          tutorialStep: 999
-      }));
+      setPlayer(prev => {
+          const updated = {
+              ...prev,
+              tutorialComplete: true,
+              tutorialStep: 999
+          };
+          syncToCloud(updated);
+          return updated;
+      });
       addNotification("System Tutorial Complete. Full Access Granted.", "SUCCESS");
   };
 
@@ -530,27 +568,27 @@ export const useSystem = () => {
               leveledUp = true;
           }
 
+          let updatedLogs = prev.logs;
           if (leveledUp) {
               addNotification(`LEVEL UP! REACHED LEVEL ${newLevel}`, "LEVEL_UP");
-              return {
-                  ...prev,
-                  currentXp: newXp,
-                  totalXp: newTotalXp,
-                  dailyXp: newDailyXp,
-                  level: newLevel,
-                  requiredXp: newRequiredXp,
-                  hp: prev.maxHp,
-                  mp: prev.maxMp,
-                  logs: [createLog(`Reached Level ${newLevel}`, 'LEVEL_UP'), ...prev.logs]
-              };
+              updatedLogs = [createLog(`Reached Level ${newLevel}`, 'LEVEL_UP'), ...prev.logs];
           }
 
-          return {
+          const updatedPlayer = {
               ...prev,
               currentXp: newXp,
               totalXp: newTotalXp,
-              dailyXp: newDailyXp
+              dailyXp: newDailyXp,
+              level: newLevel,
+              requiredXp: newRequiredXp,
+              hp: leveledUp ? prev.maxHp : prev.hp,
+              mp: leveledUp ? prev.maxMp : prev.mp,
+              logs: updatedLogs
           };
+          
+          // Force Sync on XP change
+          syncToCloud(updatedPlayer);
+          return updatedPlayer;
       });
   };
 
@@ -558,7 +596,6 @@ export const useSystem = () => {
 
   const addQuest = (quest: Quest) => {
       setPlayer(prev => {
-          // Double check for duplicate title (case insensitive) to ensure system consistency
           if (prev.quests.some(q => q.title.toLowerCase() === quest.title.toLowerCase())) {
               return prev; 
           }
@@ -569,9 +606,7 @@ export const useSystem = () => {
               logs: [createLog(`New Quest: ${quest.title}`, 'SYSTEM'), ...prev.logs]
           };
           
-          // CRITICAL: Sync to database immediately for persistence
           syncToCloud(updatedPlayer);
-          
           return updatedPlayer;
       });
       addNotification("New Quest Assigned", "SYSTEM");
@@ -593,8 +628,6 @@ export const useSystem = () => {
           };
 
           const tier = RANK_REWARDS[quest.rank] || RANK_REWARDS['E'];
-
-          // Use the quest's stored XP if available (for custom values), otherwise default to tier
           const baseXp = quest.xpReward > 0 ? quest.xpReward : tier.xp;
           const baseGold = tier.gold;
 
@@ -607,7 +640,6 @@ export const useSystem = () => {
             
           const statKey = quest.category;
           
-          // UPDATE STAT BUCKETS (Accumulate)
           const newStats = { ...prev.stats };
           const newDailyStats = { ...prev.dailyStats };
           const newWeeklyStats = { ...prev.weeklyStats };
@@ -639,23 +671,17 @@ export const useSystem = () => {
           if (leveledUp) {
                addNotification(`LEVEL UP! REACHED LEVEL ${newLevel}`, "LEVEL_UP");
           } else {
-               // Fix: Don't show notification for welcome quests to avoid blocking UI
                if (!['wq_1', 'wq_2', 'wq_3', 'wq_4', 'wq_5'].includes(id)) {
                    addNotification(`Quest Complete +${rewardXp} XP, +${rewardGold} G`, "SUCCESS");
                }
           }
 
-          // --- TUTORIAL CHECK: Force complete all welcome quests ---
           let newTutorialStep = prev.tutorialStep;
           if (prev.tutorialStep === 7) {
               const welcomeIds = ['wq_1', 'wq_2', 'wq_3', 'wq_4', 'wq_5'];
-              // Check if all *other* welcome quests are completed + current one
-              // updatedQuests contains the current one marked as completed.
               const pendingWelcome = updatedQuests.filter(q => welcomeIds.includes(q.id) && !q.isCompleted);
-              
               if (pendingWelcome.length === 0) {
                   newTutorialStep = 8;
-                  // Auto-advance
               }
           }
 
@@ -675,12 +701,10 @@ export const useSystem = () => {
               lastStatUpdate: { ...prev.lastStatUpdate, [statKey]: Date.now() },
               logs: [createLog(logMsg, 'XP'), ...prev.logs],
               tutorialStep: newTutorialStep,
-              dailyQuestComplete: true // Flag for Admin View
+              dailyQuestComplete: true 
           };
 
-          // Sync progress to cloud
           syncToCloud(updatedPlayer);
-
           return updatedPlayer;
       });
   };
@@ -688,53 +712,57 @@ export const useSystem = () => {
   const failQuest = (id: string) => {
        setPlayer(prev => {
            const quest = prev.quests.find(q => q.id === id);
-           if (!quest || quest.failed) return prev; // Prevent double failing
+           if (!quest || quest.failed) return prev; 
            
-           // PENALTY LOGIC
            const newStats = { ...prev.stats };
            const penalty = 1;
            
-           // 1. Willpower Penalty (Always)
            newStats.willpower = Math.max(0, (newStats.willpower || 0) - penalty);
-           
-           // 2. Focus Penalty (Always)
            newStats.focus = Math.max(0, (newStats.focus || 0) - penalty);
            
-           // 3. Category Penalty
            if (quest.category && typeof newStats[quest.category] === 'number') {
                 newStats[quest.category] = Math.max(0, newStats[quest.category] - penalty);
            }
            
-           // 4. XP Penalty (50 or 10%)
            const xpPenalty = 50;
            const newXp = Math.max(0, prev.currentXp - xpPenalty);
 
-           // Mark as failed, do NOT remove
            const updatedQuests = prev.quests.map(q => q.id === id ? { ...q, failed: true } : q);
 
-           return {
+           const updatedPlayer = {
                ...prev,
                quests: updatedQuests,
                stats: newStats,
                currentXp: newXp,
                logs: [createLog(`Quest Failed: ${quest.title} (-1 WIL, -1 FOC, -${xpPenalty} XP)`, 'PENALTY'), ...prev.logs]
            };
+           
+           syncToCloud(updatedPlayer);
+           return updatedPlayer;
        });
        addNotification("Quest Failed. System Penalty Applied.", "DANGER");
   };
   
   const resetQuest = (id: string) => {
-      setPlayer(prev => ({
-          ...prev,
-          quests: prev.quests.map(q => q.id === id ? { ...q, isCompleted: false, completedAsMini: false, failed: false } : q)
-      }));
+      setPlayer(prev => {
+          const updated = {
+              ...prev,
+              quests: prev.quests.map(q => q.id === id ? { ...q, isCompleted: false, completedAsMini: false, failed: false } : q)
+          };
+          syncToCloud(updated);
+          return updated;
+      });
   };
 
   const deleteQuest = (id: string) => {
-      setPlayer(prev => ({
-          ...prev,
-          quests: prev.quests.filter(q => q.id !== id)
-      }));
+      setPlayer(prev => {
+          const updated = {
+              ...prev,
+              quests: prev.quests.filter(q => q.id !== id)
+          };
+          syncToCloud(updated);
+          return updated;
+      });
   };
 
   const purchaseItem = (item: ShopItem) => {
@@ -743,27 +771,37 @@ export const useSystem = () => {
               addNotification("Insufficient Gold", "WARNING");
               return prev;
           }
-          return {
+          const updated = {
               ...prev,
               gold: prev.gold - item.cost,
               logs: [createLog(`Purchased: ${item.title}`, 'PURCHASE'), ...prev.logs]
           };
+          syncToCloud(updated);
+          return updated;
       });
       addNotification("Item Purchased", "PURCHASE");
   };
 
   const addShopItem = (item: ShopItem) => {
-      setPlayer(prev => ({
-          ...prev,
-          shopItems: [...prev.shopItems, item]
-      }));
+      setPlayer(prev => {
+          const updated = {
+              ...prev,
+              shopItems: [...prev.shopItems, item]
+          };
+          syncToCloud(updated);
+          return updated;
+      });
   };
 
   const removeShopItem = (id: string) => {
-      setPlayer(prev => ({
-          ...prev,
-          shopItems: prev.shopItems.filter(i => i.id !== id)
-      }));
+      setPlayer(prev => {
+          const updated = {
+              ...prev,
+              shopItems: prev.shopItems.filter(i => i.id !== id)
+          };
+          syncToCloud(updated);
+          return updated;
+      });
   };
 
   const saveHealthProfile = (profile: HealthProfile, identity: string) => {
@@ -774,7 +812,6 @@ export const useSystem = () => {
               identity: identity,
               logs: [createLog(`Health Protocol Updated: ${identity}`, 'SYSTEM'), ...prev.logs]
           };
-          // Sync calibration data to cloud immediately
           syncToCloud(updatedPlayer);
           return updatedPlayer;
       });
@@ -786,7 +823,7 @@ export const useSystem = () => {
           if (!prev.healthProfile) return prev;
           
           const currentPhotos = prev.healthProfile.progressPhotos || [];
-          return {
+          const updated = {
               ...prev,
               healthProfile: {
                   ...prev.healthProfile,
@@ -794,6 +831,8 @@ export const useSystem = () => {
               },
               logs: [createLog(`Progress Photo Uploaded`, 'SYSTEM'), ...prev.logs]
           };
+          syncToCloud(updated);
+          return updated;
       });
       addNotification("Scan Uploaded. Sync Complete.", "SUCCESS");
   };
@@ -802,13 +841,15 @@ export const useSystem = () => {
       setPlayer(prev => {
           if (!prev.healthProfile || !prev.healthProfile.progressPhotos) return prev;
           
-          return {
+          const updated = {
               ...prev,
               healthProfile: {
                   ...prev.healthProfile,
                   progressPhotos: prev.healthProfile.progressPhotos.filter(p => p.id !== id)
               }
           };
+          syncToCloud(updated);
+          return updated;
       });
       addNotification("Record Deleted.", "SYSTEM");
   };
@@ -816,20 +857,26 @@ export const useSystem = () => {
   // --- NUTRITION LOGIC ---
   const logMeal = (meal: MealLog) => {
       setPlayer(prev => {
-          return {
+          const updated = {
               ...prev,
               nutritionLogs: [...(prev.nutritionLogs || []), meal],
               logs: [createLog(`Nutrition Logged: ${meal.label} (${meal.totalCalories} kcal)`, 'SYSTEM'), ...prev.logs]
           };
+          syncToCloud(updated);
+          return updated;
       });
       addNotification(`Meal Logged: ${meal.totalCalories} kcal`, "SUCCESS");
   };
 
   const deleteMeal = (id: string) => {
-      setPlayer(prev => ({
-          ...prev,
-          nutritionLogs: (prev.nutritionLogs || []).filter(log => log.id !== id)
-      }));
+      setPlayer(prev => {
+          const updated = {
+              ...prev,
+              nutritionLogs: (prev.nutritionLogs || []).filter(log => log.id !== id)
+          };
+          syncToCloud(updated);
+          return updated;
+      });
       addNotification("Meal Record Deleted", "SYSTEM");
   };
 
@@ -874,41 +921,53 @@ export const useSystem = () => {
   };
 
   const updateFocusVideos = (videos: Record<string, string>) => {
-      setPlayer(prev => ({
-          ...prev,
-          focusVideos: videos
-      }));
+      setPlayer(prev => {
+          const updated = { ...prev, focusVideos: videos };
+          // Don't auto-sync heavy video data here as it's often an admin action
+          // But if user updates it locally, we should sync
+          return updated;
+      });
   };
 
   // New Dashboard Helper Functions
   const updateAwakening = (type: 'vision' | 'antiVision', items: string[]) => {
-      setPlayer(prev => ({
-          ...prev,
-          awakening: {
-              ...prev.awakening,
-              [type]: items
-          }
-      }));
+      setPlayer(prev => {
+          const updated = {
+              ...prev,
+              awakening: {
+                  ...prev.awakening,
+                  [type]: items
+              }
+          };
+          syncToCloud(updated);
+          return updated;
+      });
   };
 
   const resolvePenalty = () => {
-      setPlayer(prev => ({
-          ...prev,
-          isPenaltyActive: false,
-          penaltyEndTime: undefined,
-          penaltyTask: undefined,
-          logs: [createLog("Penalty Cleared.", "SYSTEM"), ...prev.logs]
-      }));
+      setPlayer(prev => {
+          const updated = {
+              ...prev,
+              isPenaltyActive: false,
+              penaltyEndTime: undefined,
+              penaltyTask: undefined,
+              logs: [createLog("Penalty Cleared.", "SYSTEM"), ...prev.logs]
+          };
+          syncToCloud(updated);
+          return updated;
+      });
       addNotification("System Access Restored.", "SUCCESS");
   };
 
   const reducePenalty = (ms: number) => {
       setPlayer(prev => {
           if (!prev.penaltyEndTime) return prev;
-          return {
+          const updated = {
               ...prev,
               penaltyEndTime: prev.penaltyEndTime - ms
           };
+          syncToCloud(updated);
+          return updated;
       });
       addNotification("Penalty Duration Reduced.", "SYSTEM");
   };

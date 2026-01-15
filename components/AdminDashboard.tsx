@@ -184,6 +184,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       if (!userToDelete) return;
       setIsDeletingUser(true);
       try {
+          // STEP 1: Delete Dependent Data First (Cascading Deletion)
+          // To prevent Foreign Key violations if the DB isn't set to CASCADE automatically
+          
+          // Delete Recovery Questions
+          await supabase.from('recovery_questions').delete().eq('user_id', userToDelete.id);
+          
+          // STEP 2: Delete Profile
           const { error } = await supabase
               .from('profiles')
               .delete()
@@ -191,12 +198,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
           if (error) throw error;
 
-          // Local update
+          // STEP 3: Local State Update
           setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
           setUserToDelete(null);
+          
       } catch (err: any) {
           const msg = getErrorMessage(err);
-          alert(`Delete Failed: ${msg}`);
+          console.error("Deletion Error:", err);
+          alert(`Delete Failed: ${msg}. User may still exist in Auth service or has linked records.`);
       } finally {
           setIsDeletingUser(false);
       }

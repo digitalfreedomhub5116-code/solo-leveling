@@ -111,13 +111,15 @@ const GrowthView: React.FC<GrowthViewProps> = ({ player, onAdminRequest, onLogou
   };
 
   const handleMouseEnter = (e: React.MouseEvent, day: CalendarItem) => {
-      if (day.type === 'empty' || day.isFuture) return;
+      if (day.type === 'empty') return;
+      if (day.isFuture) return;
+      
       const rect = (e.target as HTMLElement).getBoundingClientRect();
       setTooltip({
           x: rect.left + rect.width / 2,
           y: rect.top - 10,
           date: new Date(day.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
-          percentage: day.percentage, // Safely accessed as type is narrowed by `day.type === 'empty'` check above logic (effectively) but explicitly typed now.
+          percentage: day.percentage, 
           stats: day.stats
       });
   };
