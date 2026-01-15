@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Trophy, Medal, Crown, Lock, AlertTriangle, ArrowUp, ArrowDown, Minus, Zap, Clock } from 'lucide-react';
 import { PlayerData } from '../types';
 

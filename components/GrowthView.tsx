@@ -10,6 +10,20 @@ interface GrowthViewProps {
   onLogout: () => void;
 }
 
+// Define explicit type for calendar items
+type CalendarItem = 
+  | { type: 'empty'; id: string }
+  | { 
+      type: 'day'; 
+      id: string; 
+      date: string; 
+      dayNum: number; 
+      percentage: number; 
+      isToday: boolean; 
+      isFuture: boolean; 
+      stats: string; 
+    };
+
 const DAYS_OF_WEEK = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
@@ -19,7 +33,7 @@ const GrowthView: React.FC<GrowthViewProps> = ({ player, onAdminRequest, onLogou
   const [tooltip, setTooltip] = useState<{ x: number, y: number, date: string, percentage: number, stats: string } | null>(null);
 
   // --- CALENDAR LOGIC ---
-  const calendarData = useMemo(() => {
+  const calendarData = useMemo<CalendarItem[]>(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     
@@ -33,8 +47,8 @@ const GrowthView: React.FC<GrowthViewProps> = ({ player, onAdminRequest, onLogou
     const safeFirstDay = Math.max(0, Math.min(6, firstDay));
     const safeDaysInMonth = Math.max(28, Math.min(31, daysInMonth));
 
-    // Create grid array: empty slots + day objects
-    const grid = [];
+    // Create grid array
+    const grid: CalendarItem[] = [];
     
     // Empty slots for start of month
     for (let i = 0; i < safeFirstDay; i++) {
@@ -46,8 +60,6 @@ const GrowthView: React.FC<GrowthViewProps> = ({ player, onAdminRequest, onLogou
     const playerHistoryMap = new Map<string, number>(player.history.map(h => [h.date, h.questCompletion]));
 
     // Calculate Today's Progress Live
-    // Filter active quests that aren't expired (though system handles expired elsewhere)
-    // Simply all quests currently in the list
     const activeQuests = player.quests;
     const completedToday = activeQuests.filter(q => q.isCompleted).length;
     const totalToday = activeQuests.length;
@@ -98,14 +110,14 @@ const GrowthView: React.FC<GrowthViewProps> = ({ player, onAdminRequest, onLogou
       return 'bg-system-success border border-green-400 shadow-[0_0_12px_rgba(16,185,129,0.6)]';
   };
 
-  const handleMouseEnter = (e: React.MouseEvent, day: any) => {
+  const handleMouseEnter = (e: React.MouseEvent, day: CalendarItem) => {
       if (day.type === 'empty' || day.isFuture) return;
       const rect = (e.target as HTMLElement).getBoundingClientRect();
       setTooltip({
           x: rect.left + rect.width / 2,
           y: rect.top - 10,
           date: new Date(day.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
-          percentage: day.percentage,
+          percentage: day.percentage, // Safely accessed as type is narrowed by `day.type === 'empty'` check above logic (effectively) but explicitly typed now.
           stats: day.stats
       });
   };

@@ -395,7 +395,7 @@ const DashboardView: React.FC<{
 
 const App: React.FC = () => {
   const { 
-    player, registerUser, updateProfile, addQuest, completeQuest, 
+    player, registerUser, addQuest, completeQuest, 
     failQuest, resetQuest, deleteQuest, purchaseItem, addShopItem, removeShopItem, 
     notifications, removeNotification, saveHealthProfile, addProgressPhoto, 
     deleteProgressPhoto, logMeal, deleteMeal, completeWorkoutSession, failWorkout,
