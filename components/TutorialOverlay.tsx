@@ -128,7 +128,6 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
         const rect = targetElement.getBoundingClientRect();
         
         // 2. Center element vertically, accounting for sticky headers (approx 100px offset)
-        const offset = 100;
         const bodyRect = document.body.getBoundingClientRect().top;
         const elementRect = rect.top;
         const elementPosition = elementRect - bodyRect;

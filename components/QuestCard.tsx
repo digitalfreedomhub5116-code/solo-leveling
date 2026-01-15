@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield, AlertOctagon, Zap, ZapOff } from 'lucide-react';
 import { Quest, CoreStats, Rank } from '../types';
 

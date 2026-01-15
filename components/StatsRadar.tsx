@@ -1,17 +1,14 @@
 
 import React, { useState, useMemo } from 'react';
-import { ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { Activity, Calendar, BarChart3, Hexagon, TrendingUp, Zap } from 'lucide-react';
-import { CoreStats, HistoryEntry } from '../types';
+import { Activity, BarChart3, Hexagon, Zap } from 'lucide-react';
+import { CoreStats } from '../types';
 
 interface EvaluationMatrixProps {
-  stats: CoreStats; // Current Totals (Lifetime)
-  history: HistoryEntry[];
   dailyXp: number; 
   dailyStats?: CoreStats; 
-  weeklyStats?: CoreStats; // New Prop
-  monthlyStats?: CoreStats; // New Prop
+  weeklyStats?: CoreStats; 
+  monthlyStats?: CoreStats; 
 }
 
 // Animation Variants for Panel Transitions
@@ -36,7 +33,6 @@ const RadarTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const value = data.value;
-    const growth = data.growth;
 
     return (
       <div className="bg-black/95 border border-system-neon/50 backdrop-blur-xl p-4 rounded-lg shadow-[0_0_30px_rgba(0,210,255,0.2)] z-50 pointer-events-none min-w-[140px]">
@@ -200,7 +196,7 @@ const CustomRadarChart = ({ data, domainMax, onHover, color1, color2, fillOpacit
     );
 };
 
-const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ stats, history, dailyStats, weeklyStats, monthlyStats }) => {
+const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({ dailyStats, weeklyStats, monthlyStats }) => {
   const [view, setView] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('DAILY');
   const [tooltipConfig, setTooltipConfig] = useState<{data: any, x: number, y: number} | null>(null);
 

@@ -204,8 +204,7 @@ const DashboardView: React.FC<{
                      
                      <div className="h-[300px] md:h-[350px] w-full">
                         <EvaluationMatrix 
-                            stats={player.stats} 
-                            history={player.history} 
+                            // Removed unused props stats/history to fix TS errors, component only uses these:
                             dailyXp={player.dailyXp || 0}
                             dailyStats={player.dailyStats} 
                             weeklyStats={player.weeklyStats} 
@@ -395,11 +394,11 @@ const DashboardView: React.FC<{
 
 const App: React.FC = () => {
   const { 
-    player, registerUser, updateProfile, gainXp, addQuest, completeQuest, 
+    player, registerUser, updateProfile, addQuest, completeQuest, 
     failQuest, resetQuest, deleteQuest, purchaseItem, addShopItem, removeShopItem, 
     notifications, removeNotification, saveHealthProfile, addProgressPhoto, 
     deleteProgressPhoto, logMeal, deleteMeal, completeWorkoutSession, failWorkout,
-    logout, advanceTutorial, completeTutorial: completeTutorialAction, updateAwakening, resolvePenalty, reducePenalty
+    logout, advanceTutorial, completeTutorial: completeTutorialAction, resolvePenalty, reducePenalty
   } = useSystem();
 
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
