@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Zap, Dumbbell, Check, Cpu, Flame, Target, Map, Calendar, List, Swords, Layers, Grid, TrendingUp, ShieldCheck, Lock, Sparkles } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Zap, Dumbbell, Check, Cpu, Flame, Target, Map, Swords, Layers, Grid, TrendingUp, ShieldCheck, Lock, Sparkles, User, Weight, ChevronRight, ChevronLeft, Shield, Brain, Eye } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
@@ -21,10 +20,9 @@ interface HealthViewProps {
   playerData: PlayerData;
   onTutorialAction?: (step: number) => void;
   tutorialStep?: number;
-  onToggleNav?: (visible: boolean) => void; // New Prop for controlling navigation
+  onToggleNav?: (visible: boolean) => void;
 }
 
-// --- TECH RADAR CHART UTILS ---
 const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
   return {
@@ -34,31 +32,33 @@ const polarToCartesian = (centerX: number, centerY: number, radius: number, angl
 };
 
 const TechRadar = ({ data, color, label }: { data: { value: number; fullMark: number; subject: string }[], color: string, label: string }) => {
-    const size = 300;
+    const size = 320;
     const center = size / 2;
     const radius = 100;
-    
-    // Grid Generation
     const gridLevels = 4;
-    const gridPaths = [];
-    for (let level = 1; level <= gridLevels; level++) {
-        const levelRadius = (radius / gridLevels) * level;
-        const pts = data.map((_, i) => {
+    
+    const gridPaths = useMemo(() => {
+        const paths = [];
+        for (let level = 1; level <= gridLevels; level++) {
+            const levelRadius = (radius / gridLevels) * level;
+            const pts = data.map((_, i) => {
+                const angle = (360 / data.length) * i;
+                const { x, y } = polarToCartesian(center, center, levelRadius, angle);
+                return `${x},${y}`;
+            });
+            paths.push(pts.join(' '));
+        }
+        return paths;
+    }, [data.length, radius, center]);
+
+    const axesLines = useMemo(() => {
+        return data.map((_, i) => {
             const angle = (360 / data.length) * i;
-            const { x, y } = polarToCartesian(center, center, levelRadius, angle);
-            return `${x},${y}`;
+            const { x, y } = polarToCartesian(center, center, radius, angle);
+            return { x1: center, y1: center, x2: x, y2: y };
         });
-        gridPaths.push(pts.join(' '));
-    }
+    }, [data.length, radius, center]);
 
-    // Axes Generation
-    const axesLines = data.map((_, i) => {
-        const angle = (360 / data.length) * i;
-        const { x, y } = polarToCartesian(center, center, radius, angle);
-        return { x1: center, y1: center, x2: x, y2: y };
-    });
-
-    // Data Points Calculation
     const points = data.map((d, i) => {
         const angle = (360 / data.length) * i;
         const valRadius = (d.value / d.fullMark) * radius;
@@ -68,87 +68,73 @@ const TechRadar = ({ data, color, label }: { data: { value: number; fullMark: nu
     const pathD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ') + ' Z';
 
     return (
-        <div id="tut-health-radar" className="relative flex flex-col items-center justify-center w-full h-full">
-            <h3 className="text-sm font-mono font-bold mb-4 tracking-[0.3em] uppercase transition-colors duration-500" style={{ color }}>{label}</h3>
-            
+        <div className="relative flex flex-col items-center justify-center w-full h-full font-mono">
+            <h3 className="text-sm font-bold mb-6 tracking-[0.4em] uppercase transition-colors duration-1000" style={{ color }}>{label}</h3>
             <svg width={size} height={size} className="overflow-visible">
                 <defs>
                     <linearGradient id={`radarFill-${label}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={color} stopOpacity={0.4}/>
-                        <stop offset="100%" stopColor={color} stopOpacity={0.05}/>
+                        <stop offset="0%" stopColor={color} stopOpacity={0.6}/>
+                        <stop offset="100%" stopColor={color} stopOpacity={0.1}/>
                     </linearGradient>
+                    <filter id="glow">
+                      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                      <feMerge>
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
+                    </filter>
                 </defs>
-
-                {/* Grid Polygons */}
                 {gridPaths.map((pts, i) => (
-                    <polygon key={`grid-${i}`} points={pts} fill="none" stroke="#333" strokeWidth="1" strokeDasharray="4 4" />
+                    <polygon key={`grid-${i}`} points={pts} fill="none" stroke="#222" strokeWidth="1" strokeDasharray="2 2" />
                 ))}
-                
-                {/* Axis Lines */}
                 {axesLines.map((line, i) => (
-                    <line key={`axis-${i}`} {...line} stroke="#333" strokeWidth="1" strokeDasharray="4 4" />
+                    <line key={`axis-${i}`} {...line} stroke="#222" strokeWidth="1" strokeDasharray="2 2" />
                 ))}
-
-                {/* Data Points (Dots) & Labels */}
                 {data.map((d, i) => {
                      const angle = (360 / data.length) * i;
-                     const labelPos = polarToCartesian(center, center, radius + 35, angle);
+                     const labelPos = polarToCartesian(center, center, radius + 40, angle);
                      const point = points[i];
-                     
                      return (
                         <motion.g key={i}
                             initial={{ opacity: 0, scale: 0 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: i * 0.15, duration: 0.3, type: "spring" }}
+                            transition={{ delay: i * 0.1, duration: 0.5, type: "spring" }}
                         >
-                             {/* Label */}
                              <text 
                                 x={labelPos.x} y={labelPos.y} 
                                 textAnchor="middle" dominantBaseline="middle" 
-                                fill="#666" fontSize="8" fontFamily="monospace" fontWeight="bold" letterSpacing="1px"
+                                fill="#888" fontSize="9" fontWeight="bold" letterSpacing="1px"
+                                className="uppercase"
                              >
                                  {d.subject}
                              </text>
-                             
-                             {/* Animated Dot */}
                              <motion.circle
                                 cx={point.x} cy={point.y} 
-                                r={4}
+                                r={3}
                                 fill="#000" stroke={color} strokeWidth={2}
-                                animate={{ cx: point.x, cy: point.y, stroke: color }}
-                                transition={{ duration: 0.1 }}
+                                animate={{ cx: point.x, cy: point.y }}
+                                transition={{ duration: 1.2, ease: "easeInOut" }}
                             />
                         </motion.g>
                      );
                 })}
-
-                {/* Data Stroke (The Link) - Animates after dots */}
                 <motion.path
                     d={pathD}
                     fill="none"
                     stroke={color}
-                    strokeWidth="2"
+                    strokeWidth="3"
+                    filter="url(#glow)"
                     initial={{ pathLength: 0, opacity: 0 }}
-                    animate={{ pathLength: 1, opacity: 1, d: pathD, stroke: color }}
-                    transition={{ 
-                        pathLength: { delay: data.length * 0.15, duration: 0.8, ease: "easeInOut" },
-                        opacity: { delay: data.length * 0.15, duration: 0.2 },
-                        d: { duration: 0.1 }, // Rapid update for transformation
-                        stroke: { duration: 0.5 }
-                    }}
+                    animate={{ pathLength: 1, opacity: 1, d: pathD }}
+                    transition={{ duration: 1.5, ease: "easeInOut" }}
                 />
-
-                {/* Data Area (Fill) - Fades in last */}
                 <motion.path
                     d={pathD}
                     fill={`url(#radarFill-${label})`}
                     stroke="none"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1, d: pathD }}
-                    transition={{ 
-                        opacity: { delay: (data.length * 0.15) + 0.8, duration: 0.5 },
-                        d: { duration: 0.1 }
-                    }}
+                    transition={{ delay: 0.8, duration: 1 }}
                 />
             </svg>
         </div>
@@ -162,48 +148,22 @@ const calculateNutritionPlan = (profile: Partial<HealthProfile>) => {
   const gender = profile.gender || 'MALE';
   const activity = profile.activityLevel || 'MODERATE';
   const goal = profile.goal || 'RECOMP';
-
   let bmr = (10 * weight) + (6.25 * height) - (5 * age);
   if (gender === 'MALE') bmr += 5;
   else if (gender === 'FEMALE') bmr -= 161;
-  else bmr += 5;
-
-  const activityMultipliers: Record<string, number> = {
-      'SEDENTARY': 1.2,
-      'LIGHT': 1.375,
-      'MODERATE': 1.55,
-      'VERY_ACTIVE': 1.725
-  };
-  
-  const tdee = bmr * (activityMultipliers[activity] || 1.55);
-  
+  const multipliers: Record<string, number> = { 'SEDENTARY': 1.2, 'LIGHT': 1.375, 'MODERATE': 1.55, 'VERY_ACTIVE': 1.725 };
+  const tdee = bmr * (multipliers[activity] || 1.55);
   let targetCalories = tdee;
   if (goal === 'LOSE_WEIGHT') targetCalories -= 500;
   else if (goal === 'BUILD_MUSCLE') targetCalories += 300;
-  else if (goal === 'RECOMP') targetCalories -= 200; // Slight deficit for body recomposition
-  
-  const protein = Math.round(weight * 2.2); // Higher protein for recomp
+  const protein = Math.round(weight * 2.2);
   const fats = Math.round((targetCalories * 0.25) / 9);
   const carbs = Math.round((targetCalories - (protein * 4) - (fats * 9)) / 4);
-
-  return {
-      bmr: Math.round(bmr),
-      macros: {
-          protein: Math.round(protein),
-          fats: Math.round(fats),
-          carbs: Math.round(carbs),
-          calories: Math.round(targetCalories)
-      },
-      tdee: Math.round(tdee)
-  };
+  return { bmr: Math.round(bmr), macros: { protein, fats, carbs, calories: Math.round(targetCalories) }, tdee: Math.round(tdee) };
 };
 
-// Lerp Helper function for color and values
 const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
-
-// Color interpolator (Simple RGB)
 const lerpColor = (a: string, b: string, amount: number) => { 
-    // Expects hex strings like #RRGGBB
     const ah = parseInt(a.replace(/#/g, ''), 16),
           ar = ah >> 16, ag = ah >> 8 & 0xff, ab = ah & 0xff,
           bh = parseInt(b.replace(/#/g, ''), 16),
@@ -211,1063 +171,495 @@ const lerpColor = (a: string, b: string, amount: number) => {
           rr = ar + amount * (br - ar),
           rg = ag + amount * (bg - ag),
           rb = ab + amount * (bb - ab);
-
     return '#' + ((1 << 24) + (Math.round(rr) << 16) + (Math.round(rg) << 8) + Math.round(rb)).toString(16).slice(1);
 }
 
 const HealthView: React.FC<HealthViewProps> = ({ 
-  healthProfile, 
-  onSaveProfile, 
-  onCompleteWorkout, 
-  onFailWorkout, 
-  onAddPhoto, 
-  onDeletePhoto, 
-  onLogMeal, 
-  onDeleteMeal,
-  playerData,
-  onTutorialAction,
-  tutorialStep,
-  onToggleNav
+  healthProfile, onSaveProfile, onCompleteWorkout, onFailWorkout, onAddPhoto, onDeletePhoto, onLogMeal, onDeleteMeal, playerData, onTutorialAction, tutorialStep, onToggleNav
 }) => {
-  // New States: DIAGNOSIS (Current State) -> PROJECTION (Graph)
   const [viewMode, setViewMode] = useState<'MAP' | 'OVERVIEW' | 'ACTIVE' | 'SETUP' | 'PROCESSING' | 'DIAGNOSIS' | 'PROJECTION' | 'FINALIZING'>('MAP');
   const [activeTab, setActiveTab] = useState<'WORKOUT' | 'NUTRITION' | 'BODY'>('WORKOUT');
-  
-  // Projection Animation State
-  const [transformProgress, setTransformProgress] = useState(0); // 0 to 1
-  const [isTransformed, setIsTransformed] = useState(false); // Completed state
-
-  // Workout State
-  const [, setSelectedDayIndex] = useState<number | null>(null);
+  const [transformProgress, setTransformProgress] = useState(0);
+  const [isTransformed, setIsTransformed] = useState(false);
   const [activePlan, setActivePlan] = useState<WorkoutDay | null>(null);
-
-  // Setup Form State
   const [step, setStep] = useState(1);
-  const TOTAL_STEPS = 8;
+  const TOTAL_STEPS = 9;
   const [formData, setFormData] = useState<Partial<HealthProfile>>({
-      gender: 'MALE', 
-      activityLevel: 'MODERATE', 
-      goal: 'RECOMP', 
-      equipment: 'GYM',
-      workoutSplit: 'CLASSIC', 
-      intensity: 'MODERATE', 
-      sessionDuration: 45, 
-      age: 25, 
-      height: 175, 
-      weight: 70,
-      targetWeight: 70
+      gender: 'MALE', activityLevel: 'MODERATE', goal: 'RECOMP', equipment: 'GYM', workoutSplit: 'CLASSIC', age: 25, height: 175, weight: 70, targetWeight: 70
   });
-
   const [foodSearch, setFoodSearch] = useState('');
   const [finalizingLog, setFinalizingLog] = useState("Initializing...");
 
-  // Control Navigation Visibility
   useEffect(() => {
       if (onToggleNav) {
-          // Hide nav during these "immersive" phases
           const hideNavModes = ['SETUP', 'PROCESSING', 'DIAGNOSIS', 'PROJECTION', 'FINALIZING'];
-          if (hideNavModes.includes(viewMode)) {
-              onToggleNav(false);
-          } else {
-              onToggleNav(true);
-          }
+          onToggleNav(!hideNavModes.includes(viewMode));
       }
-      return () => {
-          if (onToggleNav) onToggleNav(true); // Restore on unmount
-      };
   }, [viewMode, onToggleNav]);
 
-  // Initial Logic
-  useEffect(() => {
-      if (!healthProfile) setViewMode('SETUP');
-  }, [healthProfile]);
+  useEffect(() => { if (!healthProfile) setViewMode('SETUP'); }, [healthProfile]);
 
-  // Derived Values
-  const calculatedPlan = useMemo(() => {
-     if (healthProfile?.workoutPlan) return healthProfile.workoutPlan;
-     if (formData.weight && formData.height) return generateSystemProtocol(formData as HealthProfile);
-     return [];
-  }, [healthProfile, formData]);
-
+  const calculatedPlan = useMemo(() => healthProfile?.workoutPlan || generateSystemProtocol(formData as HealthProfile), [healthProfile, formData]);
   const nutritionInfo = useMemo(() => calculateNutritionPlan(healthProfile || formData), [healthProfile, formData]);
-  
-  // BMI calc for Diagnosis
-  const currentBMI = useMemo(() => {
-      if(formData.weight && formData.height) {
-          return (formData.weight / ((formData.height/100) ** 2)).toFixed(1);
-      }
-      return "0.0";
-  }, [formData.weight, formData.height]);
-
-  // Handlers
-  const handleDaySelect = (index: number) => {
-      if (index > calculatedPlan.length) return;
-      const dayPlan = calculatedPlan[index % calculatedPlan.length];
-      setActivePlan(dayPlan);
-      setSelectedDayIndex(index);
-      setViewMode('OVERVIEW');
-  };
-
-  const startWorkout = (modifiedPlan: WorkoutDay, _isCardio: boolean) => {
-      setActivePlan(modifiedPlan);
-      setViewMode('ACTIVE');
-  };
-
-  const finishWorkout = (completed: number, total: number, results: Record<string, number>) => {
-      onCompleteWorkout(completed, total, results, false);
-      setViewMode('MAP');
-      setActivePlan(null);
-      setSelectedDayIndex(null);
-  };
+  const currentBMI = useMemo(() => (formData.weight && formData.height) ? (formData.weight / ((formData.height/100) ** 2)).toFixed(1) : "0.0", [formData.weight, formData.height]);
 
   const startProcessing = () => {
       setViewMode('PROCESSING');
-      setTimeout(() => {
-          // Jump to Diagnosis (Current Situation) instead of Analysis
-          setViewMode('DIAGNOSIS');
-          if (tutorialStep === 12 && onTutorialAction) {
-              onTutorialAction(13);
-          }
-      }, 4500); // Extended time to enjoy the animation
+      setTimeout(() => setViewMode('DIAGNOSIS'), 5000);
   };
 
   const startJourneySequence = () => {
       setViewMode('FINALIZING');
-      const sequence = [
-          "REWRITING BIOLOGICAL LIMITS...",
-          "UNLOCKING HIDDEN POTENTIAL...",
-          "YOUR OLD SELF IS BEING ARCHIVED...",
-          "CONSTRUCTING A NEW REALITY...",
-          "SYSTEM ONLINE. ASCENSION BEGINS."
-      ];
-      
+      const sequence = ["BIOLOGICAL RESTRUCTURING...", "NEURAL SYNCING...", "CONSTRUCTING PROTOCOLS...", "SYSTEM ONLINE. ASCEND."];
       let i = 0;
       const interval = setInterval(() => {
           setFinalizingLog(sequence[i]);
           i++;
           if (i >= sequence.length) {
               clearInterval(interval);
-              setTimeout(() => finalizeSetup(), 2500);
+              setTimeout(() => {
+                const fullProfile = { ...formData, bmi: parseFloat(currentBMI), bmr: nutritionInfo.bmr, workoutPlan: calculatedPlan, macros: nutritionInfo.macros, injuries: [], category: 'Hunter', startingWeight: formData.weight } as HealthProfile;
+                onSaveProfile(fullProfile, "Shadow Vessel");
+                setViewMode('MAP');
+              }, 2000);
           }
-      }, 2000); 
+      }, 1500); 
   };
 
-  const finalizeSetup = () => {
-      const fullProfile = {
-          ...formData,
-          bmi: parseFloat(currentBMI),
-          bmr: nutritionInfo.bmr,
-          workoutPlan: calculatedPlan,
-          macros: nutritionInfo.macros,
-          injuries: [],
-          category: 'Hunter',
-          startingWeight: formData.weight,
-          targetWeight: formData.targetWeight || formData.weight
-      } as HealthProfile;
-
-      let identity = "Shadow Recruit";
-      if (fullProfile.goal === 'LOSE_WEIGHT') identity = "Iron Vessel";
-      else if (fullProfile.goal === 'BUILD_MUSCLE') identity = "Titan Vanguard";
-      else if (fullProfile.goal === 'ENDURANCE') identity = "Wind Walker";
-      else if (fullProfile.goal === 'RECOMP') identity = "Shadow Sovereign";
-
-      onSaveProfile(fullProfile, identity);
-      setViewMode('MAP');
-      
-      if (tutorialStep === 13 && onTutorialAction) {
-          onTutorialAction(14);
-      }
-  };
-
-  const handleSkipSetup = () => {
-      // Create a sensible default profile to allow app access
-      const defaultProfile = {
-          ...formData,
-          // Ensure critical fields exist
-          workoutPlan: calculatedPlan,
-          macros: nutritionInfo.macros,
-          bmi: parseFloat(currentBMI) || 22,
-          bmr: nutritionInfo.bmr || 1800,
-          category: 'Rookie',
-          injuries: []
-      } as HealthProfile;
-      
-      onSaveProfile(defaultProfile, "Novice Hunter");
-      setViewMode('MAP');
-  };
-
-  // --- RENDER: SETUP WIZARD & PROCESSING ---
-  
   if (viewMode === 'PROCESSING') {
       return (
-          <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-8 bg-black/95 absolute inset-0 z-50">
-              {/* ... (processing visualization remains same) ... */}
-              <div className="relative w-48 h-48 flex items-center justify-center mb-8">
-                  {/* Outer Rings */}
+          <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono p-6">
+              <div className="relative w-48 h-48 mb-12">
                   <motion.div 
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                    className="absolute inset-0 border border-system-neon/20 rounded-full border-dashed"
+                    animate={{ rotate: 360 }} 
+                    transition={{ duration: 10, repeat: Infinity, ease: "linear" }} 
+                    className="absolute inset-0 border-2 border-system-neon/20 border-dashed rounded-full" 
                   />
                   <motion.div 
-                    animate={{ rotate: -360 }}
-                    transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-                    className="absolute inset-4 border border-system-accent/20 rounded-full border-dotted"
+                    animate={{ rotate: -360 }} 
+                    transition={{ duration: 6, repeat: Infinity, ease: "linear" }} 
+                    className="absolute inset-4 border-2 border-system-accent/40 border-dotted rounded-full" 
                   />
-                  
-                  {/* Scanning Bar */}
                   <motion.div 
-                    animate={{ height: ['0%', '100%', '0%'] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute w-full bg-gradient-to-b from-transparent via-system-neon/30 to-transparent"
-                    style={{ height: '50%', top: '0%' }}
+                    animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }} 
+                    transition={{ duration: 2, repeat: Infinity }} 
+                    className="absolute inset-8 border-t-2 border-white rounded-full shadow-[0_0_20px_#fff]" 
                   />
-
-                  {/* Center Icon */}
-                  <Cpu className="text-system-neon animate-pulse" size={40} />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                      <Cpu className="text-system-neon animate-pulse" size={48} />
+                  </div>
+                  {/* Binary Data Pulse */}
+                  <div className="absolute -inset-8 pointer-events-none overflow-hidden flex flex-col items-center justify-center opacity-20 text-[8px] text-system-neon leading-none">
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <motion.div 
+                          key={i}
+                          initial={{ x: -100 }}
+                          animate={{ x: 100 }}
+                          transition={{ duration: 2, repeat: Infinity, delay: i * 0.25, ease: "linear" }}
+                        >
+                          {Math.random() > 0.5 ? '10110011' : '01001101'}
+                        </motion.div>
+                      ))}
+                  </div>
               </div>
-
-              <h2 className="text-2xl font-black text-white font-mono tracking-tighter mb-2">CALIBRATING SYSTEM</h2>
-              
-              <div className="h-6 overflow-hidden relative w-full max-w-xs">
-                  <motion.div 
-                    animate={{ y: -120 }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                    className="absolute top-full left-0 w-full text-center space-y-2"
-                  >
-                      <p className="text-[10px] text-gray-500 font-mono">ANALYZING BIOMETRICS...</p>
-                      <p className="text-[10px] text-system-neon font-mono">CALCULATING POTENTIAL...</p>
-                      <p className="text-[10px] text-system-accent font-mono">OPTIMIZING PATHWAYS...</p>
-                      <p className="text-[10px] text-green-500 font-mono">SUCCESS PROBABILITY: 100%</p>
-                      <p className="text-[10px] text-gray-500 font-mono">GENERATING GRAPH...</p>
-                  </motion.div>
-              </div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center"
+              >
+                <h2 className="text-2xl font-black text-white tracking-[0.5em] mb-2">CALIBRATING SYSTEM</h2>
+                <div className="text-[10px] text-system-neon/60 tracking-widest uppercase">Analyzing Biological Signature...</div>
+                <div className="mt-8 w-64 h-1 bg-gray-900 rounded-full overflow-hidden mx-auto">
+                    <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 5, ease: "easeInOut" }}
+                        className="h-full bg-system-neon shadow-[0_0_15px_#00d2ff]" 
+                    />
+                </div>
+              </motion.div>
           </div>
       );
   }
 
-  // --- STEP 1: CURRENT DIAGNOSIS ---
   if (viewMode === 'DIAGNOSIS') {
       return (
-          <div className="flex flex-col items-center justify-center min-h-[70vh] bg-black/95 absolute inset-0 z-50 p-6">
-              <div className="w-full max-w-md relative">
-                  {/* Decorative corner lines */}
-                  <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-red-500" />
-                  <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-red-500" />
+          <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-6 font-mono">
+              <div className="w-full max-w-md border border-gray-800 p-8 rounded-3xl bg-system-card relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-system-neon opacity-50" />
+                  <h2 className="text-2xl font-black text-white mb-8 flex items-center gap-2"><Fingerprint className="text-system-neon" /> INITIAL ANALYSIS</h2>
                   
-                  {/* Updated Header */}
-                  <div className="mb-8 border-b border-gray-800 pb-4">
-                      <h2 className="text-2xl font-black text-white font-mono tracking-tighter flex items-center gap-2">
-                          <Terminal size={24} className="text-system-neon" /> SYSTEM ANALYSIS
-                      </h2>
-                      <div className="flex items-center gap-2 mt-2">
-                          <ShieldCheck size={12} className="text-system-success" />
-                          <span className="text-[10px] text-system-success font-mono tracking-wider">SYSTEM GUARANTEE: GOAL ACHIEVEMENT INEVITABLE</span>
+                  <div className="grid grid-cols-2 gap-4 mb-8">
+                      <div className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon transition-colors group">
+                        <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold">BMI Index</div>
+                        <div className="text-3xl text-white font-black">{currentBMI}</div>
+                      </div>
+                      <div className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon transition-colors group">
+                        <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold">BMR Status</div>
+                        <div className="text-3xl text-white font-black">{nutritionInfo.bmr}</div>
                       </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-8">
-                      <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="bg-gray-900/30 border border-gray-800 p-4 rounded-lg">
-                          <div className="text-[10px] text-gray-500 font-mono">CURRENT BMI</div>
-                          <div className="text-2xl text-white font-mono font-bold">{currentBMI}</div>
-                      </motion.div>
-                      <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="bg-gray-900/30 border border-gray-800 p-4 rounded-lg">
-                          <div className="text-[10px] text-gray-500 font-mono">EST. TIME TO GOAL</div>
-                          <div className="text-xl text-yellow-500 font-mono font-bold">{calculateTimeEstimate(formData)}</div>
-                      </motion.div>
-                      <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="bg-gray-900/30 border border-gray-800 p-4 rounded-lg">
-                          <div className="text-[10px] text-gray-500 font-mono">DAILY CALORIES</div>
-                          <div className="text-xl text-blue-400 font-mono font-bold">{nutritionInfo.macros.calories}</div>
-                      </motion.div>
-                      <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="bg-gray-900/30 border border-gray-800 p-4 rounded-lg">
-                          <div className="text-[10px] text-gray-500 font-mono">SYSTEM RANK</div>
-                          <div className="text-2xl text-white font-mono font-bold">C-RANK</div>
-                      </motion.div>
+                  <div className="space-y-3 mb-8">
+                    <div className="flex items-center gap-2 text-[10px] text-gray-400 uppercase font-bold"><Check size={14} className="text-system-success" /> METABOLIC SYNC STABLE</div>
+                    <div className="flex items-center gap-2 text-[10px] text-gray-400 uppercase font-bold"><Check size={14} className="text-system-success" /> NEURAL INTERFACE ONLINE</div>
                   </div>
 
                   <button 
-                    onClick={() => setViewMode('PROJECTION')}
-                    className="w-full py-4 bg-white text-black font-black font-mono text-sm rounded hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 group shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+                    onClick={() => setViewMode('PROJECTION')} 
+                    className="w-full py-5 bg-white text-black font-black rounded-2xl shadow-[0_0_30px_white] hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
                   >
-                      VIEW POTENTIAL <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                    VIEW ASCENSION PROJECTION <ArrowRight size={20} />
                   </button>
               </div>
           </div>
       );
   }
 
-  // --- STEP 2: PROJECTION & TRANSFORMATION ---
   if (viewMode === 'PROJECTION') {
-      const lowStats = [
-          { subject: 'STRENGTH', value: 40, fullMark: 100 },
-          { subject: 'VITALITY', value: 45, fullMark: 100 },
-          { subject: 'AGILITY', value: 35, fullMark: 100 },
-          { subject: 'INTELLIGENCE', value: 50, fullMark: 100 },
-          { subject: 'PERCEPTION', value: 40, fullMark: 100 }
+      const lowStats = [ 
+          { subject: 'STRENGTH', value: 40, fullMark: 100 }, 
+          { subject: 'VITALITY', value: 45, fullMark: 100 }, 
+          { subject: 'AGILITY', value: 35, fullMark: 100 }, 
+          { subject: 'INTELLIGENCE', value: 50, fullMark: 100 }, 
+          { subject: 'PERCEPTION', value: 40, fullMark: 100 } 
       ];
-
-      const highStats = [
-          { subject: 'STRENGTH', value: 85, fullMark: 100 },
-          { subject: 'VITALITY', value: 90, fullMark: 100 },
-          { subject: 'AGILITY', value: 80, fullMark: 100 },
-          { subject: 'INTELLIGENCE', value: 75, fullMark: 100 },
-          { subject: 'PERCEPTION', value: 95, fullMark: 100 }
+      const highStats = [ 
+          { subject: 'STRENGTH', value: 85, fullMark: 100 }, 
+          { subject: 'VITALITY', value: 90, fullMark: 100 }, 
+          { subject: 'AGILITY', value: 80, fullMark: 100 }, 
+          { subject: 'INTELLIGENCE', value: 75, fullMark: 100 }, 
+          { subject: 'PERCEPTION', value: 95, fullMark: 100 } 
       ];
-
-      // Calculate current interpolation based on progress
-      const currentStats = lowStats.map((stat, i) => ({
-          subject: stat.subject,
-          value: lerp(stat.value, highStats[i].value, transformProgress),
-          fullMark: 100
-      }));
-
-      // Interpolate Color: Red (#ef4444) to Neon Blue (#00d2ff)
+      const currentStats = lowStats.map((stat, i) => ({ subject: stat.subject, value: lerp(stat.value, highStats[i].value, transformProgress), fullMark: 100 }));
       const currentColor = lerpColor("#ef4444", "#00d2ff", transformProgress);
 
-      const handleInitiateTransformation = () => {
-          let progress = 0;
-          const duration = 2000; // 2 seconds expansion
-          const intervalRate = 16; // ~60fps
-          const step = 1 / (duration / intervalRate);
-
-          const timer = setInterval(() => {
-              progress += step;
-              if (progress >= 1) {
-                  progress = 1;
-                  setIsTransformed(true);
-                  clearInterval(timer);
-              }
-              setTransformProgress(progress);
-          }, intervalRate);
-      };
-
       return (
-          <div className="flex flex-col items-center justify-center min-h-[70vh] bg-black/95 absolute inset-0 z-50 p-6">
-              <div className="w-full max-w-sm flex flex-col items-center">
-                  <h2 className="text-xl font-bold text-white font-mono mb-1 tracking-[0.2em] flex items-center gap-2">
-                      <TrendingUp size={20} style={{ color: currentColor }} /> 
-                      {isTransformed ? "SYSTEM POTENTIAL" : "CURRENT LIMITS"}
-                  </h2>
-                  <div className="text-[10px] font-mono text-gray-500 mb-4 tracking-widest uppercase">
-                      RANK: {isTransformed ? "S-CLASS" : "C-CLASS"}
-                  </div>
-                  
-                  <div className="relative mb-8 w-full max-w-[320px] aspect-square">
-                      {/* Using TechRadar with dynamic interpolated data */}
-                      <TechRadar 
-                          label={isTransformed ? "POTENTIAL" : "CURRENT"}
-                          color={currentColor}
-                          data={currentStats}
-                      />
-                      
-                      {/* Transformation Particle Effects */}
-                      {isTransformed && (
-                          <motion.div 
-                            initial={{ opacity: 0, scale: 0 }}
-                            animate={{ opacity: [0, 1, 0], scale: 1.5 }}
-                            transition={{ duration: 0.8 }}
-                            className="absolute inset-0 bg-system-neon/20 rounded-full blur-xl pointer-events-none"
-                          />
-                      )}
-                  </div>
-
-                  <div className="w-full space-y-4">
-                      {/* Assurance Banner */}
-                      <motion.div 
-                        layout
-                        className={`border p-3 rounded flex items-start gap-3 transition-colors duration-500 ${isTransformed ? 'bg-system-neon/10 border-system-neon/50' : 'bg-gray-900/50 border-gray-800'}`}
-                      >
-                          <Lock size={16} className="mt-0.5 shrink-0" style={{ color: currentColor }} />
-                          <div>
-                              <div className="text-[10px] font-bold font-mono uppercase mb-1" style={{ color: currentColor }}>SYSTEM ASSURANCE</div>
-                              <p className="text-[10px] text-gray-400 leading-relaxed font-mono">
-                                  {isTransformed 
-                                    ? "Growth potential verified. By following the daily quests, reaching this state is mathematically guaranteed."
-                                    : "Current stats are temporary. System integration will initiate rapid growth."}
-                              </p>
-                          </div>
-                      </motion.div>
-
-                      {!isTransformed && transformProgress === 0 && (
-                          <button 
-                            onClick={handleInitiateTransformation}
-                            className="w-full py-4 bg-gradient-to-r from-red-600 to-red-900 text-white font-black font-mono text-sm rounded shadow-[0_0_20px_rgba(220,38,38,0.5)] hover:shadow-[0_0_30px_rgba(220,38,38,0.7)] hover:scale-105 transition-all flex items-center justify-center gap-2"
-                          >
-                              INITIATE TRANSFORMATION <Zap size={16} fill="currentColor" />
-                          </button>
-                      )}
-                      
-                      {/* Show processing button if animating */}
-                      {transformProgress > 0 && !isTransformed && (
-                          <button disabled className="w-full py-4 bg-gray-900 border border-gray-800 text-gray-500 font-mono text-xs rounded flex items-center justify-center gap-2">
-                              EXPANDING PARAMETERS...
-                          </button>
-                      )}
-
-                      {isTransformed && (
-                          <motion.button 
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            onClick={startJourneySequence}
-                            className="w-full py-4 bg-system-neon text-black font-black font-mono text-sm rounded shadow-[0_0_20px_#00d2ff] hover:bg-white transition-all flex items-center justify-center gap-2"
-                          >
-                              ACCEPT PROTOCOL <Check size={16} />
-                          </motion.button>
-                      )}
-                  </div>
-              </div>
-          </div>
-      );
-  }
-
-  // --- STEP 3: FINALIZING (High Fidelity) ---
-  if (viewMode === 'FINALIZING') {
-      return (
-          <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono overflow-hidden">
+          <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-6 font-mono overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,210,255,0.05)_0%,transparent_70%)]" />
               
-              {/* Background Ambience */}
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1a1a1a_0%,_#000000_100%)] z-0" />
-              <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] brightness-100 contrast-150 z-0 pointer-events-none" />
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(0,210,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,255,0.05)_1px,transparent_1px)] bg-[size:50px_50px] pointer-events-none opacity-20 z-0" />
-
-              {/* Central Core Animation */}
-              <div className="relative z-10 mb-16 scale-150">
-                  <motion.div 
-                    animate={{ rotate: 360 }} 
-                    transition={{ duration: 10, ease: "linear", repeat: Infinity }} 
-                    className="absolute inset-[-40px] border border-dashed border-system-neon/20 rounded-full"
-                  />
-                  <motion.div 
-                    animate={{ rotate: -360 }} 
-                    transition={{ duration: 15, ease: "linear", repeat: Infinity }} 
-                    className="absolute inset-[-20px] border border-dotted border-system-accent/30 rounded-full"
-                  />
-                  {/* Glowing Core */}
-                  <div className="w-12 h-12 bg-system-neon rounded-full blur-[20px] absolute inset-0 m-auto animate-pulse" />
-                  <div className="w-12 h-12 flex items-center justify-center relative bg-black rounded-full border border-system-neon/50 shadow-[0_0_30px_#00d2ff]">
-                      <Sparkles className="text-white" size={24} />
+              <div className="relative z-10 w-full flex flex-col items-center">
+                  {/* Floating Context Labels */}
+                  <div className="absolute top-0 -left-12 opacity-30 text-[10px] space-y-4 hidden lg:block">
+                      <div className="p-2 border border-gray-800 rounded">TARGET_GOAL: {formData.goal}</div>
+                      <div className="p-2 border border-gray-800 rounded">EQUIPMENT: {formData.equipment}</div>
                   </div>
-              </div>
 
-              {/* Cinematic Text */}
-              <div className="h-20 relative z-10 flex items-center justify-center w-full max-w-2xl px-4 text-center">
-                  <AnimatePresence mode="wait">
-                      <motion.div
-                          key={finalizingLog}
-                          initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
-                          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                          exit={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
-                          transition={{ duration: 0.5 }}
-                          className="text-xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-500 tracking-[0.1em] uppercase leading-tight drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
-                      >
-                          {finalizingLog}
-                      </motion.div>
-                  </AnimatePresence>
-              </div>
-
-              {/* Progress Line */}
-              <div className="w-64 h-1 bg-gray-900 mt-12 rounded-full overflow-hidden relative z-10 border border-gray-800">
-                  <motion.div
-                      className="h-full bg-gradient-to-r from-system-neon to-white shadow-[0_0_15px_#00d2ff]"
-                      initial={{ width: "0%" }}
-                      animate={{ width: "100%" }}
-                      transition={{ duration: 12, ease: "easeInOut" }} // Matches approx sequence length
-                  />
-              </div>
-              
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1 }}
-                className="mt-4 text-[9px] text-gray-500 font-mono tracking-widest uppercase z-10"
-              >
-                  Integration in progress...
-              </motion.div>
-          </div>
-      );
-  }
-
-  // --- RENDER: SETUP WIZARD & PROCESSING ---
-  if (viewMode === 'SETUP') {
-      const progress = (step / TOTAL_STEPS) * 100;
-
-      const nextStep = () => {
-          if (step === 7 && formData.equipment === 'BODYWEIGHT') {
-              startProcessing();
-              return;
-          }
-          setStep(prev => Math.min(TOTAL_STEPS, prev + 1));
-      };
-      
-      const prevStep = () => setStep(prev => Math.max(1, prev - 1));
-
-      return (
-          <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center">
-              <div className="max-w-md w-full bg-black/80 backdrop-blur-md border border-system-border rounded-2xl p-8 shadow-[0_0_60px_rgba(0,0,0,0.7)] relative overflow-hidden flex flex-col min-h-[500px]">
+                  <TechRadar label={isTransformed ? "PEAK EVOLUTION" : "CURRENT BIO-SCAN"} color={currentColor} data={currentStats} />
                   
-                  {/* Neon Progress Bar */}
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gray-900">
-                      <motion.div 
-                        className="h-full bg-system-neon shadow-[0_0_15px_#00d2ff]" 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progress}%` }}
-                        transition={{ ease: "easeInOut", duration: 0.5 }}
-                      />
-                  </div>
-
-                  {/* Header */}
-                  <div className="mb-6 text-center">
-                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-system-neon/10 border border-system-neon/30 mb-4 text-system-neon">
-                          <Terminal size={20} />
-                      </div>
-                      <h2 className="text-xl font-bold text-white font-mono tracking-[0.2em] mb-1">CALIBRATION</h2>
-                      <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase">
-                          PHASE {step} / {formData.equipment === 'BODYWEIGHT' ? 7 : 8}
-                      </p>
-                  </div>
-
-                  <div className="flex-1 flex flex-col justify-center">
+                  <div className="mt-16 w-full max-w-lg text-center">
                     <AnimatePresence mode="wait">
-                        
-                        {/* STEP 1: GENDER */}
-                        {step === 1 && (
+                        {!isTransformed ? (
                             <motion.div 
-                                id="tut-health-start"
-                                key="step1"
-                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                                key="init"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
                                 className="space-y-6"
                             >
-                                <div className="text-sm text-gray-400 font-mono mb-2 uppercase tracking-widest">Biological Profile</div>
-                                <div className="grid grid-cols-1 gap-3">
-                                    {['MALE', 'FEMALE', 'RATHER NOT SAY'].map(g => (
-                                        <button 
-                                            key={g} 
-                                            onClick={() => setFormData({...formData, gender: g as any})} 
-                                            className={`py-4 rounded-xl border font-mono font-bold text-sm transition-all hover:scale-105 ${formData.gender === g ? 'bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 'bg-black border-gray-800 text-gray-500 hover:border-gray-500 hover:text-white'}`}
-                                        >
-                                            {g}
-                                        </button>
-                                    ))}
-                                </div>
+                                <p className="text-xs text-gray-500 max-w-xs mx-auto leading-relaxed">
+                                    The System has analyzed your current vessel. You are capable of reaching peak human potential within this cycle.
+                                </p>
+                                <button onClick={() => {
+                                    let p = 0;
+                                    const timer = setInterval(() => {
+                                        p += 0.01;
+                                        if (p >= 1) { p = 1; setIsTransformed(true); clearInterval(timer); }
+                                        setTransformProgress(p);
+                                    }, 40);
+                                }} className="w-full py-5 bg-red-600 text-white font-black rounded-2xl animate-pulse shadow-[0_0_30px_#ef4444] tracking-widest">INITIATE ASCENSION SEQUENCE</button>
                             </motion.div>
-                        )}
-
-                        {/* ... Steps 2 through 8 remain identical ... */}
-                        {/* Shortened for brevity, full content is preserved in the original flow below if expanded */}
-                        
-                        {/* STEP 2: AGE */}
-                        {step === 2 && (
+                        ) : (
                             <motion.div 
-                                key="step2"
-                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                                className="space-y-6"
+                                key="accept"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="space-y-8"
                             >
-                                <div className="text-sm text-gray-400 font-mono uppercase tracking-widest">Chronological Age</div>
-                                <div className="relative max-w-[200px] mx-auto group">
-                                    <input 
-                                        type="number" 
-                                        value={formData.age} 
-                                        onChange={e => setFormData({...formData, age: Number(e.target.value)})} 
-                                        className="w-full bg-transparent border-b-2 border-gray-700 text-center text-5xl font-black text-white font-mono py-2 focus:border-system-neon focus:outline-none transition-colors"
-                                        autoFocus
-                                    />
-                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-600 text-xs font-mono">YRS</div>
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {/* STEP 3: HEIGHT */}
-                        {step === 3 && (
-                            <motion.div 
-                                key="step3"
-                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                                className="space-y-6"
-                            >
-                                <div className="text-sm text-gray-400 font-mono uppercase tracking-widest">Vertical Height</div>
-                                <div className="relative max-w-[200px] mx-auto group">
-                                    <input 
-                                        type="number" 
-                                        value={formData.height} 
-                                        onChange={e => setFormData({...formData, height: Number(e.target.value)})} 
-                                        className="w-full bg-transparent border-b-2 border-gray-700 text-center text-5xl font-black text-white font-mono py-2 focus:border-system-neon focus:outline-none transition-colors"
-                                        autoFocus
-                                    />
-                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-600 text-xs font-mono">CM</div>
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {/* STEP 4: WEIGHT */}
-                        {step === 4 && (
-                            <motion.div 
-                                key="step4"
-                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                                className="space-y-6"
-                            >
-                                <div className="space-y-4">
-                                    <div>
-                                        <div className="text-sm text-gray-400 font-mono uppercase tracking-widest mb-2">Current Mass</div>
-                                        <div className="relative max-w-[200px] mx-auto group">
-                                            <input 
-                                                type="number" 
-                                                value={formData.weight} 
-                                                onChange={e => setFormData({...formData, weight: Number(e.target.value)})} 
-                                                className="w-full bg-transparent border-b-2 border-gray-700 text-center text-4xl font-black text-white font-mono py-2 focus:border-system-neon focus:outline-none transition-colors"
-                                            />
-                                            <div className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-600 text-xs font-mono">KG</div>
-                                        </div>
+                                <div className="p-6 bg-system-neon/5 border border-system-neon/30 rounded-3xl">
+                                    <div className="text-system-neon font-black text-sm mb-2 flex items-center justify-center gap-2">
+                                        <ShieldCheck size={18} /> SYSTEM GUARANTEE
                                     </div>
-                                    <div>
-                                        <div className="text-sm text-gray-400 font-mono uppercase tracking-widest mb-2">Target Mass</div>
-                                        <div className="relative max-w-[200px] mx-auto group">
-                                            <input 
-                                                type="number" 
-                                                value={formData.targetWeight} 
-                                                onChange={e => setFormData({...formData, targetWeight: Number(e.target.value)})} 
-                                                className="w-full bg-transparent border-b-2 border-gray-700 text-center text-4xl font-black text-system-accent font-mono py-2 focus:border-system-accent focus:outline-none transition-colors"
-                                            />
-                                            <div className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-600 text-xs font-mono">KG</div>
-                                        </div>
-                                    </div>
+                                    <p className="text-xs text-white leading-relaxed">
+                                        Adherence to established protocols ensures peak biological evolution. Your goals are now calibrated for maximum result acquisition.
+                                    </p>
                                 </div>
+                                <button onClick={startJourneySequence} className="w-full py-5 bg-system-neon text-black font-black rounded-2xl shadow-[0_0_40px_#00d2ff] hover:bg-white transition-all uppercase tracking-widest">ACCEPT SYSTEM PROTOCOLS</button>
                             </motion.div>
                         )}
-
-                        {/* STEP 5: ACTIVITY */}
-                        {step === 5 && (
-                            <motion.div 
-                                key="step5"
-                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                                className="space-y-3"
-                            >
-                                <div className="text-sm text-gray-400 font-mono uppercase tracking-widest mb-2">Activity Level</div>
-                                <div className="flex flex-col gap-2">
-                                    {[
-                                        { id: 'SEDENTARY', label: 'SEDENTARY', sub: 'Little to no exercise' },
-                                        { id: 'LIGHT', label: 'LIGHT', sub: '1-3 days/week' },
-                                        { id: 'MODERATE', label: 'MODERATE', sub: '3-5 days/week' },
-                                        { id: 'VERY_ACTIVE', label: 'ATHLETE', sub: '6-7 days/week' }
-                                    ].map(act => (
-                                        <button 
-                                            key={act.id} 
-                                            onClick={() => setFormData({...formData, activityLevel: act.id as any})}
-                                            className={`w-full py-3 px-4 rounded-lg border flex justify-between items-center transition-all ${formData.activityLevel === act.id ? 'bg-system-accent border-system-accent text-white shadow-[0_0_15px_rgba(139,92,246,0.3)]' : 'bg-black border-gray-800 text-gray-400 hover:border-gray-600'}`}
-                                        >
-                                            <span className="font-mono font-bold text-sm">{act.label}</span>
-                                            <span className="text-[10px] opacity-70 font-mono">{act.sub}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {/* STEP 6: GOAL */}
-                        {step === 6 && (
-                            <motion.div 
-                                key="step6"
-                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                                className="space-y-4"
-                            >
-                                <div className="text-sm text-gray-400 font-mono uppercase tracking-widest mb-2">Prime Directive</div>
-                                <div className="grid grid-cols-1 gap-3">
-                                    {[
-                                        { id: 'RECOMP', label: 'LOSE FAT + BUILD MUSCLE', icon: <Swords size={18} />, color: 'text-system-accent', borderColor: 'border-system-accent' },
-                                        { id: 'LOSE_WEIGHT', label: 'WEIGHT LOSS', icon: <Zap size={18} />, color: 'text-yellow-500', borderColor: 'border-yellow-500' },
-                                        { id: 'BUILD_MUSCLE', label: 'MUSCLE GAIN', icon: <Dumbbell size={18} />, color: 'text-system-neon', borderColor: 'border-system-neon' },
-                                        { id: 'ENDURANCE', label: 'ENDURANCE', icon: <Activity size={18} />, color: 'text-system-success', borderColor: 'border-system-success' }
-                                    ].map(g => (
-                                        <button 
-                                            key={g.id} 
-                                            onClick={() => setFormData({...formData, goal: g.id as any})}
-                                            className={`w-full py-4 rounded-xl border flex items-center justify-center gap-3 transition-all font-mono font-bold ${formData.goal === g.id ? `bg-white/10 ${g.borderColor} ${g.color} shadow-[0_0_15px_currentColor]` : 'bg-black border-gray-800 text-gray-500 hover:border-gray-600 hover:text-gray-300'}`}
-                                        >
-                                            {g.icon} {g.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {/* STEP 7: EQUIPMENT */}
-                        {step === 7 && (
-                            <motion.div 
-                                key="step7"
-                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                                className="space-y-6"
-                            >
-                                <div className="text-sm text-gray-400 font-mono uppercase tracking-widest mb-2">Resource Access</div>
-                                <div className="grid grid-cols-1 gap-3">
-                                    {[
-                                        { id: 'GYM', label: 'FULL GYM ACCESS' },
-                                        { id: 'HOME_DUMBBELLS', label: 'HOME (DUMBBELLS)' },
-                                        { id: 'BODYWEIGHT', label: 'BODYWEIGHT ONLY' }
-                                    ].map(eq => (
-                                        <button 
-                                            key={eq.id} 
-                                            onClick={() => setFormData({...formData, equipment: eq.id as any})}
-                                            className={`w-full py-3 rounded-lg border font-mono text-xs font-bold transition-all ${formData.equipment === eq.id ? 'bg-white text-black border-white shadow-[0_0_15px_white]' : 'bg-black border-gray-800 text-gray-500 hover:border-gray-600 hover:text-white'}`}
-                                        >
-                                            {eq.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {/* STEP 8: WORKOUT SPLIT (ONLY FOR GYM/DUMBBELLS) */}
-                        {step === 8 && (
-                            <motion.div 
-                                key="step8"
-                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                                className="space-y-6"
-                            >
-                                <div className="text-sm text-gray-400 font-mono uppercase tracking-widest mb-2">PROTOCOL ARCHITECTURE</div>
-                                <div className="grid grid-cols-1 gap-4">
-                                    <button 
-                                        onClick={() => setFormData({...formData, workoutSplit: 'PPL'})}
-                                        className={`w-full py-4 px-4 rounded-xl border flex flex-col gap-1 transition-all ${formData.workoutSplit === 'PPL' ? 'bg-system-neon/10 border-system-neon text-white shadow-[0_0_15px_rgba(0,210,255,0.2)]' : 'bg-black border-gray-800 text-gray-500 hover:border-gray-600'}`}
-                                    >
-                                        <div className="flex items-center justify-center gap-2 font-mono font-bold text-sm">
-                                            <Layers size={16} /> PUSH / PULL / LEGS
-                                        </div>
-                                        <span className="text-[10px] opacity-60 font-mono">High Frequency (6 Days/Week)</span>
-                                    </button>
-
-                                    <button 
-                                        onClick={() => setFormData({...formData, workoutSplit: 'CLASSIC'})}
-                                        className={`w-full py-4 px-4 rounded-xl border flex flex-col gap-1 transition-all ${formData.workoutSplit === 'CLASSIC' ? 'bg-system-accent/10 border-system-accent text-white shadow-[0_0_15px_rgba(139,92,246,0.2)]' : 'bg-black border-gray-800 text-gray-500 hover:border-gray-600'}`}
-                                    >
-                                        <div className="flex items-center justify-center gap-2 font-mono font-bold text-sm">
-                                            <Grid size={16} /> CLASSIC SPLIT
-                                        </div>
-                                        <span className="text-[10px] opacity-60 font-mono">Isolated Focus (Chest, Back, Legs...)</span>
-                                    </button>
-                                </div>
-                            </motion.div>
-                        )}
-
                     </AnimatePresence>
                   </div>
+              </div>
 
-                  {/* Navigation Footer */}
-                  <div className="mt-8 pt-4 border-t border-gray-800 flex items-center justify-between w-full">
-                      {step > 1 ? (
-                          <button 
-                            onClick={prevStep}
-                            className="text-gray-500 hover:text-white transition-colors"
-                          >
-                              <ArrowLeft size={24} />
-                          </button>
-                      ) : (
-                          <div /> // Spacer
-                      )}
-
-                      <div className="flex gap-2">
-                          <button
-                              onClick={handleSkipSetup}
-                              className="text-[10px] text-gray-600 hover:text-white px-3 py-2 font-mono transition-colors tracking-widest uppercase hover:underline"
-                          >
-                              I WILL DO IT LATER
-                          </button>
-
-                          {/* Logic: If Step 7 and Bodyweight, show Finish. Else show Next */}
-                          {(step < TOTAL_STEPS && formData.equipment !== 'BODYWEIGHT') || (step < 7) ? (
-                              <button 
-                                onClick={nextStep}
-                                className="flex items-center gap-2 bg-white text-black px-6 py-2 rounded-full font-bold font-mono hover:bg-system-neon transition-colors"
-                              >
-                                  NEXT <ArrowRight size={16} />
-                              </button>
-                          ) : (
-                              <button 
-                                onClick={startProcessing}
-                                className="flex items-center gap-2 bg-system-neon text-black px-6 py-2 rounded-full font-bold font-mono hover:bg-white shadow-[0_0_15px_#00d2ff] transition-colors"
-                              >
-                                  INITIALIZE <Check size={16} />
-                              </button>
-                          )}
-                      </div>
-                  </div>
+              {/* Decorative HUD Elements */}
+              <div className="absolute bottom-8 left-8 flex items-center gap-3 text-gray-800 opacity-50">
+                  <Activity size={24} />
+                  <div className="text-[10px] font-bold">BIO_SYNC_V2 // STABLE</div>
               </div>
           </div>
       );
   }
 
-  // --- RENDER: OVERVIEW & ACTIVE WORKOUT ---
-  
-  if (viewMode === 'OVERVIEW' && activePlan) {
+  if (viewMode === 'FINALIZING') {
       return (
-          <WorkoutOverview 
-              plan={activePlan} 
-              focusVideos={playerData.focusVideos}
-              onStart={startWorkout}
-              onCancel={() => {
-                  setActivePlan(null);
-                  setSelectedDayIndex(null);
-                  setViewMode('MAP');
-              }}
-          />
+          <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono">
+              <Sparkles className="text-system-neon mb-8 animate-pulse" size={48} />
+              <div className="text-2xl text-white font-black uppercase text-center tracking-[0.3em]">{finalizingLog}</div>
+              <div className="mt-8 w-64 h-1 bg-gray-900 rounded-full overflow-hidden">
+                  <motion.div initial={{ width: 0 }} animate={{ width: "100%" }} transition={{ duration: 6 }} className="h-full bg-system-neon shadow-[0_0_15px_#00d2ff]" />
+              </div>
+          </div>
       );
   }
 
-  if (viewMode === 'ACTIVE' && activePlan) {
+  if (viewMode === 'SETUP') {
       return (
-          <ActiveWorkoutPlayer 
-              plan={activePlan} 
-              onComplete={finishWorkout}
-              onFail={() => {
-                  onFailWorkout();
-                  setViewMode('MAP');
-                  setActivePlan(null);
-              }}
-              streak={playerData.streak}
-          />
+          <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 font-mono">
+              <div className="max-w-md w-full bg-system-card border border-system-border rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gray-800">
+                    <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(step/TOTAL_STEPS)*100}%` }} 
+                        className="h-full bg-system-neon shadow-[0_0_15px_#00d2ff]" 
+                    />
+                  </div>
+                  
+                  <div className="flex justify-between items-center mb-10">
+                    <h2 className="text-xl font-bold text-white tracking-widest uppercase">Calibration Phase {step}/{TOTAL_STEPS}</h2>
+                    <span className="text-[10px] text-system-neon font-black bg-system-neon/10 px-2 py-0.5 rounded border border-system-neon/30">SYNCING...</span>
+                  </div>
+
+                  <AnimatePresence mode="wait">
+                      {step === 1 && (
+                        <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <User className="text-system-neon" size={24} />
+                                <div className="text-xs text-gray-500 uppercase tracking-widest font-bold">Vessel Identification</div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                {['MALE', 'FEMALE'].map(g => (
+                                    <button 
+                                        key={g} 
+                                        onClick={() => { setFormData({...formData, gender: g as any}); setStep(2); }} 
+                                        className="py-6 border border-gray-800 rounded-2xl hover:bg-white hover:text-black hover:shadow-[0_0_20px_white] transition-all font-black text-sm tracking-widest"
+                                    >
+                                        {g}
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                      )}
+
+                      {step === 2 && (
+                        <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <Activity className="text-system-neon" size={24} />
+                                <div className="text-xs text-gray-500 uppercase tracking-widest font-bold">Chronological Age</div>
+                            </div>
+                            <input 
+                                type="number" 
+                                value={formData.age} 
+                                onChange={e => setFormData({...formData, age: Number(e.target.value)})} 
+                                className="w-full bg-black border-b-2 border-gray-800 text-center text-6xl text-white outline-none focus:border-system-neon py-6 transition-colors"
+                            />
+                            <div className="flex justify-between items-center mt-8">
+                                <button onClick={() => setStep(1)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase"><ChevronLeft size={14}/> BACK</button>
+                                <button onClick={() => setStep(3)} className="bg-system-neon text-black px-10 py-3 rounded-full font-black text-xs shadow-[0_0_15px_#00d2ff] hover:bg-white transition-all uppercase flex items-center gap-2">NEXT <ChevronRight size={14}/></button>
+                            </div>
+                        </motion.div>
+                      )}
+
+                      {step === 3 && (
+                        <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <Ruler className="text-system-neon" size={24} />
+                                <div className="text-xs text-gray-500 uppercase tracking-widest font-bold">Verticality Mapping (CM)</div>
+                            </div>
+                            <input 
+                                type="number" 
+                                value={formData.height} 
+                                onChange={e => setFormData({...formData, height: Number(e.target.value)})} 
+                                className="w-full bg-black border-b-2 border-gray-800 text-center text-6xl text-white outline-none focus:border-system-neon py-6 transition-colors"
+                            />
+                            <div className="flex justify-between items-center mt-8">
+                                <button onClick={() => setStep(2)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase"><ChevronLeft size={14}/> BACK</button>
+                                <button onClick={() => setStep(4)} className="bg-system-neon text-black px-10 py-3 rounded-full font-black text-xs shadow-[0_0_15px_#00d2ff] hover:bg-white transition-all uppercase flex items-center gap-2">NEXT <ChevronRight size={14}/></button>
+                            </div>
+                        </motion.div>
+                      )}
+
+                      {step === 4 && (
+                        <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <Weight className="text-system-neon" size={24} />
+                                <div className="text-xs text-gray-500 uppercase tracking-widest font-bold">Current Mass (KG)</div>
+                            </div>
+                            <input 
+                                type="number" 
+                                value={formData.weight} 
+                                onChange={e => setFormData({...formData, weight: Number(e.target.value)})} 
+                                className="w-full bg-black border-b-2 border-gray-800 text-center text-6xl text-white outline-none focus:border-system-neon py-6 transition-colors"
+                            />
+                            <div className="flex justify-between items-center mt-8">
+                                <button onClick={() => setStep(3)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase"><ChevronLeft size={14}/> BACK</button>
+                                <button onClick={() => setStep(5)} className="bg-system-neon text-black px-10 py-3 rounded-full font-black text-xs shadow-[0_0_15px_#00d2ff] hover:bg-white transition-all uppercase flex items-center gap-2">NEXT <ChevronRight size={14}/></button>
+                            </div>
+                        </motion.div>
+                      )}
+
+                      {step === 5 && (
+                        <motion.div key="s5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <Target className="text-system-accent" size={24} />
+                                <div className="text-xs text-system-accent uppercase tracking-widest font-black">Target Mass (KG)</div>
+                            </div>
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-system-accent/10 blur-xl -z-10 rounded-full" />
+                                <input 
+                                    type="number" 
+                                    value={formData.targetWeight} 
+                                    onChange={e => setFormData({...formData, targetWeight: Number(e.target.value)})} 
+                                    className="w-full bg-black border-b-2 border-system-accent text-center text-6xl text-white outline-none focus:shadow-[0_4px_15px_rgba(139,92,246,0.5)] py-6 transition-all font-black"
+                                />
+                            </div>
+                            <div className="flex justify-between items-center mt-8">
+                                <button onClick={() => setStep(4)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase"><ChevronLeft size={14}/> BACK</button>
+                                <button onClick={() => setStep(6)} className="bg-system-accent text-white px-10 py-3 rounded-full font-black text-xs shadow-[0_0_20px_#8b5cf6] hover:bg-white hover:text-black transition-all uppercase flex items-center gap-2">NEXT <ChevronRight size={14}/></button>
+                            </div>
+                        </motion.div>
+                      )}
+
+                      {step === 6 && (
+                        <motion.div key="s6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+                            <div className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Energy Flux Levels</div>
+                            <div className="grid gap-2">
+                                {['SEDENTARY', 'LIGHT', 'MODERATE', 'VERY_ACTIVE'].map(a => (
+                                    <button 
+                                        key={a} 
+                                        onClick={() => { setFormData({...formData, activityLevel: a as any}); setStep(7); }} 
+                                        className="w-full py-4 border border-gray-800 rounded-xl font-black text-[10px] tracking-widest hover:bg-white hover:text-black transition-all uppercase"
+                                    >
+                                        {a}
+                                    </button>
+                                ))}
+                            </div>
+                            <button onClick={() => setStep(5)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-4"><ChevronLeft size={14}/> BACK</button>
+                        </motion.div>
+                      )}
+
+                      {step === 7 && (
+                        <motion.div key="s7" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+                            <div className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Primary Directive</div>
+                            <div className="grid gap-2">
+                                {['LOSE_WEIGHT', 'BUILD_MUSCLE', 'RECOMP'].map(g => (
+                                    <button 
+                                        key={g} 
+                                        onClick={() => { setFormData({...formData, goal: g as any}); setStep(8); }} 
+                                        className="w-full py-4 border border-gray-800 rounded-xl font-black text-[10px] tracking-widest hover:bg-white hover:text-black transition-all uppercase"
+                                    >
+                                        {g.replace('_', ' ')}
+                                    </button>
+                                ))}
+                            </div>
+                            <button onClick={() => setStep(6)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-4"><ChevronLeft size={14}/> BACK</button>
+                        </motion.div>
+                      )}
+
+                      {step === 8 && (
+                        <motion.div key="s8" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+                            <div className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Resource Availability</div>
+                            <div className="grid gap-2">
+                                {['GYM', 'HOME_DUMBBELLS', 'BODYWEIGHT'].map(eq => (
+                                    <button 
+                                        key={eq} 
+                                        onClick={() => { 
+                                            setFormData({...formData, equipment: eq as any}); 
+                                            if (eq === 'BODYWEIGHT') startProcessing(); 
+                                            else setStep(9); 
+                                        }} 
+                                        className="w-full py-4 border border-gray-800 rounded-xl font-black text-[10px] tracking-widest hover:bg-white hover:text-black transition-all uppercase"
+                                    >
+                                        {eq.replace('_', ' ')}
+                                    </button>
+                                ))}
+                            </div>
+                            <button onClick={() => setStep(7)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-4"><ChevronLeft size={14}/> BACK</button>
+                        </motion.div>
+                      )}
+
+                      {step === 9 && (
+                        <motion.div key="s9" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+                            <div className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Training Architecture</div>
+                            <div className="grid gap-4">
+                                {['PPL', 'CLASSIC'].map(s => (
+                                    <button 
+                                        key={s} 
+                                        onClick={() => { setFormData({...formData, workoutSplit: s as any}); startProcessing(); }} 
+                                        className="w-full py-6 border border-gray-800 rounded-2xl font-black text-sm tracking-widest hover:bg-white hover:text-black transition-all uppercase shadow-lg group"
+                                    >
+                                        {s} SPLIT
+                                        <div className="text-[8px] text-gray-500 mt-1 font-normal group-hover:text-black/50">
+                                            {s === 'PPL' ? 'PUSH-PULL-LEGS REVOLUTION' : 'TRADITIONAL SYNC PATTERN'}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                            <button onClick={() => setStep(8)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-6"><ChevronLeft size={14}/> BACK</button>
+                        </motion.div>
+                      )}
+                  </AnimatePresence>
+              </div>
+          </div>
       );
   }
 
-  // --- RENDER: DASHBOARD ---
-  const currentDayIndex = playerData.logs.filter(l => l.type === 'WORKOUT').length;
+  if (viewMode === 'OVERVIEW' && activePlan) return <WorkoutOverview plan={activePlan} focusVideos={playerData.focusVideos} onStart={(p) => { setActivePlan(p); setViewMode('ACTIVE'); }} onCancel={() => setViewMode('MAP')} />;
+  if (viewMode === 'ACTIVE' && activePlan) return <ActiveWorkoutPlayer plan={activePlan} onComplete={(c, t, r) => { onCompleteWorkout(c, t, r, false); setViewMode('MAP'); }} onFail={() => { onFailWorkout(); setViewMode('MAP'); }} streak={playerData.streak} />;
 
   return (
-    <div className="h-full flex flex-col gap-4">
-        {/* TABS */}
-        <div className="flex border-b border-gray-800 sticky top-0 bg-system-bg z-30 pt-2">
-            {[
-                { id: 'WORKOUT', icon: <Activity size={14} />, label: 'OPERATIONS' },
-                { id: 'NUTRITION', icon: <Utensils size={14} />, label: 'RATIONS' },
-                { id: 'BODY', icon: <Fingerprint size={14} />, label: 'BIOMETRICS' }
-            ].map(tab => (
-                <button 
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex-1 pb-3 text-xs font-mono font-bold tracking-widest flex items-center justify-center gap-2 transition-colors ${activeTab === tab.id ? 'text-system-neon border-b-2 border-system-neon' : 'text-gray-600 hover:text-white'}`}
-                >
-                    {tab.icon} {tab.label}
-                </button>
-            ))}
+    <div className="h-full flex flex-col gap-6 font-mono">
+        <div className="flex border-b border-gray-800 bg-black/50 backdrop-blur sticky top-0 z-30">
+            {['WORKOUT', 'NUTRITION', 'BODY'].map(t => <button key={t} onClick={() => setActiveTab(t as any)} className={`flex-1 py-4 text-xs font-bold tracking-widest ${activeTab === t ? 'text-system-neon border-b-2 border-system-neon' : 'text-gray-600'}`}>{t}</button>)}
         </div>
-
-        {/* CONTENT */}
-        <div className="flex-1 min-h-[500px]">
+        <div className="flex-1 pb-20">
             <AnimatePresence mode="wait">
-                
-                {/* --- OPERATIONS TAB --- */}
                 {activeTab === 'WORKOUT' && (
-                    <motion.div key="workout" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-12 pb-10">
-                        
-                        {/* 1. STREAK SECTION */}
+                    <motion.div key="wo" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden group">
-                                <div className="absolute inset-0 bg-orange-500/5 group-hover:bg-orange-500/10 transition-colors" />
-                                <Flame className="text-orange-500 mb-2 animate-pulse" size={24} />
-                                <div className="text-2xl font-black text-white font-mono">{playerData.streak}</div>
-                                <div className="text-[9px] text-orange-400 font-mono tracking-widest uppercase">DAY STREAK</div>
-                            </div>
-                            <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden group">
-                                <div className="absolute inset-0 bg-system-neon/5 group-hover:bg-system-neon/10 transition-colors" />
-                                <Target className="text-system-neon mb-2" size={24} />
-                                <div className="text-xl font-bold text-white font-mono">{calculateTimeEstimate(healthProfile || formData)}</div>
-                                <div className="text-[9px] text-system-neon font-mono tracking-widest uppercase">EST. COMPLETION</div>
-                            </div>
+                            <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 text-center"><Flame className="text-orange-500 mx-auto mb-2 animate-pulse" size={24} /><div className="text-2xl font-black text-white">{playerData.streak}</div><div className="text-[10px] text-gray-500 uppercase">STREAK</div></div>
+                            <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 text-center"><Target className="text-system-neon mx-auto mb-2" size={24} /><div className="text-xl font-bold text-white uppercase">{calculateTimeEstimate(healthProfile || formData)}</div><div className="text-[10px] text-gray-500 uppercase">TARGET</div></div>
                         </div>
-
-                        {/* 2. MAP SECTION */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2 border-b border-gray-800 pb-2">
-                                <Map size={16} className="text-system-accent" />
-                                <h3 className="text-xs text-white font-mono font-bold tracking-[0.2em]">OPERATIONAL MAP</h3>
-                            </div>
-                            <WorkoutMap 
-                                currentWeight={healthProfile?.weight || 0}
-                                targetWeight={healthProfile?.targetWeight || 0}
-                                workoutPlan={calculatedPlan}
-                                completedDays={currentDayIndex}
-                                onStartDay={handleDaySelect}
-                            />
-                        </div>
-
-                        {/* 3. PROTOCOL OVERVIEW SECTION */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2 border-b border-gray-800 pb-2">
-                                <List size={16} className="text-gray-400" />
-                                <h3 className="text-xs text-white font-mono font-bold tracking-[0.2em]">PROTOCOL MANIFEST</h3>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 gap-6">
-                                {/* Chunk days into weeks */}
-                                {Array.from({ length: 4 }).map((_, weekIdx) => {
-                                    const weekDays = calculatedPlan.slice(weekIdx * 7, (weekIdx + 1) * 7);
-                                    
-                                    return (
-                                        <div key={weekIdx} className="bg-black border border-gray-800 rounded-xl overflow-hidden">
-                                            <div className="bg-gray-900/50 p-3 border-b border-gray-800 flex justify-between items-center">
-                                                <div className="flex items-center gap-2">
-                                                    <Calendar size={14} className="text-system-neon" />
-                                                    <span className="text-xs font-bold text-white font-mono">WEEK {weekIdx + 1}</span>
-                                                </div>
-                                                <span className="text-[9px] text-gray-500 font-mono">PHASE {weekIdx + 1}/4</span>
-                                            </div>
-                                            
-                                            <div className="grid grid-cols-7 divide-x divide-gray-800">
-                                                {weekDays.map((day, dIdx) => {
-                                                    const globalIdx = (weekIdx * 7) + dIdx;
-                                                    const isComplete = globalIdx < currentDayIndex;
-                                                    const isCurrent = globalIdx === currentDayIndex;
-                                                    
-                                                    return (
-                                                        <div key={dIdx} className={`p-2 flex flex-col items-center justify-center min-h-[60px] relative group hover:bg-white/5 transition-colors ${isCurrent ? 'bg-system-neon/10' : ''}`}>
-                                                            <div className="text-[8px] text-gray-600 font-mono mb-1">DAY {dIdx + 1}</div>
-                                                            <div className={`text-[9px] font-bold text-center leading-tight ${isComplete ? 'text-system-success line-through opacity-50' : isCurrent ? 'text-white' : 'text-gray-400'}`}>
-                                                                {day.focus}
-                                                            </div>
-                                                            
-                                                            {/* Status Dot */}
-                                                            <div className={`mt-1 w-1.5 h-1.5 rounded-full ${isComplete ? 'bg-system-success' : isCurrent ? 'bg-system-neon animate-pulse' : 'bg-gray-800'}`} />
-                                                            
-                                                            {/* Tooltip */}
-                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-900 border border-gray-700 p-2 rounded w-32 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10 text-center shadow-xl">
-                                                                <div className="text-[9px] text-white font-bold mb-1">{day.day}</div>
-                                                                <div className="text-[8px] text-gray-400">{day.exercises.length} EXERCISES</div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
+                        <WorkoutMap currentWeight={healthProfile?.weight || 0} targetWeight={healthProfile?.targetWeight || 0} workoutPlan={calculatedPlan} completedDays={playerData.logs.filter(l => l.type === 'WORKOUT').length} onStartDay={(idx) => { setActivePlan(calculatedPlan[idx % calculatedPlan.length]); setViewMode('OVERVIEW'); }} />
                     </motion.div>
                 )}
-
                 {activeTab === 'NUTRITION' && (
-                    <motion.div key="nutrition" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                        {/* SUMMARY CARD */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="bg-gray-900/50 border border-gray-800 p-4 rounded-xl">
-                                <div className="text-[10px] text-gray-500 font-mono">CALORIES</div>
-                                <div className="text-xl text-white font-mono font-bold">{nutritionInfo.macros.calories}</div>
-                            </div>
-                            <div className="bg-gray-900/50 border border-gray-800 p-4 rounded-xl">
-                                <div className="text-[10px] text-gray-500 font-mono">PROTEIN</div>
-                                <div className="text-xl text-system-accent font-mono font-bold">{nutritionInfo.macros.protein}g</div>
-                            </div>
-                            <div className="bg-gray-900/50 border border-gray-800 p-4 rounded-xl">
-                                <div className="text-[10px] text-gray-500 font-mono">CARBS</div>
-                                <div className="text-xl text-blue-400 font-mono font-bold">{nutritionInfo.macros.carbs}g</div>
-                            </div>
-                            <div className="bg-gray-900/50 border border-gray-800 p-4 rounded-xl">
-                                <div className="text-[10px] text-gray-500 font-mono">FATS</div>
-                                <div className="text-xl text-yellow-500 font-mono font-bold">{nutritionInfo.macros.fats}g</div>
-                            </div>
+                    <motion.div key="nut" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+                        <div className="grid grid-cols-4 gap-2">
+                            {Object.entries(nutritionInfo.macros).map(([k, v]) => <div key={k} className="bg-gray-900/50 p-3 rounded-xl border border-gray-800 text-center"><div className="text-[10px] text-gray-500 uppercase">{k}</div><div className="text-sm font-bold text-white">{v}{k === 'calories' ? '' : 'g'}</div></div>)}
                         </div>
-
-                        {/* FOOD LOGGING */}
-                        <div className="bg-black border border-gray-800 rounded-xl p-4">
-                            <h3 className="text-xs text-white font-mono font-bold mb-4 flex items-center gap-2">
-                                <Search size={14} /> FOOD DATABASE
-                            </h3>
-                            <input 
-                                value={foodSearch}
-                                onChange={e => setFoodSearch(e.target.value)}
-                                placeholder="Search Indian Foods..."
-                                className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-white font-mono focus:outline-none focus:border-system-neon mb-4"
-                            />
-                            <div className="max-h-40 overflow-y-auto space-y-2 custom-scrollbar">
+                        <div className="bg-black border border-gray-800 p-6 rounded-2xl">
+                            <h3 className="text-xs text-white font-black mb-4 flex items-center gap-2"><Search size={14} /> FOOD SCANNER</h3>
+                            <input value={foodSearch} onChange={e => setFoodSearch(e.target.value)} placeholder="SEARCH FOODS..." className="w-full bg-gray-900 border border-gray-800 rounded-xl p-3 text-sm mb-4 outline-none focus:border-system-neon" />
+                            <div className="max-h-48 overflow-y-auto space-y-2 custom-scrollbar">
                                 {INDIAN_FOOD_DB.filter(f => f.name.toLowerCase().includes(foodSearch.toLowerCase())).map(food => (
-                                    <div key={food.id} className="flex justify-between items-center p-2 hover:bg-gray-900 rounded cursor-pointer group">
-                                        <div>
-                                            <div className="text-xs text-gray-300 font-bold">{food.name}</div>
-                                            <div className="text-[10px] text-gray-500">{food.calories} kcal | P:{food.protein} C:{food.carbs} F:{food.fats}</div>
-                                        </div>
-                                        <button 
-                                            onClick={() => onLogMeal?.({ 
-                                                id: Math.random().toString(36).substr(2, 9),
-                                                label: 'Quick Add',
-                                                items: [{ ...food, quantity: 1 }],
-                                                totalCalories: food.calories,
-                                                totalProtein: food.protein,
-                                                totalCarbs: food.carbs,
-                                                totalFats: food.fats,
-                                                timestamp: Date.now()
-                                            })}
-                                            className="opacity-0 group-hover:opacity-100 bg-system-neon text-black text-[10px] font-bold px-2 py-1 rounded"
-                                        >
-                                            ADD
-                                        </button>
+                                    <div key={food.id} onClick={() => onLogMeal?.({ id: Math.random().toString(36).substr(2,9), label: food.name, items: [{...food, quantity: 1}], totalCalories: food.calories, totalProtein: food.protein, totalCarbs: food.carbs, totalFats: food.fats, timestamp: Date.now() })} className="p-3 bg-gray-900/30 hover:bg-gray-900 transition-colors cursor-pointer rounded-xl flex justify-between items-center group">
+                                        <div><div className="text-xs font-bold text-gray-300">{food.name}</div><div className="text-[9px] text-gray-600">{food.calories} KCAL</div></div>
+                                        <div className="bg-system-neon text-black px-2 py-0.5 rounded text-[10px] font-black opacity-0 group-hover:opacity-100 transition-opacity">ADD</div>
                                     </div>
                                 ))}
                             </div>
                         </div>
-
-                        {/* LOGS */}
-                        <div className="space-y-2">
-                            {playerData.nutritionLogs.map(log => (
-                                <div key={log.id} className="flex justify-between items-center bg-gray-900/30 p-3 rounded border border-gray-800">
-                                    <div>
-                                        <div className="text-xs text-white font-bold">{log.items[0].name} {log.items.length > 1 && `+ ${log.items.length - 1} more`}</div>
-                                        <div className="text-[10px] text-gray-500">{new Date(log.timestamp).toLocaleTimeString()}</div>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-xs text-system-neon font-mono font-bold">{log.totalCalories} kcal</div>
-                                        <button onClick={() => onDeleteMeal?.(log.id)} className="text-gray-600 hover:text-red-500"><Trash2 size={14} /></button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
                     </motion.div>
                 )}
-
                 {activeTab === 'BODY' && (
-                    <motion.div key="body" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-gray-900/30 border border-gray-800 p-4 rounded-xl">
-                            <h3 className="text-xs text-white font-mono font-bold mb-4 flex items-center gap-2"><Ruler size={14} /> STATS</h3>
-                            <div className="space-y-3">
-                                <div className="flex justify-between border-b border-gray-800 pb-2">
-                                    <span className="text-xs text-gray-500">BMI</span>
-                                    <span className="text-xs text-white font-mono">{healthProfile?.bmi}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-gray-800 pb-2">
-                                    <span className="text-xs text-gray-500">BMR</span>
-                                    <span className="text-xs text-white font-mono">{healthProfile?.bmr} kcal</span>
-                                </div>
-                                <div className="flex justify-between border-b border-gray-800 pb-2">
-                                    <span className="text-xs text-gray-500">BODY TYPE</span>
-                                    <span className="text-xs text-white font-mono">{healthProfile?.category}</span>
-                                </div>
+                    <motion.div key="bd" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+                        <div className="bg-gray-900/50 p-8 rounded-2xl border border-gray-800">
+                            <h3 className="text-sm text-white font-black mb-6 flex items-center gap-2"><Fingerprint size={16} /> BIOMETRIC_REPORT</h3>
+                            <div className="space-y-4">
+                                <div className="flex justify-between border-b border-gray-800 pb-4"><span className="text-gray-500 uppercase">Body Mass Index</span><span className="text-white font-bold">{healthProfile?.bmi}</span></div>
+                                <div className="flex justify-between border-b border-gray-800 pb-4"><span className="text-gray-500 uppercase">Basal Metabolic Rate</span><span className="text-white font-bold">{healthProfile?.bmr} kcal</span></div>
+                                <div className="flex justify-between border-b border-gray-800 pb-4"><span className="text-gray-500 uppercase">Status</span><span className="text-system-neon font-black">STABLE</span></div>
                             </div>
-                        </div>
-
-                        <div className="bg-gray-900/30 border border-gray-800 p-4 rounded-xl">
-                             <h3 className="text-xs text-white font-mono font-bold mb-4 flex items-center gap-2"><Camera size={14} /> PROGRESS SCANS</h3>
-                             <div className="grid grid-cols-3 gap-2">
-                                 {/* Upload Placeholder */}
-                                 <div 
-                                    onClick={() => onAddPhoto?.({
-                                        id: Date.now().toString(),
-                                        date: Date.now(),
-                                        imageUrl: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
-                                    })}
-                                    className="aspect-square bg-black border border-dashed border-gray-700 rounded flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-system-neon hover:text-system-neon transition-colors"
-                                 >
-                                     <Upload size={20} />
-                                     <span className="text-[8px] mt-1 font-mono">UPLOAD</span>
-                                 </div>
-                                 {/* Display Photos */}
-                                 {healthProfile?.progressPhotos?.map(photo => (
-                                     <div key={photo.id} className="aspect-square bg-gray-800 rounded relative overflow-hidden group">
-                                         <img src={photo.imageUrl} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" alt="Progress" />
-                                         <div className="absolute bottom-0 left-0 w-full bg-black/50 text-[8px] text-white p-1 text-center font-mono">
-                                             {new Date(photo.date).toLocaleDateString()}
-                                         </div>
-                                         <button onClick={() => onDeletePhoto?.(photo.id)} className="absolute top-1 right-1 bg-black/50 p-1 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500">
-                                             <X size={10} />
-                                         </button>
-                                     </div>
-                                 ))}
-                             </div>
                         </div>
                     </motion.div>
                 )}

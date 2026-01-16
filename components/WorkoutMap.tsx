@@ -157,7 +157,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                         const isLocked = index > completedDays;
                         
                         // Map generic day index to the 7-day workout plan cycle
-                        const planDay = workoutPlan[index % 7] || { day: `DAY ${index}`, focus: 'UNKNOWN', exercises: [] };
+                        const planDay = workoutPlan[index % 7] || { day: `DAY ${index + 1}`, focus: 'UNKNOWN', exercises: [] };
 
                         const zIndexClass = isCurrent ? 'z-50' : point.isBoss ? 'z-40' : 'z-10';
                         
@@ -208,7 +208,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                                      <>
                                                         <div className="flex items-center gap-2 border-b border-gray-800 pb-1 w-full justify-center">
                                                             <span className={`text-[9px] font-bold tracking-widest ${point.isBoss ? 'text-red-500' : 'text-gray-400'}`}>
-                                                                {point.isBoss ? 'BOSS BATTLE' : `DAY ${index + 1}`}
+                                                                {point.isBoss ? 'BOSS BATTLE' : planDay.day}
                                                             </span>
                                                             {isCurrent && <span className="w-1.5 h-1.5 bg-system-neon rounded-full animate-pulse shadow-[0_0_5px_#00d2ff]" />}
                                                         </div>
@@ -218,7 +218,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                                         </div>
                                                         
                                                         <div className="text-[9px] text-system-neon font-mono font-bold bg-system-neon/10 px-2 py-0.5 rounded border border-system-neon/20 uppercase tracking-wider">
-                                                            {planDay.day}
+                                                            READY
                                                         </div>
 
                                                         {isCurrent && (
@@ -300,7 +300,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                         </button>
 
                         <h4 className="text-system-neon font-bold text-xs mb-4 border-b border-gray-800 pb-2 flex justify-between items-center tracking-widest shrink-0">
-                            <span>DAY {selectedPreview + 1} INTEL</span>
+                            <span>{workoutPlan[selectedPreview % 7]?.day || `DAY ${selectedPreview + 1}`} INTEL</span>
                             {selectedPreview > completedDays && <Lock size={14} className="text-gray-500" />}
                         </h4>
                         

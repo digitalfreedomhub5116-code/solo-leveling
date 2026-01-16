@@ -43,10 +43,11 @@ const generateGymPpl = (): WorkoutDay[] => {
 
     weeks.forEach((w, wIdx) => {
         const reps = w.reps;
+        const start = wIdx * 7;
         
-        // Day 1: Monday (Push 1)
+        // Day 1
         plan.push({
-            day: `W${wIdx+1} - MONDAY`,
+            day: `DAY ${start + 1}`,
             focus: 'PUSH 1',
             totalDuration: 60,
             exercises: [
@@ -61,9 +62,9 @@ const generateGymPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Day 2: Tuesday (Pull 1)
+        // Day 2
         plan.push({
-            day: `W${wIdx+1} - TUESDAY`,
+            day: `DAY ${start + 2}`,
             focus: 'PULL 1',
             totalDuration: 60,
             exercises: [
@@ -78,9 +79,9 @@ const generateGymPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Day 3: Wednesday (Legs)
+        // Day 3
         plan.push({
-            day: `W${wIdx+1} - WEDNESDAY`,
+            day: `DAY ${start + 3}`,
             focus: 'LEGS',
             totalDuration: 70,
             exercises: [
@@ -96,18 +97,18 @@ const generateGymPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Day 4: Thursday (Rest)
+        // Day 4
         plan.push({
-            day: `W${wIdx+1} - THURSDAY`,
+            day: `DAY ${start + 4}`,
             focus: 'REST',
             totalDuration: 0,
             isRecovery: true,
             exercises: [createEx('Active Recovery Walk', 1, '20 min', 'STRETCH', 'Light movement only')]
         });
 
-        // Day 5: Friday (Push 2)
+        // Day 5
         plan.push({
-            day: `W${wIdx+1} - FRIDAY`,
+            day: `DAY ${start + 5}`,
             focus: 'PUSH 2',
             totalDuration: 60,
             exercises: [
@@ -123,9 +124,9 @@ const generateGymPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Day 6: Saturday (Pull 2)
+        // Day 6
         plan.push({
-            day: `W${wIdx+1} - SATURDAY`,
+            day: `DAY ${start + 6}`,
             focus: 'PULL 2',
             totalDuration: 65,
             exercises: [
@@ -141,9 +142,9 @@ const generateGymPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Day 7: Sunday (Rest)
+        // Day 7
         plan.push({
-            day: `W${wIdx+1} - SUNDAY`,
+            day: `DAY ${start + 7}`,
             focus: 'REST',
             totalDuration: 0,
             isRecovery: true,
@@ -166,10 +167,11 @@ const generateGymClassic = (): WorkoutDay[] => {
 
     weeks.forEach((w, wIdx) => {
         const reps = w.reps;
+        const start = wIdx * 7;
         
-        // Monday: Chest
+        // Monday
         plan.push({
-            day: `W${wIdx+1} - MONDAY`,
+            day: `DAY ${start + 1}`,
             focus: 'CHEST',
             totalDuration: 60,
             exercises: [
@@ -185,9 +187,9 @@ const generateGymClassic = (): WorkoutDay[] => {
             ]
         });
 
-        // Tuesday: Back
+        // Tuesday
         plan.push({
-            day: `W${wIdx+1} - TUESDAY`,
+            day: `DAY ${start + 2}`,
             focus: 'BACK',
             totalDuration: 60,
             exercises: [
@@ -203,9 +205,9 @@ const generateGymClassic = (): WorkoutDay[] => {
             ]
         });
 
-        // Wednesday: Shoulders
+        // Wednesday
         plan.push({
-            day: `W${wIdx+1} - WEDNESDAY`,
+            day: `DAY ${start + 3}`,
             focus: 'SHOULDERS',
             totalDuration: 60,
             exercises: [
@@ -221,9 +223,9 @@ const generateGymClassic = (): WorkoutDay[] => {
             ]
         });
 
-        // Thursday: Arms
+        // Thursday
         plan.push({
-            day: `W${wIdx+1} - THURSDAY`,
+            day: `DAY ${start + 4}`,
             focus: 'ARMS',
             totalDuration: 60,
             exercises: [
@@ -240,18 +242,18 @@ const generateGymClassic = (): WorkoutDay[] => {
             ]
         });
 
-        // Friday: Rest
+        // Friday
         plan.push({
-            day: `W${wIdx+1} - FRIDAY`,
+            day: `DAY ${start + 5}`,
             focus: 'REST',
             totalDuration: 0,
             isRecovery: true,
             exercises: [createEx('Active Recovery Walk', 1, '30 min', 'STRETCH', 'Flush out lactic acid')]
         });
 
-        // Saturday: Legs
+        // Saturday
         plan.push({
-            day: `W${wIdx+1} - SATURDAY`,
+            day: `DAY ${start + 6}`,
             focus: 'LEGS',
             totalDuration: 70,
             exercises: [
@@ -268,9 +270,9 @@ const generateGymClassic = (): WorkoutDay[] => {
             ]
         });
 
-        // Sunday: Rest
+        // Sunday
         plan.push({
-            day: `W${wIdx+1} - SUNDAY`,
+            day: `DAY ${start + 7}`,
             focus: 'REST',
             totalDuration: 0,
             isRecovery: true,
@@ -295,10 +297,11 @@ const generateBodyweightRegular = (): WorkoutDay[] => {
         const reps = w.reps;
         const isMastery = w.label.includes('MASTERY');
         const useKneeVars = wIdx === 1 || wIdx === 3; // W2 and W4 use the knee-based progression for volume
+        const start = wIdx * 7;
 
-        // Monday: Chest
+        // Day 1
         plan.push({
-            day: `W${wIdx+1} - MONDAY`,
+            day: `DAY ${start + 1}`,
             focus: 'CHEST',
             totalDuration: 30,
             exercises: [
@@ -311,9 +314,9 @@ const generateBodyweightRegular = (): WorkoutDay[] => {
             ]
         });
 
-        // Tuesday: Back
+        // Day 2
         plan.push({
-            day: `W${wIdx+1} - TUESDAY`,
+            day: `DAY ${start + 2}`,
             focus: 'BACK',
             totalDuration: 30,
             exercises: [
@@ -326,9 +329,9 @@ const generateBodyweightRegular = (): WorkoutDay[] => {
             ]
         });
 
-        // Wednesday: Shoulders
+        // Day 3
         plan.push({
-            day: `W${wIdx+1} - WEDNESDAY`,
+            day: `DAY ${start + 3}`,
             focus: 'SHOULDERS',
             totalDuration: 30,
             exercises: [
@@ -341,18 +344,18 @@ const generateBodyweightRegular = (): WorkoutDay[] => {
             ]
         });
 
-        // Thursday: Rest
+        // Day 4
         plan.push({
-            day: `W${wIdx+1} - THURSDAY`,
+            day: `DAY ${start + 4}`,
             focus: 'REST',
             totalDuration: 0,
             isRecovery: true,
             exercises: [createEx('Active Recovery Stretch', 1, '20 min', 'STRETCH')]
         });
 
-        // Friday: Legs
+        // Day 5
         plan.push({
-            day: `W${wIdx+1} - FRIDAY`,
+            day: `DAY ${start + 5}`,
             focus: 'LEGS',
             totalDuration: 35,
             exercises: [
@@ -365,9 +368,9 @@ const generateBodyweightRegular = (): WorkoutDay[] => {
             ]
         });
 
-        // Saturday: Arms
+        // Day 6
         plan.push({
-            day: `W${wIdx+1} - SATURDAY`,
+            day: `DAY ${start + 6}`,
             focus: 'ARMS',
             totalDuration: 35,
             exercises: [
@@ -381,9 +384,9 @@ const generateBodyweightRegular = (): WorkoutDay[] => {
             ]
         });
 
-        // Sunday: Rest
+        // Day 7
         plan.push({
-            day: `W${wIdx+1} - SUNDAY`,
+            day: `DAY ${start + 7}`,
             focus: 'REST',
             totalDuration: 0,
             isRecovery: true,
@@ -408,10 +411,11 @@ const generateBodyweightPpl = (): WorkoutDay[] => {
         const restNote = `REST: ${w.rest}`;
         const tempoNote = w.tempo ? `TEMPO: ${w.tempo}` : '';
         const globalNote = `${restNote} | ${tempoNote}`.trim();
+        const start = wIdx * 7;
 
-        // Monday: Push
+        // Monday
         plan.push({
-            day: `W${wIdx+1} - MONDAY`,
+            day: `DAY ${start + 1}`,
             focus: 'PUSH',
             totalDuration: 45,
             exercises: [
@@ -425,9 +429,9 @@ const generateBodyweightPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Tuesday: Pull
+        // Tuesday
         plan.push({
-            day: `W${wIdx+1} - TUESDAY`,
+            day: `DAY ${start + 2}`,
             focus: 'PULL',
             totalDuration: 45,
             exercises: [
@@ -441,9 +445,9 @@ const generateBodyweightPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Wednesday: Legs
+        // Wednesday
         plan.push({
-            day: `W${wIdx+1} - WEDNESDAY`,
+            day: `DAY ${start + 3}`,
             focus: 'LEGS',
             totalDuration: 45,
             exercises: [
@@ -457,9 +461,9 @@ const generateBodyweightPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Thursday: Upper Body (Mixed)
+        // Thursday
         plan.push({
-            day: `W${wIdx+1} - THURSDAY`,
+            day: `DAY ${start + 4}`,
             focus: 'UPPER BODY',
             totalDuration: 50,
             exercises: [
@@ -474,9 +478,9 @@ const generateBodyweightPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Friday: Lower Body + Abs
+        // Friday
         plan.push({
-            day: `W${wIdx+1} - FRIDAY`,
+            day: `DAY ${start + 5}`,
             focus: 'LOWER BODY + ABS',
             totalDuration: 50,
             exercises: [
@@ -491,18 +495,18 @@ const generateBodyweightPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Saturday: Rest
+        // Saturday
         plan.push({
-            day: `W${wIdx+1} - SATURDAY`,
+            day: `DAY ${start + 6}`,
             focus: 'REST',
             totalDuration: 0,
             isRecovery: true,
             exercises: [createEx('Active Recovery Stretch', 1, '20 min', 'STRETCH')]
         });
 
-        // Sunday: Rest
+        // Sunday
         plan.push({
-            day: `W${wIdx+1} - SUNDAY`,
+            day: `DAY ${start + 7}`,
             focus: 'REST',
             totalDuration: 0,
             isRecovery: true,
@@ -528,10 +532,11 @@ const generateDumbbellPpl = (): WorkoutDay[] => {
         const rest = w.rest;
         const isSuperset = reps === 'Superset';
         const globalNote = `REST: ${rest} | ${w.note}`;
+        const start = wIdx * 7;
 
-        // Monday: Push
+        // Day 1
         plan.push({
-            day: `W${wIdx+1} - MONDAY`,
+            day: `DAY ${start + 1}`,
             focus: 'PUSH',
             totalDuration: 55,
             exercises: [
@@ -545,9 +550,9 @@ const generateDumbbellPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Tuesday: Pull
+        // Day 2
         plan.push({
-            day: `W${wIdx+1} - TUESDAY`,
+            day: `DAY ${start + 2}`,
             focus: 'PULL',
             totalDuration: 55,
             exercises: [
@@ -561,9 +566,9 @@ const generateDumbbellPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Wednesday: Legs
+        // Day 3
         plan.push({
-            day: `W${wIdx+1} - WEDNESDAY`,
+            day: `DAY ${start + 3}`,
             focus: 'LEGS',
             totalDuration: 60,
             exercises: [
@@ -576,9 +581,9 @@ const generateDumbbellPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Thursday: Upper Body
+        // Day 4
         plan.push({
-            day: `W${wIdx+1} - THURSDAY`,
+            day: `DAY ${start + 4}`,
             focus: 'UPPER BODY',
             totalDuration: 55,
             exercises: [
@@ -593,9 +598,9 @@ const generateDumbbellPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Friday: Lower Body + Core
+        // Day 5
         plan.push({
-            day: `W${wIdx+1} - FRIDAY`,
+            day: `DAY ${start + 5}`,
             focus: 'LOWER BODY',
             totalDuration: 60,
             exercises: [
@@ -609,18 +614,18 @@ const generateDumbbellPpl = (): WorkoutDay[] => {
             ]
         });
 
-        // Saturday: Rest
+        // Day 6
         plan.push({
-            day: `W${wIdx+1} - SATURDAY`,
+            day: `DAY ${start + 6}`,
             focus: 'REST',
             totalDuration: 0,
             isRecovery: true,
             exercises: [createEx('Active Recovery Stretch', 1, '20 min', 'STRETCH')]
         });
 
-        // Sunday: Rest
+        // Day 7
         plan.push({
-            day: `W${wIdx+1} - SUNDAY`,
+            day: `DAY ${start + 7}`,
             focus: 'REST',
             totalDuration: 0,
             isRecovery: true,
@@ -648,10 +653,11 @@ const generateDumbbellRegular = (): WorkoutDay[] => {
         const isSuperset = reps === 'Superset';
         const tempoNote = w.tempo ? `TEMPO: ${w.tempo}` : '';
         const globalNote = `REST: ${rest} | ${tempoNote}`.trim();
+        const start = wIdx * 7;
 
-        // Monday: Chest
+        // Day 1
         plan.push({
-            day: `W${wIdx+1} - MONDAY`,
+            day: `DAY ${start + 1}`,
             focus: 'CHEST',
             totalDuration: 50,
             exercises: [
@@ -665,9 +671,9 @@ const generateDumbbellRegular = (): WorkoutDay[] => {
             ]
         });
 
-        // Tuesday: Back
+        // Day 2
         plan.push({
-            day: `W${wIdx+1} - TUESDAY`,
+            day: `DAY ${start + 2}`,
             focus: 'BACK',
             totalDuration: 50,
             exercises: [
@@ -680,9 +686,9 @@ const generateDumbbellRegular = (): WorkoutDay[] => {
             ]
         });
 
-        // Wednesday: Shoulders
+        // Day 3
         plan.push({
-            day: `W${wIdx+1} - WEDNESDAY`,
+            day: `DAY ${start + 3}`,
             focus: 'SHOULDERS',
             totalDuration: 50,
             exercises: [
@@ -695,9 +701,9 @@ const generateDumbbellRegular = (): WorkoutDay[] => {
             ]
         });
 
-        // Thursday: Arms
+        // Day 4
         plan.push({
-            day: `W${wIdx+1} - THURSDAY`,
+            day: `DAY ${start + 4}`,
             focus: 'ARMS',
             totalDuration: 50,
             exercises: [
@@ -711,18 +717,18 @@ const generateDumbbellRegular = (): WorkoutDay[] => {
             ]
         });
 
-        // Friday: Rest
+        // Day 5
         plan.push({
-            day: `W${wIdx+1} - FRIDAY`,
+            day: `DAY ${start + 5}`,
             focus: 'REST',
             totalDuration: 0,
             isRecovery: true,
             exercises: [createEx('Active Recovery Walk', 1, '20 min', 'STRETCH', 'Flush out lactic acid')]
         });
 
-        // Saturday: Legs
+        // Day 6
         plan.push({
-            day: `W${wIdx+1} - SATURDAY`,
+            day: `DAY ${start + 6}`,
             focus: 'LEGS',
             totalDuration: 55,
             exercises: [
@@ -736,9 +742,9 @@ const generateDumbbellRegular = (): WorkoutDay[] => {
             ]
         });
 
-        // Sunday: Rest
+        // Day 7
         plan.push({
-            day: `W${wIdx+1} - SUNDAY`,
+            day: `DAY ${start + 7}`,
             focus: 'REST',
             totalDuration: 0,
             isRecovery: true,
