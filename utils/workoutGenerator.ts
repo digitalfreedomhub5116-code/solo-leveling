@@ -1,9 +1,6 @@
 
 import { Exercise, HealthProfile, WorkoutDay } from '../types';
 
-// --- CONFIGURATION ---
-const WEEKS_TO_GENERATE = 4;
-
 // --- TYPES ---
 type Equipment = 'GYM' | 'HOME_DUMBBELLS' | 'BODYWEIGHT';
 type Split = 'PPL' | 'CLASSIC';
@@ -14,494 +11,781 @@ const createEx = (
     sets: number, 
     reps: string, 
     type: 'COMPOUND' | 'ACCESSORY' | 'CARDIO' | 'STRETCH', 
-    notes?: string
+    notes?: string,
+    videoUrl?: string
 ): Exercise => ({
-    name, sets, reps, type, completed: false, duration: 10, notes
+    name, sets, reps, type, completed: false, duration: 10, notes, videoUrl
 });
 
-// --- GYM PPL STORY PROTOCOL (Fixed) ---
-// Defined explicitly based on the provided story narration
-const GYM_PPL_ROUTINE = {
-    WEEK1: {
-        MONDAY: [ // Push 1
-            createEx('Treadmill Warmup', 1, '5 min', 'STRETCH', 'Wake up the system'),
-            createEx('Mobility Routine', 1, 'Full Body', 'STRETCH', 'Ankles, Quads, Shoulders'),
-            createEx('Dumbbell Bench Press', 3, '15, 12, 10', 'COMPOUND', 'Increase weight each set'),
-            createEx('Dumbbell Shoulder Press', 3, '15, 12, 10', 'COMPOUND'),
-            createEx('Incline Dumbbell Flyes', 3, '15, 12, 10', 'ACCESSORY', 'Sculpt upper chest'),
-            createEx('Tricep Pushdown (Rope)', 3, '15, 12, 10', 'ACCESSORY'),
-            createEx('Ab Wheel Rollouts', 3, '15, 12, 10', 'ACCESSORY', 'Engage core'),
-            createEx('Skipping', 3, '2 min rounds', 'CARDIO', '30s rest between rounds'),
-            createEx('Full Body Stretch', 1, '5 min', 'STRETCH', 'Cooldown')
-        ],
-        TUESDAY: [ // Pull 1
-            createEx('Treadmill Warmup', 1, '5 min', 'STRETCH'),
-            createEx('Pull Ups', 3, '15, 12, 10', 'COMPOUND', 'Use assist if needed'),
-            createEx('Cable Seated Wide Row', 3, '15, 12, 10', 'COMPOUND', 'Build thickness'),
-            createEx('Rear Delt Flyes', 3, '15, 12, 10', 'ACCESSORY'),
-            createEx('Barbell Bicep Curls', 3, '15, 12, 10', 'ACCESSORY'),
-            createEx('Incline Dumbbell Curls', 3, '15, 12, 10', 'ACCESSORY', 'Stretch focus'),
-            createEx('Burpees', 3, '15 reps', 'CARDIO', 'High intensity'),
-            createEx('Cooldown Stretches', 1, '5 min', 'STRETCH')
-        ],
-        WEDNESDAY: [ // Legs
-            createEx('Treadmill & Quad Stretch', 1, '5 min', 'STRETCH'),
-            createEx('Dumbbell RDL', 3, '15, 12, 10', 'COMPOUND', 'Hamstring focus'),
-            createEx('Leg Press', 3, '15, 12, 10', 'COMPOUND'),
-            createEx('Glute Bridges', 3, '15, 12, 10', 'ACCESSORY'),
-            createEx('Hanging Leg Raises', 3, '15, 12, 10', 'ACCESSORY', 'Core'),
-            createEx('Standing Calf Raises', 3, '15, 12, 10', 'ACCESSORY'),
-            createEx('Bicycle Crunches', 3, '15 reps', 'ACCESSORY'),
-            createEx('Rowing Machine', 3, '3 min rounds', 'CARDIO'),
-            createEx('Leg Stretches', 1, '5 min', 'STRETCH')
-        ],
-        THURSDAY: [ createEx('Active Recovery Walk', 1, '30 min', 'STRETCH', 'Let muscles repair') ],
-        FRIDAY: [ // Push 2
-            createEx('Treadmill Warmup', 1, '5 min', 'STRETCH'),
-            createEx('Smith Machine Shoulder Press', 3, '15, 12, 10', 'COMPOUND'),
-            createEx('Incline Barbell Bench Press', 3, '15, 12, 10', 'COMPOUND'),
-            createEx('Lever Leg Extensions', 3, '15, 12, 10', 'ACCESSORY', 'Surprise Leg Mix'),
-            createEx('Cable Lateral Raises', 3, '15, 12, 10', 'ACCESSORY'),
-            createEx('Tricep Dips', 3, '15, 12, 10', 'ACCESSORY'),
-            createEx('Leg Raises', 3, '15 reps', 'ACCESSORY'),
-            createEx('Spin Bike', 1, '10 mins', 'CARDIO'),
-            createEx('Cooldown', 1, '5 min', 'STRETCH')
-        ],
-        SATURDAY: [ // Pull 2
-            createEx('Treadmill Warmup', 1, '5 min', 'STRETCH'),
-            createEx('Cable Bent Over Row (Kneeling)', 3, '15, 12, 10', 'COMPOUND'),
-            createEx('Lever Lying Leg Curls', 3, '15, 12, 10', 'ACCESSORY', 'Leg Superset'),
-            createEx('Hyperextensions', 3, '15, 12, 10', 'ACCESSORY', 'Lower Back'),
-            createEx('Single Leg RDL', 3, '15, 12, 10', 'ACCESSORY', 'Balance'),
-            createEx('Dumbbell Hammer Curls', 3, '15, 12, 10', 'ACCESSORY'),
-            createEx('Cross Body Mtn Climbers', 3, '15 reps', 'CARDIO'),
-            createEx('Brisk Walk', 1, '10 mins', 'CARDIO'),
-            createEx('Full Body Stretch', 1, '5 min', 'STRETCH')
-        ],
-        SUNDAY: [ createEx('Deep Stretch & Recovery', 1, '20 min', 'STRETCH', 'Prepare for Week 2') ]
-    },
-    WEEK2: {
-        MONDAY: [ // Push 1 (Heavy Start)
-            createEx('Barbell Bench Press', 3, '12, 10, 8', 'COMPOUND', 'Trade volume for strength'),
-            createEx('Barbell Military Press', 3, '12, 10, 8', 'COMPOUND'),
-            createEx('High Pulley Cable Flys', 3, '12, 10, 8', 'ACCESSORY'),
-            createEx('EZ Bar Skull Crushers', 3, '12, 10, 8', 'ACCESSORY'),
-            createEx('Hanging Leg Raises', 3, '12, 10, 8', 'ACCESSORY'),
-            createEx('Skipping', 3, '2 min rounds', 'CARDIO')
-        ],
-        TUESDAY: [ // Pull 1
-            createEx('Wide Grip Lat Pulldown', 3, '12, 10, 8', 'COMPOUND', 'Build V-Taper'),
-            createEx('Reverse Pec Deck', 3, '12, 10, 8', 'ACCESSORY', 'Rear Delts'),
-            createEx('Cable Concentration Curls', 3, '12, 10, 8', 'ACCESSORY', 'Peak focus'),
-            createEx('Incline Dumbbell Curls', 3, '12, 10, 8', 'ACCESSORY'),
-            createEx('Burpees', 3, '15 reps', 'CARDIO')
-        ],
-        WEDNESDAY: [ // Legs
-            createEx('Lying Leg Curls', 3, '12, 10, 8', 'ACCESSORY', 'Pre-exhaust'),
-            createEx('Leg Press', 3, '12, 10, 8', 'COMPOUND'),
-            createEx('Tricep Kickbacks (Cable)', 3, '12, 10, 8', 'ACCESSORY', 'Arm Mix-in'),
-            createEx('Decline Crunches', 3, '12, 10, 8', 'ACCESSORY'),
-            createEx('Seated Calf Raises', 3, '12, 10, 8', 'ACCESSORY', 'Weighted'),
-            createEx('Rowing Machine', 3, '3 min rounds', 'CARDIO')
-        ],
-        THURSDAY: [ createEx('Rest & Grow', 1, 'Full Day', 'STRETCH') ],
-        FRIDAY: [ // Push 2
-            createEx('Dumbbell Shoulder Press', 3, '12, 10, 8', 'COMPOUND'),
-            createEx('Dumbbell Incline Press', 3, '12, 10, 8', 'COMPOUND'),
-            createEx('Dumbbell Front Squats', 3, '12, 10, 8', 'COMPOUND', 'Full body challenge'),
-            createEx('Cable Lateral Raises', 3, '12, 10, 8', 'ACCESSORY'),
-            createEx('Tricep Pushdown (Rope)', 3, '12, 10, 8', 'ACCESSORY'),
-            createEx('Spin Bike', 1, '10 mins', 'CARDIO')
-        ],
-        SATURDAY: [ // Pull 2
-            createEx('T-Bar Rows', 3, '12, 10, 8', 'COMPOUND', 'Thick back'),
-            createEx('Cable Seated Rows (Neutral)', 3, '12, 10, 8', 'COMPOUND'),
-            createEx('Hyperextensions', 3, '12, 10, 8', 'ACCESSORY'),
-            createEx('Preacher Curls', 3, '12, 10, 8', 'ACCESSORY'),
-            createEx('Lying Leg Curls', 3, '12, 10, 8', 'ACCESSORY'),
-            createEx('Brisk Walk', 1, '10 mins', 'CARDIO')
-        ],
-        SUNDAY: [ createEx('Rest & Recover', 1, 'Full Day', 'STRETCH') ]
-    },
-    WEEK3: {
-        MONDAY: [ // Push 1 (Heavy & Hard)
-            createEx('Barbell Bench Press', 3, '10, 8, 8', 'COMPOUND', 'Heavy weight'),
-            createEx('Dumbbell Shoulder Press', 3, '10, 8, 8', 'COMPOUND'),
-            createEx('Incline Dumbbell Flys', 3, '10, 8, 8', 'ACCESSORY', 'Carve detail'),
-            createEx('Tricep Pushdowns (Rope)', 3, '10, 8, 8', 'ACCESSORY'),
-            createEx('Ab Wheel Rollouts', 3, '10, 8, 8', 'ACCESSORY'),
-            createEx('Skipping', 3, '2 min rounds', 'CARDIO')
-        ],
-        TUESDAY: [ // Pull 1
-            createEx('Pull Ups', 3, '10, 8, 8', 'COMPOUND', 'Add weight if easy'),
-            createEx('Cable Seated Wide Row', 3, '10, 8, 8', 'COMPOUND'),
-            createEx('Rear Delt Flys', 3, '10, 8, 8', 'ACCESSORY'),
-            createEx('Barbell Bicep Curl', 3, '10, 8, 8', 'ACCESSORY', 'Load up'),
-            createEx('Incline Dumbbell Curls', 3, '10, 8, 8', 'ACCESSORY'),
-            createEx('Burpees', 3, '15 reps', 'CARDIO')
-        ],
-        WEDNESDAY: [ // Legs
-            createEx('Dumbbell RDL', 3, '10, 8, 8', 'COMPOUND'),
-            createEx('Leg Press', 3, '10, 8, 8', 'COMPOUND', 'Heavy load'),
-            createEx('Glute Bridges', 3, '10, 8, 8', 'ACCESSORY'),
-            createEx('Hanging Leg Raises', 3, '10, 8, 8', 'ACCESSORY'),
-            createEx('Standing Calf Raises', 3, '10, 8, 8', 'ACCESSORY'),
-            createEx('Rowing Machine', 3, '3 min rounds', 'CARDIO')
-        ],
-        THURSDAY: [ createEx('Rest & Sleep', 1, 'Full Day', 'STRETCH') ],
-        FRIDAY: [ // Push 2
-            createEx('Smith Machine Shoulder Press', 3, '10, 8, 8', 'COMPOUND', 'Controlled power'),
-            createEx('Incline Barbell Bench', 3, '10, 8, 8', 'COMPOUND'),
-            createEx('Lever Leg Extensions', 3, '10, 8, 8', 'ACCESSORY'),
-            createEx('Cable Lateral Raises', 3, '10, 8, 8', 'ACCESSORY'),
-            createEx('Tricep Dips', 3, '10, 8, 8', 'ACCESSORY', 'Heavy'),
-            createEx('Spin Bike', 1, '10 mins', 'CARDIO')
-        ],
-        SATURDAY: [ // Pull 2
-            createEx('Cable Bent Over Row', 3, '10, 8, 8', 'COMPOUND'),
-            createEx('Lying Leg Curls', 3, '10, 8, 8', 'ACCESSORY'),
-            createEx('Hyperextensions', 3, '10, 8, 8', 'ACCESSORY'),
-            createEx('Single Leg RDL', 3, '10, 8, 8', 'ACCESSORY'),
-            createEx('Dumbbell Hammer Curls', 3, '10, 8, 8', 'ACCESSORY'),
-            createEx('Cross Body Mtn Climbers', 3, '15 reps', 'CARDIO')
-        ],
-        SUNDAY: [ createEx('Full Recovery', 1, 'Full Day', 'STRETCH') ]
-    },
-    WEEK4: {
-        MONDAY: [ // Push 1 (Strength Phase)
-            createEx('Barbell Bench Press', 3, '3 x 8', 'COMPOUND', 'Strict Strength'),
-            createEx('Barbell Military Press', 3, '3 x 8', 'COMPOUND'),
-            createEx('High Pulley Cable Flys', 3, '3 x 8', 'ACCESSORY'),
-            createEx('EZ Bar Skull Crushers', 3, '3 x 8', 'ACCESSORY'),
-            createEx('Hanging Leg Raises', 3, '3 x 8', 'ACCESSORY', 'Strict form'),
-            createEx('Skipping', 3, '2 min rounds', 'CARDIO')
-        ],
-        TUESDAY: [ // Pull 1
-            createEx('Cable Seated Wide Row', 3, '3 x 8', 'COMPOUND'),
-            createEx('Wide Grip Lat Pulldown', 3, '3 x 8', 'COMPOUND'),
-            createEx('Reverse Pec Deck', 3, '3 x 8', 'ACCESSORY'),
-            createEx('Cable Concentration Curls', 3, '3 x 8', 'ACCESSORY'),
-            createEx('Incline Dumbbell Curls', 3, '3 x 8', 'ACCESSORY'),
-            createEx('Burpees', 3, '15 reps', 'CARDIO')
-        ],
-        WEDNESDAY: [ // Legs
-            createEx('Lying Leg Curls', 3, '3 x 8', 'ACCESSORY', 'Pre-exhaust'),
-            createEx('Leg Press', 3, '3 x 8', 'COMPOUND', 'Heavy'),
-            createEx('Tricep Kickbacks (Cable)', 3, '3 x 8', 'ACCESSORY', 'Arm Mix'),
-            createEx('Decline Crunches', 3, '3 x 8', 'ACCESSORY'),
-            createEx('Seated Calf Raises', 3, '3 x 8', 'ACCESSORY', 'Heavy'),
-            createEx('Rowing Machine', 3, '3 min rounds', 'CARDIO')
-        ],
-        THURSDAY: [ createEx('Rest & Prepare', 1, 'Full Day', 'STRETCH') ],
-        FRIDAY: [ // Push 2
-            createEx('Dumbbell Shoulder Press', 3, '3 x 8', 'COMPOUND', 'Heavy'),
-            createEx('Dumbbell Incline Bench', 3, '3 x 8', 'COMPOUND'),
-            createEx('Dumbbell Front Squats', 3, '3 x 8', 'COMPOUND', 'Compound Power'),
-            createEx('Cable Lateral Raises', 3, '3 x 8', 'ACCESSORY'),
-            createEx('Tricep Pushdown (Rope)', 3, '3 x 8', 'ACCESSORY'),
-            createEx('Spin Bike', 1, '10 mins', 'CARDIO')
-        ],
-        SATURDAY: [ // Pull 2
-            createEx('T-Bar Rows', 3, '3 x 8', 'COMPOUND', 'Thick back'),
-            createEx('Cable Seated Rows (Neutral)', 3, '3 x 8', 'COMPOUND'),
-            createEx('Hyperextensions', 3, '3 x 8', 'ACCESSORY'),
-            createEx('Preacher Curls', 3, '3 x 8', 'ACCESSORY'),
-            createEx('Lying Leg Curls', 3, '3 x 8', 'ACCESSORY'),
-            createEx('Brisk Walk', 1, '10 mins', 'CARDIO')
-        ],
-        SUNDAY: [ createEx('Cycle Complete', 1, 'Full Day', 'STRETCH') ]
-    }
+const UNIVERSAL_WARMUP = [
+    createEx('Treadmill/Brisk Walk Warmup', 1, '5 min', 'STRETCH', 'Wake up the system (30-45 cal)'),
+    createEx('Mobility: Ankle Rotations', 1, '10 reps/side', 'STRETCH'),
+    createEx('Mobility: Quad Stretches', 1, '10s/side', 'STRETCH'),
+    createEx('Mobility: Cat & Cow', 1, '10 reps', 'STRETCH'),
+    createEx('Mobility: Shoulder & Wrist Rotations', 1, '10 reps/side', 'STRETCH'),
+];
+
+const UNIVERSAL_COOLDOWN = [
+    createEx('Cooldown: Child Pose', 1, '1 min', 'STRETCH'),
+    createEx('Cooldown: Shavasana', 1, '2 min', 'STRETCH'),
+    createEx('Full Body Stretch', 1, '5 min', 'STRETCH')
+];
+
+// --- PPL GYM MASTER DATA ---
+const generateGymPpl = (): WorkoutDay[] => {
+    const plan: WorkoutDay[] = [];
+    const weeks = [
+        { label: 'WEEK 1: INITIALIZATION', reps: '15, 12, 10' },
+        { label: 'WEEK 2: PROGRESSION', reps: '12, 10, 8' },
+        { label: 'WEEK 3: PEAK VOLUME', reps: '10, 8, 8' },
+        { label: 'WEEK 4: STRENGTH PHASE', reps: '3 x 8' }
+    ];
+
+    weeks.forEach((w, wIdx) => {
+        const reps = w.reps;
+        
+        // Day 1: Monday (Push 1)
+        plan.push({
+            day: `W${wIdx+1} - MONDAY`,
+            focus: 'PUSH 1',
+            totalDuration: 60,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx('Dumbbell Bench Press', 3, reps, 'COMPOUND', 'Increase weight each set'),
+                createEx('Dumbbell Shoulder Press', 3, reps, 'COMPOUND'),
+                createEx('Incline Dumbbell Flyes', 3, reps, 'ACCESSORY'),
+                createEx('Tricep Pushdown (Rope)', 3, reps, 'ACCESSORY'),
+                createEx('Ab Wheel Rollouts', 3, reps, 'ACCESSORY'),
+                createEx('Skipping', 3, '2 min', 'CARDIO', '30s rest between rounds'),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Day 2: Tuesday (Pull 1)
+        plan.push({
+            day: `W${wIdx+1} - TUESDAY`,
+            focus: 'PULL 1',
+            totalDuration: 60,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx('Pull Ups', 3, reps, 'COMPOUND', 'Assisted if needed'),
+                createEx('Cable Seated Wide Grip Row', 3, reps, 'COMPOUND'),
+                createEx('Rear Delt Flyes', 3, reps, 'ACCESSORY'),
+                createEx('Barbell Bicep Curls', 3, reps, 'ACCESSORY'),
+                createEx('Incline Dumbbell Curls', 3, reps, 'ACCESSORY'),
+                createEx('Burpees', 3, '15 reps', 'CARDIO', '30s rest'),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Day 3: Wednesday (Legs)
+        plan.push({
+            day: `W${wIdx+1} - WEDNESDAY`,
+            focus: 'LEGS',
+            totalDuration: 70,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx('Dumbbell Romanian Deadlift', 3, reps, 'COMPOUND'),
+                createEx('Leg Press', 3, reps, 'COMPOUND'),
+                createEx('Glute Bridges', 3, reps, 'ACCESSORY'),
+                createEx('Hanging Leg Raises', 3, reps, 'ACCESSORY'),
+                createEx('Standing Calf Raises', 3, reps, 'ACCESSORY'),
+                createEx('Bicycle Crunches', 3, '15 reps', 'ACCESSORY'),
+                createEx('Rowing Machine', 3, '3 min', 'CARDIO'),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Day 4: Thursday (Rest)
+        plan.push({
+            day: `W${wIdx+1} - THURSDAY`,
+            focus: 'REST',
+            totalDuration: 0,
+            isRecovery: true,
+            exercises: [createEx('Active Recovery Walk', 1, '20 min', 'STRETCH', 'Light movement only')]
+        });
+
+        // Day 5: Friday (Push 2)
+        plan.push({
+            day: `W${wIdx+1} - FRIDAY`,
+            focus: 'PUSH 2',
+            totalDuration: 60,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx('Smith Machine Shoulder Press', 3, reps, 'COMPOUND'),
+                createEx('Incline Barbell Bench Press', 3, reps, 'COMPOUND'),
+                createEx('Lever Leg Extensions', 3, reps, 'ACCESSORY', 'Surprise leg integration'),
+                createEx('Cable Lateral Raises', 3, reps, 'ACCESSORY'),
+                createEx('Tricep Dips', 3, reps, 'ACCESSORY'),
+                createEx('Leg Raises', 3, '15 reps', 'ACCESSORY'),
+                createEx('Spin Bike', 1, '10 min', 'CARDIO'),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Day 6: Saturday (Pull 2)
+        plan.push({
+            day: `W${wIdx+1} - SATURDAY`,
+            focus: 'PULL 2',
+            totalDuration: 65,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx('Cable Bent Over Row (Kneeling)', 3, reps, 'COMPOUND'),
+                createEx('Lever Lying Leg Curls', 3, reps, 'ACCESSORY', 'Hamstring focus'),
+                createEx('Hyperextensions', 3, reps, 'ACCESSORY'),
+                createEx('Single Leg Romanian Deadlift', 3, reps, 'ACCESSORY'),
+                createEx('Dumbbell Hammer Curls', 3, reps, 'ACCESSORY'),
+                createEx('Cross Body Mountain Climbers', 3, '15 reps', 'CARDIO'),
+                createEx('Brisk Walk', 1, '10 min', 'CARDIO'),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Day 7: Sunday (Rest)
+        plan.push({
+            day: `W${wIdx+1} - SUNDAY`,
+            focus: 'REST',
+            totalDuration: 0,
+            isRecovery: true,
+            exercises: [createEx('Deep Recovery', 1, '30 min', 'STRETCH', 'Prepare for next week')]
+        });
+    });
+
+    return plan;
 };
 
-// --- ALTERNATIVE ROUTINE GENERATORS (Structure for other scenarios) ---
+// --- CLASSIC BRO SPLIT MASTER DATA ---
+const generateGymClassic = (): WorkoutDay[] => {
+    const plan: WorkoutDay[] = [];
+    const weeks = [
+        { label: 'WEEK 1: VOLUME PHASE', reps: '12, 10, 8' },
+        { label: 'WEEK 2: PROGRESSIVE OVERLOAD', reps: '12, 10, 8' },
+        { label: 'WEEK 3: PEAK VOLUME', reps: '12, 10, 8' },
+        { label: 'WEEK 4: STRENGTH & DENSITY', reps: '3 x 8' }
+    ];
 
-// Helper to get exercises for Bodyweight scenarios
-// weekNum allows for progressive overload logic (e.g. increasing reps)
-const getBodyweightExercises = (focus: string, weekNum: number): Exercise[] => {
-    const repBase = 15 + (weekNum - 1) * 3; // 15, 18, 21, 24
-    const reps = `${repBase}-${repBase + 5}`;
-    
-    const warmup = [createEx('Dynamic Warmup', 1, '5 min', 'STRETCH')];
+    weeks.forEach((w, wIdx) => {
+        const reps = w.reps;
+        
+        // Monday: Chest
+        plan.push({
+            day: `W${wIdx+1} - MONDAY`,
+            focus: 'CHEST',
+            totalDuration: 60,
+            exercises: [
+                createEx('Treadmill Warmup', 1, '5 min', 'STRETCH'),
+                createEx('Upper Body Mobility', 1, 'Full', 'STRETCH', 'Arm Circles & Torso Twists'),
+                createEx('Barbell Bench Press', 3, reps, 'COMPOUND', 'Power builder'),
+                createEx('Incline Dumbbell Press', 3, reps, 'COMPOUND', '30-degree incline'),
+                createEx('Chest Dips', 3, reps === '3 x 8' ? '8' : 'Failure', 'COMPOUND', 'Lean forward for pecs'),
+                createEx('Pec Deck Machine', 3, reps, 'ACCESSORY', 'Hard squeeze at center'),
+                createEx('Push-Ups', 2, 'Failure', 'ACCESSORY', 'Empty the tank'),
+                createEx('Doorway Pec Stretch', 1, '1 min', 'STRETCH'),
+                createEx('Overhead Tricep Stretch', 1, '1 min', 'STRETCH')
+            ]
+        });
 
-    switch(focus) {
-        case 'PUSH': return [
-            ...warmup,
-            createEx('Standard Push-Ups', 4, reps, 'COMPOUND'),
-            createEx('Pike Push-Ups', 3, `${repBase - 5}`, 'COMPOUND', 'Shoulders'),
-            createEx('Chair Dips', 3, reps, 'ACCESSORY', 'Triceps'),
-            createEx('Decline Push-Ups', 3, `${repBase - 3}`, 'ACCESSORY', 'Upper Chest'),
-            createEx('Plank to Push-Up', 3, '10', 'ACCESSORY', 'Core Stability')
-        ];
-        case 'PULL': return [
-            ...warmup,
-            createEx('Doorframe Rows', 4, reps, 'COMPOUND', 'Back'),
-            createEx('Superman Holds', 3, '45s', 'ACCESSORY', 'Lower Back'),
-            createEx('Towel Bicep Curls', 3, reps, 'ACCESSORY', 'Manual Resistance'),
-            createEx('Reverse Snow Angels', 3, reps, 'ACCESSORY', 'Rear Delts'),
-            createEx('Hanging Knee Raises', 3, '15', 'ACCESSORY', 'Abs')
-        ];
-        case 'LEGS': return [
-            ...warmup,
-            createEx('Bodyweight Squats', 4, `${repBase + 10}`, 'COMPOUND'),
-            createEx('Walking Lunges', 3, '12/leg', 'COMPOUND'),
-            createEx('Glute Bridges', 3, '20', 'ACCESSORY'),
-            createEx('Calf Raises', 4, '30', 'ACCESSORY'),
-            createEx('Wall Sit', 3, '60s', 'STRETCH')
-        ];
-        case 'UPPER': return [
-            ...warmup,
-            createEx('Wide Push-Ups', 3, reps, 'COMPOUND'),
-            createEx('Pike Push-Ups', 3, '12', 'COMPOUND'),
-            createEx('Doorframe Rows', 3, reps, 'COMPOUND'),
-            createEx('Dips', 3, '15', 'ACCESSORY'),
-            createEx('Shoulder Taps', 3, '20', 'ACCESSORY')
-        ];
-        case 'LOWER': return [
-            ...warmup,
-            createEx('Squats', 4, '25', 'COMPOUND'),
-            createEx('Reverse Lunges', 3, '12/leg', 'COMPOUND'),
-            createEx('Side Lunges', 3, '12/leg', 'ACCESSORY'),
-            createEx('Single Leg Glute Bridge', 3, '10/leg', 'ACCESSORY')
-        ];
-        case 'CORE': return [
-            ...warmup,
-            createEx('Plank', 3, '60s', 'ACCESSORY'),
-            createEx('Leg Raises', 3, '15', 'ACCESSORY'),
-            createEx('Russian Twists', 3, '30', 'ACCESSORY'),
-            createEx('Bicycle Crunches', 3, '20', 'ACCESSORY')
-        ];
-        case 'FULL': return [
-            ...warmup,
-            createEx('Burpees', 3, '10', 'CARDIO'),
-            createEx('Squat Jumps', 3, '15', 'COMPOUND'),
-            createEx('Push-Ups', 3, '15', 'COMPOUND'),
-            createEx('Lunges', 3, '12/leg', 'COMPOUND'),
-            createEx('Mountain Climbers', 3, '40s', 'CARDIO')
-        ];
-        default: return [createEx('Active Recovery', 1, '30m', 'STRETCH')];
-    }
+        // Tuesday: Back
+        plan.push({
+            day: `W${wIdx+1} - TUESDAY`,
+            focus: 'BACK',
+            totalDuration: 60,
+            exercises: [
+                createEx('Treadmill Warmup', 1, '5 min', 'STRETCH'),
+                createEx('Shoulder/Arm Rotations', 1, 'Full', 'STRETCH'),
+                createEx('Wide Grip Pull-Ups', 3, reps === '3 x 8' ? '8' : 'Failure', 'COMPOUND', 'Assisted if needed'),
+                createEx('Bent Over Barbell Rows', 3, reps, 'COMPOUND', 'Pull to stomach'),
+                createEx('Lat Pulldown (Neutral/Close)', 3, reps, 'COMPOUND', 'V-handle attachment'),
+                createEx('Single Arm Dumbbell Rows', 3, reps, 'COMPOUND', 'Pull to hip pocket'),
+                createEx('Hyperextensions', 3, reps, 'ACCESSORY', 'Lower back focus'),
+                createEx('Lat Hang', 1, '1 min', 'STRETCH'),
+                createEx('Child\'s Pose', 1, '1 min', 'STRETCH')
+            ]
+        });
+
+        // Wednesday: Shoulders
+        plan.push({
+            day: `W${wIdx+1} - WEDNESDAY`,
+            focus: 'SHOULDERS',
+            totalDuration: 60,
+            exercises: [
+                createEx('Treadmill Warmup', 1, '5 min', 'STRETCH'),
+                createEx('Shoulder Dislocations', 1, '10 reps', 'STRETCH', 'Use stick or band'),
+                createEx('Seated Dumbbell Overhead Press', 3, reps, 'COMPOUND'),
+                createEx('Dumbbell Lateral Raises', 3, reps, 'ACCESSORY', 'Lead with elbows'),
+                createEx('Face Pulls', 3, reps, 'ACCESSORY', 'Rope attachment'),
+                createEx('Dumbbell Front Raises', 3, reps, 'ACCESSORY', 'Controlled drop'),
+                createEx('Dumbbell Shrugs', 3, reps, 'ACCESSORY', 'Trap builder'),
+                createEx('Cross-Body Shoulder Stretch', 1, '1 min', 'STRETCH'),
+                createEx('Neck Tilts', 1, '1 min', 'STRETCH')
+            ]
+        });
+
+        // Thursday: Arms
+        plan.push({
+            day: `W${wIdx+1} - THURSDAY`,
+            focus: 'ARMS',
+            totalDuration: 60,
+            exercises: [
+                createEx('Treadmill Warmup', 1, '5 min', 'STRETCH'),
+                createEx('Arm Circles', 1, '1 min', 'STRETCH'),
+                createEx('Close Grip Bench Press', 3, reps, 'COMPOUND', 'Tucked elbows'),
+                createEx('Barbell Bicep Curl', 3, reps, 'COMPOUND', 'Strict form'),
+                createEx('Overhead Cable Extension', 3, reps, 'ACCESSORY', 'Rope'),
+                createEx('Incline Dumbbell Curl', 3, reps, 'ACCESSORY', 'Deep stretch focus'),
+                createEx('Tricep Pushdowns', 3, reps, 'ACCESSORY', 'Bar or Rope'),
+                createEx('Hammer Curls', 3, reps, 'ACCESSORY', 'Forearm & width builder'),
+                createEx('Wrist/Forearm Stretches', 1, '1 min', 'STRETCH'),
+                createEx('Bicep Wall Stretch', 1, '1 min', 'STRETCH')
+            ]
+        });
+
+        // Friday: Rest
+        plan.push({
+            day: `W${wIdx+1} - FRIDAY`,
+            focus: 'REST',
+            totalDuration: 0,
+            isRecovery: true,
+            exercises: [createEx('Active Recovery Walk', 1, '30 min', 'STRETCH', 'Flush out lactic acid')]
+        });
+
+        // Saturday: Legs
+        plan.push({
+            day: `W${wIdx+1} - SATURDAY`,
+            focus: 'LEGS',
+            totalDuration: 70,
+            exercises: [
+                createEx('Treadmill Warmup', 1, '5 min', 'STRETCH'),
+                createEx('Leg Swings', 1, 'Full', 'STRETCH', 'Front/Back & Side/Side'),
+                createEx('Barbell Squats', 3, reps, 'COMPOUND', 'The foundation lift'),
+                createEx('Romanian Deadlifts', 3, reps, 'COMPOUND', 'Hamstring stretch'),
+                createEx('Leg Press', 3, reps, 'COMPOUND', 'Load up the plates'),
+                createEx('Leg Extensions', 3, reps, 'ACCESSORY', 'Quad focus'),
+                createEx('Lying Leg Curls', 3, reps, 'ACCESSORY', 'Hamstring focus'),
+                createEx('Standing Calf Raises', 3, reps, 'ACCESSORY', 'Deep stretch at bottom'),
+                createEx('Lying Quad Stretch', 1, '1 min', 'STRETCH'),
+                createEx('Pigeon Pose', 1, '1 min', 'STRETCH')
+            ]
+        });
+
+        // Sunday: Rest
+        plan.push({
+            day: `W${wIdx+1} - SUNDAY`,
+            focus: 'REST',
+            totalDuration: 0,
+            isRecovery: true,
+            exercises: [createEx('Full Recovery', 1, 'Full Day', 'STRETCH', 'Sleep and eat well')]
+        });
+    });
+
+    return plan;
 };
 
-// Helper for Dumbbell scenarios
-const getDumbbellExercises = (focus: string, weekNum: number): Exercise[] => {
-    // Progressive Overload: Reduce reps slightly as weight implies getting heavier, or maintain range
-    const repRange = weekNum > 2 ? '8-10' : '10-12';
-    const warmup = [createEx('Dynamic Warmup', 1, '5 min', 'STRETCH')];
+// --- BODYWEIGHT REGULAR MASTER DATA ---
+const generateBodyweightRegular = (): WorkoutDay[] => {
+    const plan: WorkoutDay[] = [];
+    const weeks = [
+        { label: 'WEEK 1: INITIALIZATION', reps: '10' },
+        { label: 'WEEK 2: PROGRESSION', reps: '12' },
+        { label: 'WEEK 3: ADAPTATION', reps: '12' },
+        { label: 'WEEK 4: MASTERY', reps: '12-15' }
+    ];
 
-    switch(focus) {
-        case 'PUSH': return [
-            ...warmup,
-            createEx('DB Floor Press', 4, repRange, 'COMPOUND'),
-            createEx('DB Shoulder Press', 3, repRange, 'COMPOUND'),
-            createEx('DB Flys', 3, '12-15', 'ACCESSORY'),
-            createEx('DB Skullcrushers', 3, '12', 'ACCESSORY'),
-            createEx('Lateral Raises', 3, '15', 'ACCESSORY')
-        ];
-        case 'PULL': return [
-            ...warmup,
-            createEx('DB Bent Over Rows', 4, repRange, 'COMPOUND'),
-            createEx('DB RDL', 3, repRange, 'COMPOUND'),
-            createEx('DB Bicep Curls', 3, '12', 'ACCESSORY'),
-            createEx('DB Shrugs', 3, '15', 'ACCESSORY'),
-            createEx('Renegade Rows', 3, '10/side', 'ACCESSORY')
-        ];
-        case 'LEGS': return [
-            ...warmup,
-            createEx('Goblet Squats', 4, repRange, 'COMPOUND'),
-            createEx('DB Lunges', 3, '12/leg', 'COMPOUND'),
-            createEx('DB RDL', 3, repRange, 'COMPOUND'),
-            createEx('Weighted Calf Raises', 4, '20', 'ACCESSORY'),
-            createEx('DB Glute Bridge', 3, '15', 'ACCESSORY')
-        ];
-        // For Classic Split
-        case 'CHEST_TRI': return [
-            ...warmup,
-            createEx('DB Bench Press', 4, repRange, 'COMPOUND'),
-            createEx('DB Incline Flys', 3, '12', 'ACCESSORY'),
-            createEx('Push-Ups', 3, 'Failure', 'COMPOUND'),
-            createEx('DB Overhead Extension', 3, '12', 'ACCESSORY'),
-            createEx('DB Kickbacks', 3, '15', 'ACCESSORY')
-        ];
-        case 'BACK_BI': return [
-            ...warmup,
-            createEx('DB One Arm Row', 4, repRange, 'COMPOUND'),
-            createEx('DB Pullovers', 3, '12', 'ACCESSORY'),
-            createEx('DB Reverse Flys', 3, '15', 'ACCESSORY'),
-            createEx('DB Hammer Curls', 3, '12', 'ACCESSORY'),
-            createEx('Concentration Curls', 3, '12', 'ACCESSORY')
-        ];
-        case 'SHOULDER_ABS': return [
-            ...warmup,
-            createEx('Seated DB Press', 4, repRange, 'COMPOUND'),
-            createEx('DB Lateral Raises', 3, '15', 'ACCESSORY'),
-            createEx('DB Front Raises', 3, '12', 'ACCESSORY'),
-            createEx('DB Shrugs', 4, '15', 'ACCESSORY'),
-            createEx('Weighted Sit-Ups', 3, '15', 'ACCESSORY')
-        ];
-        case 'ARMS': return [
-            ...warmup,
-            createEx('DB Bicep Curls', 3, '10', 'ACCESSORY'),
-            createEx('DB Skullcrushers', 3, '10', 'ACCESSORY'),
-            createEx('Hammer Curls', 3, '12', 'ACCESSORY'),
-            createEx('Overhead Extension', 3, '12', 'ACCESSORY'),
-            createEx('Forearm Curls', 3, '20', 'ACCESSORY')
-        ];
-        default: return [createEx('Active Recovery', 1, '20m', 'STRETCH')];
-    }
+    weeks.forEach((w, wIdx) => {
+        const reps = w.reps;
+        const isMastery = w.label.includes('MASTERY');
+        const useKneeVars = wIdx === 1 || wIdx === 3; // W2 and W4 use the knee-based progression for volume
+
+        // Monday: Chest
+        plan.push({
+            day: `W${wIdx+1} - MONDAY`,
+            focus: 'CHEST',
+            totalDuration: 30,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx(useKneeVars ? 'Knee Pushups' : 'Standard Pushups', 3, reps, 'COMPOUND', 'Focus on full range of motion'),
+                createEx(useKneeVars ? 'Wide Grip Knee Pushups' : 'Wide Grip Pushups', 3, reps, 'COMPOUND'),
+                createEx('Stepper Push-ups', 3, reps, 'ACCESSORY', 'One hand on step/book'),
+                createEx(useKneeVars ? 'Reverse Crunch' : 'Crunches', 3, reps, 'ACCESSORY'),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Tuesday: Back
+        plan.push({
+            day: `W${wIdx+1} - TUESDAY`,
+            focus: 'BACK',
+            totalDuration: 30,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx(useKneeVars ? 'Prone Cobra (Hands Interlocked)' : 'Superman', 3, reps, 'COMPOUND'),
+                createEx('Reverse Snow Angels', 3, reps, 'ACCESSORY', 'Lying on stomach, rotate arms'),
+                createEx('Glute Bridge', 3, reps, 'ACCESSORY'),
+                createEx(useKneeVars ? 'Table Body Row' : 'Bent Over T-Raises', 3, reps, 'COMPOUND', useKneeVars ? 'Pull from under sturdy table' : 'Hinge at hips, raise arms to T'),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Wednesday: Shoulders
+        plan.push({
+            day: `W${wIdx+1} - WEDNESDAY`,
+            focus: 'SHOULDERS',
+            totalDuration: 30,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx(useKneeVars ? 'Shoulder Tap Straight Arm Plank' : 'Pike Pushups', 3, useKneeVars ? reps : reps, 'COMPOUND'),
+                createEx('Arm Lift Front Plank', 3, reps, 'ACCESSORY', '10 reps per side'),
+                createEx(useKneeVars ? 'Reverse Snow Angels' : 'Prone Cobra Hands Interlocked', 3, reps, 'ACCESSORY'),
+                createEx(useKneeVars ? 'Side Plank' : 'Russian Twist', 3, useKneeVars ? (isMastery ? '20s' : '15s') : reps, 'ACCESSORY'),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Thursday: Rest
+        plan.push({
+            day: `W${wIdx+1} - THURSDAY`,
+            focus: 'REST',
+            totalDuration: 0,
+            isRecovery: true,
+            exercises: [createEx('Active Recovery Stretch', 1, '20 min', 'STRETCH')]
+        });
+
+        // Friday: Legs
+        plan.push({
+            day: `W${wIdx+1} - FRIDAY`,
+            focus: 'LEGS',
+            totalDuration: 35,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx(useKneeVars ? 'Wall Sit Holds' : 'Squats', 3, useKneeVars ? (isMastery ? '20s' : '15s') : reps, 'COMPOUND'),
+                createEx(useKneeVars ? 'Step-Ups' : 'Reverse Lunges', 3, reps, 'COMPOUND'),
+                createEx('Glute Bridge', 3, reps, 'ACCESSORY', '30s rest'),
+                createEx(useKneeVars ? 'Single Leg Calf Raises' : 'Calf Raises', 3, useKneeVars ? '1 min' : reps, 'ACCESSORY'),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Saturday: Arms
+        plan.push({
+            day: `W${wIdx+1} - SATURDAY`,
+            focus: 'ARMS',
+            totalDuration: 35,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx(useKneeVars ? 'Diamond Pushups' : 'Tricep Dips on Chair', 3, reps, 'COMPOUND'),
+                createEx(useKneeVars ? 'Bench Dip on Floor' : 'Diamond Pushups', 3, useKneeVars ? '15' : reps, 'COMPOUND'),
+                createEx('Towel Bicep Curl', 3, reps, 'ACCESSORY', 'Use towel for self-resistance'),
+                createEx('Hammer Curl with Towel', 3, reps, 'ACCESSORY'),
+                createEx(useKneeVars ? 'Diamond Pushups' : 'Leg Raises', 3, reps, 'ACCESSORY'),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Sunday: Rest
+        plan.push({
+            day: `W${wIdx+1} - SUNDAY`,
+            focus: 'REST',
+            totalDuration: 0,
+            isRecovery: true,
+            exercises: [createEx('Full System Recovery', 1, 'Full Day', 'STRETCH')]
+        });
+    });
+
+    return plan;
 };
 
-// Helper for Gym Classic
-const getGymClassicExercises = (focus: string, weekNum: number): Exercise[] => {
-    const repRange = weekNum === 4 ? '6-8' : '8-12';
-    const warmup = [createEx('Cardio & Mobility', 1, '5-10 min', 'STRETCH')];
+// --- BODYWEIGHT PPL MASTER DATA ---
+const generateBodyweightPpl = (): WorkoutDay[] => {
+    const plan: WorkoutDay[] = [];
+    const weeks = [
+        { label: 'WEEK 1: INITIALIZATION', reps: '10-12', rest: '60s' },
+        { label: 'WEEK 2: INTENSITY FOCUS', reps: '10-12', rest: '45s' },
+        { label: 'WEEK 3: VOLUME OVERLOAD', reps: '15-20', rest: '45-60s' },
+        { label: 'WEEK 4: TEMPO MASTERY', reps: '8-12', rest: '60s', tempo: '3-1-1' }
+    ];
 
-    switch(focus) {
-        case 'CHEST': return [
-            ...warmup,
-            createEx('Barbell Bench Press', 4, repRange, 'COMPOUND'),
-            createEx('Incline DB Press', 3, '10', 'COMPOUND'),
-            createEx('Cable Flys', 3, '15', 'ACCESSORY'),
-            createEx('Dips', 3, 'Failure', 'COMPOUND')
-        ];
-        case 'BACK': return [
-            ...warmup,
-            createEx('Deadlift', 3, weekNum === 4 ? '5' : '8', 'COMPOUND'),
-            createEx('Lat Pulldowns', 4, '10-12', 'COMPOUND'),
-            createEx('T-Bar Rows', 3, '10', 'COMPOUND'),
-            createEx('Face Pulls', 3, '15', 'ACCESSORY')
-        ];
-        case 'LEGS': return [
-            ...warmup,
-            createEx('Barbell Squat', 4, repRange, 'COMPOUND'),
-            createEx('Leg Press', 3, '12', 'COMPOUND'),
-            createEx('Romanian Deadlift', 3, '10', 'COMPOUND'),
-            createEx('Leg Extensions', 3, '15', 'ACCESSORY'),
-            createEx('Calf Raises', 4, '15', 'ACCESSORY')
-        ];
-        case 'SHOULDERS': return [
-            ...warmup,
-            createEx('Overhead Press', 4, repRange, 'COMPOUND'),
-            createEx('DB Lateral Raises', 4, '15', 'ACCESSORY'),
-            createEx('Front Plate Raise', 3, '12', 'ACCESSORY'),
-            createEx('Reverse Pec Deck', 3, '15', 'ACCESSORY')
-        ];
-        case 'ARMS': return [
-            ...warmup,
-            createEx('Barbell Curls', 3, '10', 'ACCESSORY'),
-            createEx('Skullcrushers', 3, '10', 'ACCESSORY'),
-            createEx('Preacher Curls', 3, '12', 'ACCESSORY'),
-            createEx('Tricep Pushdowns', 3, '12', 'ACCESSORY'),
-            createEx('Hammer Curls', 3, '12', 'ACCESSORY')
-        ];
-        default: return [createEx('Active Recovery', 1, '20m', 'STRETCH')];
-    }
+    weeks.forEach((w, wIdx) => {
+        const restNote = `REST: ${w.rest}`;
+        const tempoNote = w.tempo ? `TEMPO: ${w.tempo}` : '';
+        const globalNote = `${restNote} | ${tempoNote}`.trim();
+
+        // Monday: Push
+        plan.push({
+            day: `W${wIdx+1} - MONDAY`,
+            focus: 'PUSH',
+            totalDuration: 45,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx('Standard Pushups', 3, wIdx === 2 ? '15' : wIdx === 3 ? '10' : '12', 'COMPOUND', globalNote),
+                createEx('Pike Pushups', 3, wIdx === 2 ? '12' : wIdx === 3 ? '8' : '10', 'COMPOUND', globalNote),
+                createEx('Wide Grip Pushups', 3, wIdx === 2 ? '15' : wIdx === 3 ? '10' : '12', 'ACCESSORY', globalNote),
+                createEx('Tricep Dips (Chair)', 3, wIdx === 2 ? '15' : wIdx === 3 ? '10' : '12', 'ACCESSORY', globalNote),
+                createEx('Decline Pushups', 3, wIdx === 2 ? '12' : wIdx === 3 ? '8' : '10', 'ACCESSORY', globalNote),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Tuesday: Pull
+        plan.push({
+            day: `W${wIdx+1} - TUESDAY`,
+            focus: 'PULL',
+            totalDuration: 45,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx('Doorframe Rows', 4, wIdx === 2 ? '15' : '12', 'COMPOUND', globalNote),
+                createEx('Towel Rows (Floor)', 3, wIdx === 2 ? '18' : '15', 'COMPOUND', globalNote),
+                createEx('Superman Pulses', 3, wIdx === 2 ? '20' : '15', 'ACCESSORY', globalNote),
+                createEx('Towel Bicep Curls', 3, wIdx === 2 ? '15' : '12', 'ACCESSORY', globalNote),
+                createEx('Reverse Snow Angels', 3, wIdx === 2 ? '15' : '12', 'ACCESSORY', globalNote),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Wednesday: Legs
+        plan.push({
+            day: `W${wIdx+1} - WEDNESDAY`,
+            focus: 'LEGS',
+            totalDuration: 45,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx('Bodyweight Squats', 3, wIdx === 2 ? '20' : wIdx === 3 ? '12' : '15', 'COMPOUND', globalNote),
+                createEx('Reverse Lunges', 3, wIdx === 2 ? '15' : wIdx === 3 ? '10' : '12', 'COMPOUND', globalNote),
+                createEx('Glute Bridges', 3, wIdx === 2 ? '20' : 15 ? '12' : '15', 'ACCESSORY', globalNote),
+                createEx('Side Lunges', 3, wIdx === 2 ? '12' : '10', 'ACCESSORY', globalNote),
+                createEx('Calf Raises', 4, wIdx === 2 ? '25' : '20', 'ACCESSORY', globalNote),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Thursday: Upper Body (Mixed)
+        plan.push({
+            day: `W${wIdx+1} - THURSDAY`,
+            focus: 'UPPER BODY',
+            totalDuration: 50,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx('Pushups', 3, wIdx === 2 ? '18' : '15', 'COMPOUND', globalNote),
+                createEx('Doorframe Rows', 3, wIdx === 2 ? '18' : '15', 'COMPOUND', globalNote),
+                createEx('Pike Pushups', 3, wIdx === 2 ? '12' : '10', 'COMPOUND', globalNote),
+                createEx('Prone Cobra', 3, wIdx === 1 ? '35s' : wIdx === 2 ? '40s' : wIdx === 3 ? '45s' : '30s', 'STRETCH', 'Static hold focus'),
+                createEx('Tricep Bench Dips', 3, wIdx === 2 ? '18' : '15', 'ACCESSORY', globalNote),
+                createEx('Towel Hammer Curls', 3, wIdx === 2 ? '15' : '12', 'ACCESSORY', globalNote),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Friday: Lower Body + Abs
+        plan.push({
+            day: `W${wIdx+1} - FRIDAY`,
+            focus: 'LOWER BODY + ABS',
+            totalDuration: 50,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx('Sumo Squats', 3, wIdx === 2 ? '20' : '15', 'COMPOUND', globalNote),
+                createEx('Bulgarian Split Squats', 3, wIdx === 2 ? '10' : '8', 'COMPOUND', 'One foot on chair'),
+                createEx('Wall Sit', 3, wIdx === 1 ? '50s' : wIdx === 2 ? '60s' : wIdx === 3 ? 'Max Effort' : '45s', 'STRETCH', 'Quad burnout'),
+                createEx('Plank', 3, wIdx === 1 ? '50s' : wIdx === 2 ? '60s' : wIdx === 3 ? 'Max Effort' : '45s', 'ACCESSORY'),
+                createEx('Lying Leg Raises', 3, wIdx === 2 ? '18' : '15', 'ACCESSORY', globalNote),
+                createEx('Russian Twists', 3, wIdx === 2 ? '30' : '20', 'ACCESSORY', 'Total reps'),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Saturday: Rest
+        plan.push({
+            day: `W${wIdx+1} - SATURDAY`,
+            focus: 'REST',
+            totalDuration: 0,
+            isRecovery: true,
+            exercises: [createEx('Active Recovery Stretch', 1, '20 min', 'STRETCH')]
+        });
+
+        // Sunday: Rest
+        plan.push({
+            day: `W${wIdx+1} - SUNDAY`,
+            focus: 'REST',
+            totalDuration: 0,
+            isRecovery: true,
+            exercises: [createEx('System Maintenance', 1, 'Full Day', 'STRETCH')]
+        });
+    });
+
+    return plan;
 };
 
-// --- SCHEDULE GENERATOR ---
+// --- DUMBBELL PPL MASTER DATA ---
+const generateDumbbellPpl = (): WorkoutDay[] => {
+    const plan: WorkoutDay[] = [];
+    const weeks = [
+        { label: 'WEEK 1: FOUNDATION', reps: '10-12', rest: '60-90s', note: 'Form Mastery' },
+        { label: 'WEEK 2: VOLUME PHASE', reps: '12-15', rest: '60s', note: 'Higher Intensity' },
+        { label: 'WEEK 3: INTENSITY PHASE', reps: 'Superset', rest: '90s', note: 'Back-to-back pairings' },
+        { label: 'WEEK 4: STRENGTH & DENSITY', reps: '8-10', rest: '90s', note: 'Slow Tempo (3-1-1)' }
+    ];
+
+    weeks.forEach((w, wIdx) => {
+        const reps = w.reps;
+        const rest = w.rest;
+        const isSuperset = reps === 'Superset';
+        const globalNote = `REST: ${rest} | ${w.note}`;
+
+        // Monday: Push
+        plan.push({
+            day: `W${wIdx+1} - MONDAY`,
+            focus: 'PUSH',
+            totalDuration: 55,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx('Dumbbell Floor Press', wIdx === 3 ? 4 : 3, isSuperset ? '12' : wIdx === 3 ? '8' : '12', 'COMPOUND', isSuperset ? 'SUPERSET A: Press into Pushups' : globalNote),
+                createEx('Pushups', 3, isSuperset ? 'AMRAP' : wIdx === 3 ? '8' : '10', 'COMPOUND', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx('Dumbbell Overhead Press', wIdx === 3 ? 4 : 3, isSuperset ? '10' : wIdx === 3 ? '8' : '10', 'COMPOUND', isSuperset ? 'SUPERSET A: Press into Lateral Raise' : globalNote),
+                createEx('Dumbbell Lateral Raises', 3, isSuperset ? '12' : wIdx === 3 ? '10' : '12', 'ACCESSORY', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx('Dumbbell Tricep Extension', 3, wIdx === 3 ? '10' : '12', 'ACCESSORY', globalNote),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Tuesday: Pull
+        plan.push({
+            day: `W${wIdx+1} - TUESDAY`,
+            focus: 'PULL',
+            totalDuration: 55,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx(wIdx === 3 ? 'Heavy Dumbbell Rows' : 'Dumbbell Bent-Over Rows', wIdx === 3 ? 4 : 3, isSuperset ? '12' : wIdx === 3 ? '8' : '12', 'COMPOUND', isSuperset ? 'SUPERSET A: Rows into Superman' : globalNote),
+                createEx(isSuperset ? 'Superman Pulses' : 'Single-Arm Dumbbell Row', 3, isSuperset ? '15' : '10', 'COMPOUND', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx('Dumbbell Bicep Curls', wIdx === 3 ? 4 : 3, isSuperset ? '10' : wIdx === 3 ? '8' : '12', 'ACCESSORY', isSuperset ? 'SUPERSET A' : globalNote),
+                createEx('Hammer Curls', 3, isSuperset ? '12' : wIdx === 3 ? '8' : '12', 'ACCESSORY', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx('Rear Delt Flys', 4, '10', 'ACCESSORY', 'Focus on upper back squeeze'),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Wednesday: Legs
+        plan.push({
+            day: `W${wIdx+1} - WEDNESDAY`,
+            focus: 'LEGS',
+            totalDuration: 60,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx('Goblet Squats', wIdx === 3 ? 4 : 3, isSuperset ? '12' : wIdx === 3 ? '8' : '12', 'COMPOUND', isSuperset ? 'SUPERSET A: Into Squat Jumps' : globalNote),
+                createEx(isSuperset ? 'Squat Jumps' : 'Dumbbell Reverse Lunges', 3, isSuperset ? '10' : '10', 'COMPOUND', isSuperset ? 'SUPERSET B (Explosive)' : globalNote),
+                createEx('Dumbbell Romanian Deadlifts', wIdx === 3 ? 4 : 3, isSuperset ? '12' : wIdx === 3 ? '8' : '10', 'COMPOUND', isSuperset ? 'SUPERSET A: Into Step-Ups' : globalNote),
+                createEx(isSuperset ? 'Weighted Step-Ups' : 'Calf Raises', 4, isSuperset ? '10' : '15', 'ACCESSORY', isSuperset ? 'SUPERSET B' : globalNote),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Thursday: Upper Body
+        plan.push({
+            day: `W${wIdx+1} - THURSDAY`,
+            focus: 'UPPER BODY',
+            totalDuration: 55,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx('Pushups', 3, '12-15', 'COMPOUND', isSuperset ? 'SUPERSET A: Into Rows' : globalNote),
+                createEx('Dumbbell Bent-Over Rows', 3, '12', 'COMPOUND', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx(wIdx === 3 ? 'Arnold Press' : 'Dumbbell Shoulder Press', 3, '10', 'COMPOUND', isSuperset ? 'SUPERSET A: Into Curls' : globalNote),
+                createEx('Dumbbell Bicep Curls', 3, '12', 'ACCESSORY', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx('Dumbbell Shrugs', 3, wIdx === 3 ? '10' : '15', 'ACCESSORY', globalNote),
+                createEx('Plank', 3, wIdx === 1 ? '50s' : wIdx === 2 ? '60s' : '45s', 'ACCESSORY'),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Friday: Lower Body + Core
+        plan.push({
+            day: `W${wIdx+1} - FRIDAY`,
+            focus: 'LOWER BODY',
+            totalDuration: 60,
+            exercises: [
+                ...UNIVERSAL_WARMUP,
+                createEx(wIdx === 3 ? 'Dumbbell Thrusters' : 'Dumbbell Sumo Squats', 3, '10-12', 'COMPOUND', isSuperset ? 'SUPERSET A: Into Glute Bridges' : globalNote),
+                createEx('Weighted Glute Bridges', 3, '12-15', 'ACCESSORY', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx('Weighted Forward Lunges', 3, '10', 'COMPOUND', isSuperset ? 'SUPERSET A: Into Wall Sit' : globalNote),
+                createEx(isSuperset ? 'Wall Sit' : 'Russian Twists', 3, isSuperset ? '45s' : '20', 'ACCESSORY', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx('Lying Leg Raises', 3, '12-15', 'ACCESSORY', globalNote),
+                ...UNIVERSAL_COOLDOWN
+            ]
+        });
+
+        // Saturday: Rest
+        plan.push({
+            day: `W${wIdx+1} - SATURDAY`,
+            focus: 'REST',
+            totalDuration: 0,
+            isRecovery: true,
+            exercises: [createEx('Active Recovery Stretch', 1, '20 min', 'STRETCH')]
+        });
+
+        // Sunday: Rest
+        plan.push({
+            day: `W${wIdx+1} - SUNDAY`,
+            focus: 'REST',
+            totalDuration: 0,
+            isRecovery: true,
+            exercises: [createEx('Deep Rest Protocol', 1, 'Full Day', 'STRETCH')]
+        });
+    });
+
+    return plan;
+};
+
+// --- DUMBBELL REGULAR MASTER DATA ---
+const generateDumbbellRegular = (): WorkoutDay[] => {
+    const plan: WorkoutDay[] = [];
+    const weeks = [
+        { label: 'WEEK 1: FOUNDATION', reps: '10-12', rest: '60-90s', sets: 3 },
+        { label: 'WEEK 2: VOLUME PHASE', reps: '12-15', rest: '60s', sets: 3 },
+        { label: 'WEEK 3: INTENSITY PHASE', reps: 'Superset', rest: '90s', sets: 3 },
+        { label: 'WEEK 4: STRENGTH & DENSITY', reps: '8', rest: '90s', sets: 4, tempo: '3-1-1' }
+    ];
+
+    weeks.forEach((w, wIdx) => {
+        const reps = w.reps;
+        const rest = w.rest;
+        const sets = w.sets;
+        const isSuperset = reps === 'Superset';
+        const tempoNote = w.tempo ? `TEMPO: ${w.tempo}` : '';
+        const globalNote = `REST: ${rest} | ${tempoNote}`.trim();
+
+        // Monday: Chest
+        plan.push({
+            day: `W${wIdx+1} - MONDAY`,
+            focus: 'CHEST',
+            totalDuration: 50,
+            exercises: [
+                createEx('Wall Pushups', 1, '20 reps', 'STRETCH', 'Warmup Part 1'),
+                createEx('Jumping Jacks', 1, '2 min', 'STRETCH', 'Warmup Part 2'),
+                createEx('Dumbbell Floor Press', sets, isSuperset ? '12' : (wIdx === 3 ? '8' : reps), 'COMPOUND', isSuperset ? 'SUPERSET A: Floor Press into Pushups' : globalNote),
+                createEx(isSuperset ? 'Standard Pushups' : 'Standard Pushups', sets, isSuperset ? 'AMRAP' : (wIdx === 3 ? '10' : reps), 'COMPOUND', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx('Dumbbell Floor Flys', sets, isSuperset ? '12' : reps, 'ACCESSORY', isSuperset ? 'SUPERSET A: Flys into Incline' : globalNote),
+                createEx(isSuperset ? 'Incline Pushups' : (wIdx === 3 ? 'Decline Pushups' : 'Incline Pushups'), sets, isSuperset ? '12' : reps, 'ACCESSORY', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx('Doorway Chest Stretch', 1, '30-45s', 'STRETCH', 'Cooldown')
+            ]
+        });
+
+        // Tuesday: Back
+        plan.push({
+            day: `W${wIdx+1} - TUESDAY`,
+            focus: 'BACK',
+            totalDuration: 50,
+            exercises: [
+                createEx('High Knees', 1, '2 min', 'STRETCH', 'Warmup'),
+                createEx('Dumbbell Bent-Over Row', sets, isSuperset ? '12' : reps, 'COMPOUND', isSuperset ? 'SUPERSET A: Rows into Superman' : globalNote),
+                createEx(isSuperset ? 'Superman Pulses' : 'Single-Arm Dumbbell Row', sets, isSuperset ? '15' : reps, 'COMPOUND', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx(isSuperset ? 'Single-Arm Dumbbell Row' : 'Superman Lifts', sets, isSuperset ? '10/side' : (wIdx === 3 ? '10' : reps), 'ACCESSORY', isSuperset ? 'SUPERSET A: Rows into Doorframe' : globalNote),
+                createEx(isSuperset ? 'Doorframe Rows' : 'Doorframe Rows', sets, isSuperset ? '15' : (wIdx === 3 ? '12' : reps), 'ACCESSORY', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx('Child’s Pose', 1, '45-60s', 'STRETCH', 'Cooldown')
+            ]
+        });
+
+        // Wednesday: Shoulders
+        plan.push({
+            day: `W${wIdx+1} - WEDNESDAY`,
+            focus: 'SHOULDERS',
+            totalDuration: 50,
+            exercises: [
+                createEx('Jog in Place', 1, '2 min', 'STRETCH', 'Warmup'),
+                createEx('Seated Dumbbell Overhead Press', sets, isSuperset ? '10' : reps, 'COMPOUND', isSuperset ? 'SUPERSET A: Into Pike Pushups' : globalNote),
+                createEx(isSuperset ? 'Pike Pushups' : 'Dumbbell Lateral Raises', sets, isSuperset ? '10' : reps, 'COMPOUND', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx(isSuperset ? 'Dumbbell Lateral Raises' : 'Pike Pushups', sets, isSuperset ? '12' : (wIdx === 3 ? '8' : reps), 'ACCESSORY', isSuperset ? 'SUPERSET A: Into Front Raises' : globalNote),
+                createEx(isSuperset ? 'Dumbbell Front Raises' : 'Dumbbell Front Raises', sets, isSuperset ? '12' : reps, 'ACCESSORY', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx('Cross-Body Shoulder Stretch', 1, '30s/side', 'STRETCH', 'Cooldown')
+            ]
+        });
+
+        // Thursday: Arms
+        plan.push({
+            day: `W${wIdx+1} - THURSDAY`,
+            focus: 'ARMS',
+            totalDuration: 50,
+            exercises: [
+                createEx('Jumping Jacks', 1, '2 min', 'STRETCH', 'Warmup'),
+                createEx(wIdx === 3 ? 'Strict Bicep Curls' : 'Dumbbell Bicep Curls', sets, isSuperset ? '12' : reps, 'COMPOUND', isSuperset ? 'SUPERSET A: Curls into Dips' : globalNote),
+                createEx(isSuperset ? 'Tricep Dips (Chair)' : 'Tricep Dips (Chair)', sets, isSuperset ? '15' : reps, 'COMPOUND', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx('Hammer Curls', sets, isSuperset ? '12' : reps, 'ACCESSORY', isSuperset ? 'SUPERSET A: Into Overhead Ext' : globalNote),
+                createEx('Overhead Dumbbell Extension', sets, isSuperset ? '12' : reps, 'ACCESSORY', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx(wIdx === 3 ? 'Close Grip Pushups' : 'Diamond Pushups', sets, 'Failure', 'ACCESSORY', 'Finisher'),
+                createEx('Overhead Tricep Stretch', 1, '30s/side', 'STRETCH', 'Cooldown')
+            ]
+        });
+
+        // Friday: Rest
+        plan.push({
+            day: `W${wIdx+1} - FRIDAY`,
+            focus: 'REST',
+            totalDuration: 0,
+            isRecovery: true,
+            exercises: [createEx('Active Recovery Walk', 1, '20 min', 'STRETCH', 'Flush out lactic acid')]
+        });
+
+        // Saturday: Legs
+        plan.push({
+            day: `W${wIdx+1} - SATURDAY`,
+            focus: 'LEGS',
+            totalDuration: 55,
+            exercises: [
+                createEx('Bodyweight Squats', 1, '20-30 reps', 'STRETCH', 'Warmup'),
+                createEx(wIdx === 3 ? 'Heavy Goblet Squats' : 'Goblet Squats', sets, isSuperset ? '12' : reps, 'COMPOUND', isSuperset ? 'SUPERSET A: Into Lunges' : globalNote),
+                createEx(isSuperset ? 'Bodyweight Lunges' : 'Dumbbell Lunges', sets, isSuperset ? '10/leg' : reps, 'COMPOUND', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx(wIdx === 3 ? 'Heavy RDL' : 'Dumbbell RDL', sets, isSuperset ? '12' : reps, 'ACCESSORY', isSuperset ? 'SUPERSET A: Into Glute Bridges' : globalNote),
+                createEx(isSuperset ? 'Glute Bridges' : 'Weighted Calf Raises', sets, isSuperset ? '15' : (wIdx === 3 ? '12' : reps), 'ACCESSORY', isSuperset ? 'SUPERSET B' : globalNote),
+                createEx(isSuperset ? 'Weighted Calf Raises' : 'Glute Bridges', sets, isSuperset ? '20' : reps, 'ACCESSORY', 'Final burnout'),
+                createEx('Quad Stretch', 1, '30-60s/side', 'STRETCH', 'Cooldown')
+            ]
+        });
+
+        // Sunday: Rest
+        plan.push({
+            day: `W${wIdx+1} - SUNDAY`,
+            focus: 'REST',
+            totalDuration: 0,
+            isRecovery: true,
+            exercises: [createEx('System Recovery', 1, 'Full Day', 'STRETCH', 'Prepare for next cycle')]
+        });
+    });
+
+    return plan;
+};
+
+// registry
+export const MASTER_PROTOCOL_REGISTRY: Record<string, WorkoutDay[]> = {
+    GYM_PPL: generateGymPpl(),
+    GYM_CLASSIC: generateGymClassic(),
+    BW_REGULAR: generateBodyweightRegular(),
+    BW_PPL: generateBodyweightPpl(),
+    DB_PPL: generateDumbbellPpl(),
+    DB_REGULAR: generateDumbbellRegular()
+};
 
 export const generateSystemProtocol = (profile: HealthProfile): WorkoutDay[] => {
-    const plan: WorkoutDay[] = [];
     const equipment = profile.equipment as Equipment; 
     const split = profile.workoutSplit as Split; 
     
-    // Generate 28 Days (4 Weeks)
-    const TOTAL_DAYS = WEEKS_TO_GENERATE * 7;
+    let protocolKey = 'GYM_PPL'; 
 
-    for (let i = 0; i < TOTAL_DAYS; i++) {
-        const weekNum = Math.floor(i / 7) + 1; // 1, 2, 3, 4
-        const dayOfWeekIndex = (i % 7); // 0=Mon, 1=Tue... 6=Sun
-        
-        let focus = 'REST';
-        let exercises: Exercise[] = [];
-        let isRecovery = false;
-        let dayLabel = `WEEK ${weekNum} - DAY ${dayOfWeekIndex + 1}`;
+    if (equipment === 'GYM') {
+        protocolKey = split === 'PPL' ? 'GYM_PPL' : 'GYM_CLASSIC';
+    } else if (equipment === 'BODYWEIGHT') {
+        protocolKey = split === 'PPL' ? 'BW_PPL' : 'BW_REGULAR';
+    } else if (equipment === 'HOME_DUMBBELLS') {
+        protocolKey = split === 'PPL' ? 'DB_PPL' : 'DB_REGULAR';
+    }
 
-        // ============================================================
-        // SCENARIO 1: GYM + PPL (THE STORY MODE)
-        // ============================================================
-        if (equipment === 'GYM' && split === 'PPL') {
-            const weekKey = `WEEK${weekNum}` as keyof typeof GYM_PPL_ROUTINE;
-            const weekRoutine = GYM_PPL_ROUTINE[weekKey];
-            
-            // Map index to Week Day Keys in Story
-            const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-            const dayKey = days[dayOfWeekIndex] as keyof typeof weekRoutine;
-            
-            exercises = weekRoutine[dayKey] ? [...weekRoutine[dayKey]] : [];
-            
-            // Determine Focus Label for UI
-            if (dayOfWeekIndex === 0) focus = 'PUSH A';
-            else if (dayOfWeekIndex === 1) focus = 'PULL A';
-            else if (dayOfWeekIndex === 2) focus = 'LEGS';
-            else if (dayOfWeekIndex === 3) { focus = 'REST'; isRecovery = true; }
-            else if (dayOfWeekIndex === 4) focus = 'PUSH B';
-            else if (dayOfWeekIndex === 5) focus = 'PULL B';
-            else { focus = 'REST'; isRecovery = true; }
-        } 
-        
-        // ============================================================
-        // SCENARIO 2: BODYWEIGHT
-        // ============================================================
-        else if (equipment === 'BODYWEIGHT') {
-            if (split === 'PPL') {
-                // Fixed PPL for BW: P P L P P L R
-                if (dayOfWeekIndex === 0 || dayOfWeekIndex === 3) { focus = 'PUSH'; exercises = getBodyweightExercises('PUSH', weekNum); }
-                else if (dayOfWeekIndex === 1 || dayOfWeekIndex === 4) { focus = 'PULL'; exercises = getBodyweightExercises('PULL', weekNum); }
-                else if (dayOfWeekIndex === 2 || dayOfWeekIndex === 5) { focus = 'LEGS'; exercises = getBodyweightExercises('LEGS', weekNum); }
-                else { focus = 'REST'; isRecovery = true; exercises = [createEx('Light Walk', 1, '30m', 'STRETCH')]; }
-            } else {
-                // Classic / Regular (Upper/Lower/Core/Full)
-                // Mon: Upper, Tue: Lower, Wed: Core/Cardio, Thu: Upper, Fri: Full, Sat: Active, Sun: Rest
-                if (dayOfWeekIndex === 0 || dayOfWeekIndex === 3) { focus = 'UPPER'; exercises = getBodyweightExercises('UPPER', weekNum); }
-                else if (dayOfWeekIndex === 1) { focus = 'LOWER'; exercises = getBodyweightExercises('LOWER', weekNum); }
-                else if (dayOfWeekIndex === 2) { focus = 'CORE'; exercises = getBodyweightExercises('CORE', weekNum); }
-                else if (dayOfWeekIndex === 4) { focus = 'FULL'; exercises = getBodyweightExercises('FULL', weekNum); }
-                else if (dayOfWeekIndex === 5) { focus = 'ACTIVE'; exercises = [createEx('Yoga / Stretch', 1, '30m', 'STRETCH')]; isRecovery = true; }
-                else { focus = 'REST'; isRecovery = true; exercises = [createEx('Rest', 1, '0m', 'STRETCH')]; }
+    const plan = MASTER_PROTOCOL_REGISTRY[protocolKey];
+
+    if (!plan || plan.length === 0) {
+        return [
+            {
+                day: 'CALIBRATION DAY',
+                focus: 'PENDING PROTOCOL',
+                exercises: [
+                    createEx('Wait for Deployment', 1, 'N/A', 'STRETCH', 'Admin is currently configuring this specific path.')
+                ],
+                totalDuration: 10
             }
-        }
-
-        // ============================================================
-        // SCENARIO 3: DUMBBELLS
-        // ============================================================
-        else if (equipment === 'HOME_DUMBBELLS') {
-            if (split === 'PPL') {
-                // Fixed PPL
-                if (dayOfWeekIndex === 0 || dayOfWeekIndex === 3) { focus = 'PUSH'; exercises = getDumbbellExercises('PUSH', weekNum); }
-                else if (dayOfWeekIndex === 1 || dayOfWeekIndex === 4) { focus = 'PULL'; exercises = getDumbbellExercises('PULL', weekNum); }
-                else if (dayOfWeekIndex === 2 || dayOfWeekIndex === 5) { focus = 'LEGS'; exercises = getDumbbellExercises('LEGS', weekNum); }
-                else { focus = 'REST'; isRecovery = true; exercises = [createEx('Walk', 1, '20m', 'STRETCH')]; }
-            } else {
-                // Classic Bro Split for Dumbbells
-                if (dayOfWeekIndex === 0) { focus = 'CHEST/TRI'; exercises = getDumbbellExercises('CHEST_TRI', weekNum); }
-                else if (dayOfWeekIndex === 1) { focus = 'BACK/BI'; exercises = getDumbbellExercises('BACK_BI', weekNum); }
-                else if (dayOfWeekIndex === 2) { focus = 'LEGS'; exercises = getDumbbellExercises('LEGS', weekNum); }
-                else if (dayOfWeekIndex === 3) { focus = 'SHOULDERS'; exercises = getDumbbellExercises('SHOULDER_ABS', weekNum); }
-                else if (dayOfWeekIndex === 4) { focus = 'ARMS'; exercises = getDumbbellExercises('ARMS', weekNum); }
-                else { focus = 'REST'; isRecovery = true; exercises = [createEx('Recovery', 1, '15m', 'STRETCH')]; }
-            }
-        }
-
-        // ============================================================
-        // SCENARIO 4: GYM + CLASSIC (BRO SPLIT)
-        // ============================================================
-        else {
-            // Gym Classic: 5 Day Split
-            if (dayOfWeekIndex === 0) { focus = 'CHEST'; exercises = getGymClassicExercises('CHEST', weekNum); }
-            else if (dayOfWeekIndex === 1) { focus = 'BACK'; exercises = getGymClassicExercises('BACK', weekNum); }
-            else if (dayOfWeekIndex === 2) { focus = 'LEGS'; exercises = getGymClassicExercises('LEGS', weekNum); }
-            else if (dayOfWeekIndex === 3) { focus = 'SHOULDERS'; exercises = getGymClassicExercises('SHOULDER', weekNum); }
-            else if (dayOfWeekIndex === 4) { focus = 'ARMS'; exercises = getGymClassicExercises('ARMS', weekNum); }
-            else { focus = 'REST'; isRecovery = true; exercises = [createEx('Active Recovery', 1, '20 min', 'STRETCH')]; }
-        }
-
-        plan.push({
-            day: dayLabel,
-            focus,
-            exercises,
-            isRecovery,
-            totalDuration: profile.sessionDuration || 45
-        });
+        ];
     }
 
     return plan;
@@ -516,5 +800,4 @@ export const calculateTimeEstimate = (profile: Partial<HealthProfile>): string =
     return `${weeks} WEEKS`;
 };
 
-// Fallback
 export const generateDailyWorkout = () => [];

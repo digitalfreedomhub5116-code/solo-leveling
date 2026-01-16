@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield, AlertOctagon, Zap, ZapOff } from 'lucide-react';
-import { Quest, CoreStats, Rank } from '../types';
+import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield, AlertOctagon, Zap, ZapOff, AlertCircle } from 'lucide-react';
+import { Quest, CoreStats, Rank, Priority } from '../types';
 
 interface QuestCardProps {
   quest: Quest;
@@ -19,6 +19,13 @@ const rankColors: Record<Rank, string> = {
   'C': 'text-blue-500 border-blue-500/50 bg-blue-500/5',
   'D': 'text-green-500 border-green-500/50 bg-green-500/5',
   'E': 'text-gray-400 border-gray-400/50 bg-gray-400/5',
+};
+
+const priorityStyles: Record<Priority, string> = {
+  'URGENT': 'text-red-500 bg-red-500/10 border-red-500/40 animate-pulse',
+  'HIGH': 'text-orange-500 bg-orange-500/10 border-orange-500/40',
+  'MEDIUM': 'text-yellow-500 bg-yellow-500/10 border-yellow-500/40',
+  'LOW': 'text-gray-500 bg-gray-500/10 border-gray-500/40',
 };
 
 const statIcons: Record<keyof CoreStats, React.ReactNode> = {
@@ -100,6 +107,16 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onRese
       // Added scroll-mt-32 to account for sticky header when autoscrolling
       className={`relative border backdrop-blur-sm p-4 rounded-xl flex flex-col md:flex-row gap-4 items-start md:items-center justify-between group overflow-hidden transition-all duration-300 scroll-mt-32 ${bgClass} ${borderColor}`}
     >
+       {/* Priority Edge Indicator */}
+       {!quest.isCompleted && !quest.failed && (
+           <div className={`absolute top-0 left-0 w-1 h-full ${
+               quest.priority === 'URGENT' ? 'bg-red-500 shadow-[2px_0_10px_rgba(239,68,68,0.5)] animate-pulse' :
+               quest.priority === 'HIGH' ? 'bg-orange-500' :
+               quest.priority === 'MEDIUM' ? 'bg-yellow-500' :
+               'bg-gray-700'
+           }`} />
+       )}
+
        {/* Active Glow/Background */}
        {!quest.isCompleted && !quest.failed && !isFailing && (
            <div className={`absolute inset-0 bg-gradient-to-r ${isMiniActive ? 'from-amber-900/10' : 'from-gray-900/50'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
@@ -139,11 +156,18 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onRese
           </div>
           
           <div className="flex-1 min-w-0">
-             <div className="flex items-center gap-2 mb-1">
+             <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className="text-[10px] uppercase text-gray-500 tracking-wider flex items-center gap-1 font-mono">
                     {statIcons[quest.category]} {quest.category}
                 </span>
                 
+                {/* Priority Label */}
+                {!quest.isCompleted && !quest.failed && (
+                    <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded border font-mono tracking-tighter ${priorityStyles[quest.priority]}`}>
+                       {quest.priority}
+                    </span>
+                )}
+
                 {/* Rewards */}
                 <motion.span 
                     key={quest.isCompleted ? 'completed' : 'active'}

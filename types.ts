@@ -18,6 +18,8 @@ export interface NavItem {
 
 export type Rank = 'E' | 'D' | 'C' | 'B' | 'A' | 'S';
 
+export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
 export interface CoreStats {
   strength: number;
   intelligence: number;
@@ -46,6 +48,7 @@ export interface Quest {
   title: string;
   description: string;
   rank: Rank;
+  priority: Priority;
   category: keyof CoreStats;
   xpReward: number;
   isCompleted: boolean;

@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Sparkles, Repeat, Link, BatteryLow, Calendar, Skull, AlertTriangle } from 'lucide-react';
-import { Quest, CoreStats, Rank } from '../types';
+import { Plus, Sparkles, Repeat, Link, BatteryLow, Calendar, Skull, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Quest, CoreStats, Rank, Priority } from '../types';
 import QuestCard from './QuestCard';
 import { playSystemSoundEffect } from '../utils/soundEngine';
 
@@ -25,6 +25,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<keyof CoreStats>('strength');
   const [rank, setRank] = useState<Rank>('E');
+  const [priority, setPriority] = useState<Priority>('MEDIUM');
   const [isDaily, setIsDaily] = useState(false);
   const [trigger, setTrigger] = useState('');
   const [miniQuest, setMiniQuest] = useState('');
@@ -70,6 +71,13 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
        'E': ['easy', 'quick', 'small', 'tiny', 'micro', 'chat', 'message', '5min', 'instant', 'lite']
     };
 
+    const priorityKeywords: Record<Priority, string[]> = {
+       'URGENT': ['today', 'now', 'asap', 'deadline', 'emergency', 'must', 'immediate', 'critical', 'final'],
+       'HIGH': ['important', 'serious', 'needed', 'key', 'main'],
+       'MEDIUM': ['soon', 'eventually', 'useful', 'optional'],
+       'LOW': ['later', 'whenever', 'maybe', 'low', 'minor']
+    };
+
     // 1. Scoring System for Category
     let detectedCategory: keyof CoreStats | null = null;
     let maxScore = 0;
@@ -89,14 +97,19 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
 
     // 2. Hierarchy Check for Rank (S > A > E > B > C > D)
     let detectedRank: Rank = 'D'; 
-
     if (rankKeywords.S.some(w => text.includes(w))) detectedRank = 'S';
     else if (rankKeywords.A.some(w => text.includes(w))) detectedRank = 'A';
     else if (rankKeywords.E.some(w => text.includes(w))) detectedRank = 'E'; 
     else if (rankKeywords.B.some(w => text.includes(w))) detectedRank = 'B';
     else if (rankKeywords.C.some(w => text.includes(w))) detectedRank = 'C';
-    
     setRank(detectedRank);
+
+    // 3. Priority Detection
+    let detectedPriority: Priority = 'MEDIUM';
+    if (priorityKeywords.URGENT.some(w => text.includes(w))) detectedPriority = 'URGENT';
+    else if (priorityKeywords.HIGH.some(w => text.includes(w))) detectedPriority = 'HIGH';
+    else if (priorityKeywords.LOW.some(w => text.includes(w))) detectedPriority = 'LOW';
+    setPriority(detectedPriority);
   };
 
   const handleCreate = () => {
@@ -104,7 +117,6 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
     if (!title.trim()) return;
 
     // --- UNIQUENESS CHECK ---
-    // Prevent duplicate quests by checking if a quest with the exact same title exists and is incomplete
     const isDuplicate = quests.some(q => 
         q.title.toLowerCase().trim() === title.toLowerCase().trim() && !q.isCompleted && !q.failed
     );
@@ -125,6 +137,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
       title: title.trim(),
       description: description.trim(),
       rank,
+      priority,
       category,
       xpReward: xpMap[rank],
       isCompleted: false,
@@ -144,10 +157,11 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
     setTrigger('');
     setMiniQuest('');
     setRank('E');
+    setPriority('MEDIUM');
     setIsDaily(false);
     setError(null);
 
-    // Tutorial Action: If we were on Step 6 (Confirm), advance to Step 7 (Success)
+    // Tutorial Action
     if (tutorialStep === 6 && onTutorialAction) {
         onTutorialAction(7);
     }
@@ -236,7 +250,6 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                // Reduced height for mobile (70vh) to ensure visibility above nav bars/keyboards
                 className="bg-system-card border border-system-border w-full max-w-lg rounded-xl shadow-2xl overflow-hidden max-h-[70vh] md:max-h-[85vh] m-auto relative flex flex-col"
               >
                  <div className="p-3 sm:p-6 border-b border-system-border flex justify-between items-center bg-system-card z-10 shrink-0">
@@ -263,7 +276,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                     </AnimatePresence>
 
                     <div>
-                       <label className="block text-xs text-gray-500 mb-1 font-mono">TITLE</label>
+                       <label className="block text-xs text-gray-500 mb-1 font-mono uppercase">Target Identity</label>
                        <input 
                          id="tut-quest-title"
                          value={title}
@@ -273,47 +286,10 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                          autoFocus
                        />
                     </div>
-                    
-                    <div>
-                       <label className="block text-xs text-gray-500 mb-1 font-mono">DESCRIPTION (OPTIONAL)</label>
-                       <textarea 
-                         value={description}
-                         onChange={e => setDescription(e.target.value)}
-                         placeholder="Additional details..."
-                         className="w-full bg-system-bg border border-system-border rounded p-2 text-white text-sm focus:border-system-neon focus:outline-none h-16 resize-none"
-                       />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                        <div>
-                           <label className="block text-xs text-system-accent mb-1 font-mono flex items-center gap-1">
-                             <Link size={10} /> TRIGGER (ANCHOR)
-                           </label>
-                           <input 
-                             id="tut-quest-trigger"
-                             value={trigger}
-                             onChange={e => setTrigger(e.target.value)}
-                             placeholder="e.g. After coffee..."
-                             className="w-full bg-system-bg border border-system-accent/30 rounded p-2 text-white text-sm focus:border-system-accent focus:outline-none placeholder:text-gray-700 text-xs transition-colors"
-                           />
-                        </div>
-                        <div>
-                           <label className="block text-xs text-yellow-500 mb-1 font-mono flex items-center gap-1">
-                             <BatteryLow size={10} /> MINI-QUEST (ACTIVATION)
-                           </label>
-                           <input 
-                             id="tut-quest-mini"
-                             value={miniQuest}
-                             onChange={e => setMiniQuest(e.target.value)}
-                             placeholder="e.g. Just put on shoes"
-                             className="w-full bg-system-bg border border-yellow-500/30 rounded p-2 text-white text-sm focus:border-yellow-500 focus:outline-none placeholder:text-gray-700 text-xs transition-colors"
-                           />
-                        </div>
-                    </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                        <div>
-                          <label className="block text-xs text-gray-500 mb-1 font-mono">CATEGORY</label>
+                          <label className="block text-xs text-gray-500 mb-1 font-mono uppercase">Category</label>
                           <select 
                             value={category}
                             onChange={e => setCategory(e.target.value as keyof CoreStats)}
@@ -328,7 +304,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                        </div>
                        
                        <div>
-                          <label className="block text-xs text-gray-500 mb-1 font-mono">DIFFICULTY RANK</label>
+                          <label className="block text-xs text-gray-500 mb-1 font-mono uppercase">Difficulty Rank</label>
                           <div className="flex gap-1">
                              {(['E', 'D', 'C', 'B', 'A', 'S'] as const).map(r => (
                                <button
@@ -343,6 +319,68 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                        </div>
                     </div>
 
+                    {/* NEW: Priority Selector */}
+                    <div>
+                        <label className="block text-xs text-gray-500 mb-1 font-mono uppercase flex items-center gap-1">
+                            <AlertCircle size={10} /> Priority Level
+                        </label>
+                        <div className="grid grid-cols-4 gap-1">
+                            {(['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const).map(p => (
+                                <button
+                                    key={p}
+                                    onClick={() => setPriority(p)}
+                                    className={`py-2 rounded text-[10px] font-bold transition-all border ${
+                                        priority === p 
+                                        ? p === 'URGENT' ? 'bg-red-500 border-red-400 text-white' :
+                                          p === 'HIGH' ? 'bg-orange-500 border-orange-400 text-white' :
+                                          p === 'MEDIUM' ? 'bg-yellow-500 border-yellow-400 text-white' :
+                                          'bg-gray-600 border-gray-500 text-white'
+                                        : 'bg-system-bg border-system-border text-gray-600 hover:text-gray-400'
+                                    }`}
+                                >
+                                    {p}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    <div>
+                       <label className="block text-xs text-gray-500 mb-1 font-mono uppercase">Protocol Details</label>
+                       <textarea 
+                         value={description}
+                         onChange={e => setDescription(e.target.value)}
+                         placeholder="Additional details..."
+                         className="w-full bg-system-bg border border-system-border rounded p-2 text-white text-sm focus:border-system-neon focus:outline-none h-16 resize-none"
+                       />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <div>
+                           <label className="block text-xs text-system-accent mb-1 font-mono flex items-center gap-1 uppercase">
+                             <Link size={10} /> Trigger Anchor
+                           </label>
+                           <input 
+                             id="tut-quest-trigger"
+                             value={trigger}
+                             onChange={e => setTrigger(e.target.value)}
+                             placeholder="e.g. After coffee..."
+                             className="w-full bg-system-bg border border-system-accent/30 rounded p-2 text-white text-sm focus:border-system-accent focus:outline-none placeholder:text-gray-700 text-xs transition-colors"
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-xs text-yellow-500 mb-1 font-mono flex items-center gap-1 uppercase">
+                             <BatteryLow size={10} /> Activation
+                           </label>
+                           <input 
+                             id="tut-quest-mini"
+                             value={miniQuest}
+                             onChange={e => setMiniQuest(e.target.value)}
+                             placeholder="e.g. Just put on shoes"
+                             className="w-full bg-system-bg border border-yellow-500/30 rounded p-2 text-white text-sm focus:border-yellow-500 focus:outline-none placeholder:text-gray-700 text-xs transition-colors"
+                           />
+                        </div>
+                    </div>
+
                     {/* Daily Toggle */}
                     <div className="flex items-center gap-3 pt-1">
                          <button 
@@ -351,8 +389,8 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                          >
                             {isDaily && <Repeat size={14} />}
                          </button>
-                         <span onClick={() => setIsDaily(!isDaily)} className="text-xs text-gray-400 font-mono cursor-pointer select-none">
-                            REPEAT DAILY (RESETS 24H)
+                         <span onClick={() => setIsDaily(!isDaily)} className="text-xs text-gray-400 font-mono cursor-pointer select-none uppercase">
+                            Repeat Daily (24h Sync)
                          </span>
                     </div>
                  </div>
