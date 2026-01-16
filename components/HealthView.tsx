@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Camera, Trash2, Search, Utensils, X, Terminal, Upload, ArrowRight, ArrowLeft, Zap, Dumbbell, Check, Cpu, Flame, Target, Map, Swords, Layers, Grid, TrendingUp, ShieldCheck, Lock, Sparkles, User, Weight, ChevronRight, ChevronLeft, Shield, Brain, Eye } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Search, X, Cpu, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
@@ -31,12 +31,17 @@ const polarToCartesian = (centerX: number, centerY: number, radius: number, angl
   };
 };
 
-const TechRadar = ({ data, color, label }: { data: { value: number; fullMark: number; subject: string }[], color: string, label: string }) => {
+const TechRadar = React.memo(({ data, color, label, isAnimating, showEntrance = false }: { data: { value: number; fullMark: number; subject: string }[], color: string, label: string, isAnimating?: boolean, showEntrance?: boolean }) => {
     const size = 320;
     const center = size / 2;
     const radius = 100;
     const gridLevels = 4;
     
+    // Animation constants
+    const DOT_DELAY = 0.15;
+    const PATH_DELAY = data.length * DOT_DELAY;
+    const FILL_DELAY = PATH_DELAY + 0.6;
+
     const gridPaths = useMemo(() => {
         const paths = [];
         for (let level = 1; level <= gridLevels; level++) {
@@ -69,15 +74,15 @@ const TechRadar = ({ data, color, label }: { data: { value: number; fullMark: nu
 
     return (
         <div className="relative flex flex-col items-center justify-center w-full h-full font-mono">
-            <h3 className="text-sm font-bold mb-6 tracking-[0.4em] uppercase transition-colors duration-1000" style={{ color }}>{label}</h3>
+            <h3 className="text-sm font-bold mb-6 tracking-[0.4em] uppercase transition-colors duration-300" style={{ color }}>{label}</h3>
             <svg width={size} height={size} className="overflow-visible">
                 <defs>
                     <linearGradient id={`radarFill-${label}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={color} stopOpacity={0.6}/>
-                        <stop offset="100%" stopColor={color} stopOpacity={0.1}/>
+                        <stop offset="0%" stopColor={color} stopOpacity={0.7}/>
+                        <stop offset="100%" stopColor={color} stopOpacity={0.2}/>
                     </linearGradient>
                     <filter id="glow">
-                      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                      <feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
                       <feMerge>
                         <feMergeNode in="coloredBlur"/>
                         <feMergeNode in="SourceGraphic"/>
@@ -90,56 +95,70 @@ const TechRadar = ({ data, color, label }: { data: { value: number; fullMark: nu
                 {axesLines.map((line, i) => (
                     <line key={`axis-${i}`} {...line} stroke="#222" strokeWidth="1" strokeDasharray="2 2" />
                 ))}
-                {data.map((d, i) => {
-                     const angle = (360 / data.length) * i;
-                     const labelPos = polarToCartesian(center, center, radius + 40, angle);
-                     const point = points[i];
-                     return (
-                        <motion.g key={i}
-                            initial={{ opacity: 0, scale: 0 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: i * 0.1, duration: 0.5, type: "spring" }}
-                        >
-                             <text 
-                                x={labelPos.x} y={labelPos.y} 
-                                textAnchor="middle" dominantBaseline="middle" 
-                                fill="#888" fontSize="9" fontWeight="bold" letterSpacing="1px"
-                                className="uppercase"
-                             >
-                                 {d.subject}
-                             </text>
-                             <motion.circle
-                                cx={point.x} cy={point.y} 
-                                r={3}
-                                fill="#000" stroke={color} strokeWidth={2}
-                                animate={{ cx: point.x, cy: point.y }}
-                                transition={{ duration: 1.2, ease: "easeInOut" }}
-                            />
-                        </motion.g>
-                     );
-                })}
+                
+                {/* Connecting Line */}
                 <motion.path
                     d={pathD}
                     fill="none"
                     stroke={color}
                     strokeWidth="3"
                     filter="url(#glow)"
-                    initial={{ pathLength: 0, opacity: 0 }}
-                    animate={{ pathLength: 1, opacity: 1, d: pathD }}
-                    transition={{ duration: 1.5, ease: "easeInOut" }}
+                    initial={showEntrance ? { pathLength: 0, opacity: 0 } : { pathLength: 1, opacity: 1 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    transition={{ 
+                        pathLength: { delay: showEntrance ? PATH_DELAY : 0, duration: 1.5, ease: "easeInOut" },
+                        opacity: { delay: showEntrance ? PATH_DELAY : 0, duration: 0.2 }
+                    }}
                 />
+
+                {/* Fill Area */}
                 <motion.path
                     d={pathD}
                     fill={`url(#radarFill-${label})`}
                     stroke="none"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1, d: pathD }}
-                    transition={{ delay: 0.8, duration: 1 }}
+                    initial={showEntrance ? { opacity: 0 } : { opacity: 1 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: showEntrance ? FILL_DELAY : 0, duration: 0.8 }}
                 />
+
+                {/* Data Points (Dots) */}
+                {data.map((d, i) => {
+                     const angle = (360 / data.length) * i;
+                     const labelPos = polarToCartesian(center, center, radius + 25, angle);
+                     const point = points[i];
+                     return (
+                        <g key={i}>
+                             <motion.text 
+                                initial={showEntrance ? { opacity: 0, scale: 0.5 } : { opacity: 1, scale: 1 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: showEntrance ? i * DOT_DELAY : 0 }}
+                                x={labelPos.x} y={labelPos.y} 
+                                textAnchor="middle" dominantBaseline="middle" 
+                                fill="#888" fontSize="9" fontWeight="bold" letterSpacing="1px"
+                                className="uppercase"
+                             >
+                                 {d.subject}
+                             </motion.text>
+                             <motion.circle
+                                initial={showEntrance ? { r: 0, opacity: 0 } : { r: 4, opacity: 1 }}
+                                animate={{ r: 4, opacity: 1, cx: point.x, cy: point.y }}
+                                transition={{ 
+                                    r: { delay: showEntrance ? i * DOT_DELAY : 0, type: "spring" },
+                                    opacity: { delay: showEntrance ? i * DOT_DELAY : 0, duration: 0.2 },
+                                    cx: { duration: isAnimating ? 0 : 0.5 },
+                                    cy: { duration: isAnimating ? 0 : 0.5 }
+                                }}
+                                cx={point.x} cy={point.y} 
+                                fill={color}
+                                stroke="#000" strokeWidth={1.5}
+                            />
+                        </g>
+                     );
+                })}
             </svg>
         </div>
     );
-};
+});
 
 const calculateNutritionPlan = (profile: Partial<HealthProfile>) => {
   const weight = profile.weight || 70;
@@ -162,6 +181,14 @@ const calculateNutritionPlan = (profile: Partial<HealthProfile>) => {
   return { bmr: Math.round(bmr), macros: { protein, fats, carbs, calories: Math.round(targetCalories) }, tdee: Math.round(tdee) };
 };
 
+const getBMICategory = (bmi: number) => {
+    if (bmi < 18.5) return { label: 'Underweight', color: 'text-yellow-500' };
+    if (bmi < 25) return { label: 'Healthy Weight', color: 'text-system-success' };
+    if (bmi < 30) return { label: 'Overweight', color: 'text-orange-500' };
+    if (bmi < 40) return { label: 'Obesity', color: 'text-red-500' };
+    return { label: 'Severe Obesity', color: 'text-red-700' };
+};
+
 const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
 const lerpColor = (a: string, b: string, amount: number) => { 
     const ah = parseInt(a.replace(/#/g, ''), 16),
@@ -175,12 +202,17 @@ const lerpColor = (a: string, b: string, amount: number) => {
 }
 
 const HealthView: React.FC<HealthViewProps> = ({ 
-  healthProfile, onSaveProfile, onCompleteWorkout, onFailWorkout, onAddPhoto, onDeletePhoto, onLogMeal, onDeleteMeal, playerData, onTutorialAction, tutorialStep, onToggleNav
+  healthProfile, onSaveProfile, onCompleteWorkout, onFailWorkout, onLogMeal, playerData, onToggleNav
 }) => {
   const [viewMode, setViewMode] = useState<'MAP' | 'OVERVIEW' | 'ACTIVE' | 'SETUP' | 'PROCESSING' | 'DIAGNOSIS' | 'PROJECTION' | 'FINALIZING'>('MAP');
   const [activeTab, setActiveTab] = useState<'WORKOUT' | 'NUTRITION' | 'BODY'>('WORKOUT');
+  
+  // Projection Animation States
   const [transformProgress, setTransformProgress] = useState(0);
   const [isTransformed, setIsTransformed] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const animationRef = useRef<number>();
+
   const [activePlan, setActivePlan] = useState<WorkoutDay | null>(null);
   const [step, setStep] = useState(1);
   const TOTAL_STEPS = 9;
@@ -201,7 +233,10 @@ const HealthView: React.FC<HealthViewProps> = ({
 
   const calculatedPlan = useMemo(() => healthProfile?.workoutPlan || generateSystemProtocol(formData as HealthProfile), [healthProfile, formData]);
   const nutritionInfo = useMemo(() => calculateNutritionPlan(healthProfile || formData), [healthProfile, formData]);
-  const currentBMI = useMemo(() => (formData.weight && formData.height) ? (formData.weight / ((formData.height/100) ** 2)).toFixed(1) : "0.0", [formData.weight, formData.height]);
+  
+  const rawBMI = useMemo(() => (formData.weight && formData.height) ? (formData.weight / ((formData.height/100) ** 2)) : 0, [formData.weight, formData.height]);
+  const currentBMI = rawBMI.toFixed(1);
+  const bmiCategory = useMemo(() => getBMICategory(rawBMI), [rawBMI]);
 
   const startProcessing = () => {
       setViewMode('PROCESSING');
@@ -213,9 +248,10 @@ const HealthView: React.FC<HealthViewProps> = ({
       const sequence = ["BIOLOGICAL RESTRUCTURING...", "NEURAL SYNCING...", "CONSTRUCTING PROTOCOLS...", "SYSTEM ONLINE. ASCEND."];
       let i = 0;
       const interval = setInterval(() => {
-          setFinalizingLog(sequence[i]);
-          i++;
-          if (i >= sequence.length) {
+          if (i < sequence.length) {
+              setFinalizingLog(sequence[i]);
+              i++;
+          } else {
               clearInterval(interval);
               setTimeout(() => {
                 const fullProfile = { ...formData, bmi: parseFloat(currentBMI), bmr: nutritionInfo.bmr, workoutPlan: calculatedPlan, macros: nutritionInfo.macros, injuries: [], category: 'Hunter', startingWeight: formData.weight } as HealthProfile;
@@ -225,6 +261,36 @@ const HealthView: React.FC<HealthViewProps> = ({
           }
       }, 1500); 
   };
+
+  // --- ANIMATION LOOP FOR SMOOTH CHART TRANSITION ---
+  const handleAscensionClick = () => {
+      setIsAnimating(true);
+      let startTime: number | null = null;
+      const duration = 2000; // 2 seconds for full transformation
+
+      const animate = (timestamp: number) => {
+          if (!startTime) startTime = timestamp;
+          const elapsed = timestamp - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          
+          setTransformProgress(progress);
+
+          if (progress < 1) {
+              animationRef.current = requestAnimationFrame(animate);
+          } else {
+              setIsTransformed(true);
+              setIsAnimating(false);
+          }
+      };
+
+      animationRef.current = requestAnimationFrame(animate);
+  };
+
+  useEffect(() => {
+      return () => {
+          if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      };
+  }, []);
 
   if (viewMode === 'PROCESSING') {
       return (
@@ -293,10 +359,12 @@ const HealthView: React.FC<HealthViewProps> = ({
                       <div className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon transition-colors group">
                         <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold">BMI Index</div>
                         <div className="text-3xl text-white font-black">{currentBMI}</div>
+                        <div className={`text-[9px] font-bold mt-2 uppercase tracking-widest ${bmiCategory.color}`}>{bmiCategory.label}</div>
                       </div>
                       <div className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon transition-colors group">
                         <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold">BMR Status</div>
                         <div className="text-3xl text-white font-black">{nutritionInfo.bmr}</div>
+                        <div className="text-[9px] text-gray-600 font-bold mt-2 uppercase tracking-widest">KCAL / DAY</div>
                       </div>
                   </div>
 
@@ -332,11 +400,19 @@ const HealthView: React.FC<HealthViewProps> = ({
           { subject: 'PERCEPTION', value: 95, fullMark: 100 } 
       ];
       const currentStats = lowStats.map((stat, i) => ({ subject: stat.subject, value: lerp(stat.value, highStats[i].value, transformProgress), fullMark: 100 }));
-      const currentColor = lerpColor("#ef4444", "#00d2ff", transformProgress);
+      
+      // Transition from Red (#ef4444) to Green (#10b981)
+      const currentColor = lerpColor("#ef4444", "#10b981", transformProgress);
+      
+      const estimatedTime = calculateTimeEstimate(healthProfile || formData);
+      // Rough calculation of average stat increase (avg high / avg low)
+      const avgLow = lowStats.reduce((a, b) => a + b.value, 0) / lowStats.length;
+      const avgHigh = highStats.reduce((a, b) => a + b.value, 0) / highStats.length;
+      const percentIncrease = Math.round(((avgHigh - avgLow) / avgLow) * 100);
 
       return (
           <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-6 font-mono overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,210,255,0.05)_0%,transparent_70%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.05)_0%,transparent_70%)]" />
               
               <div className="relative z-10 w-full flex flex-col items-center">
                   {/* Floating Context Labels */}
@@ -345,11 +421,37 @@ const HealthView: React.FC<HealthViewProps> = ({
                       <div className="p-2 border border-gray-800 rounded">EQUIPMENT: {formData.equipment}</div>
                   </div>
 
-                  <TechRadar label={isTransformed ? "PEAK EVOLUTION" : "CURRENT BIO-SCAN"} color={currentColor} data={currentStats} />
+                  <TechRadar 
+                    label={isTransformed ? "PEAK EVOLUTION REALISED" : isAnimating ? "REWRITING BIOLOGY..." : "CURRENT BIO-SCAN"} 
+                    color={currentColor} 
+                    data={currentStats} 
+                    isAnimating={isAnimating}
+                    showEntrance={!isTransformed && !isAnimating}
+                  />
                   
-                  <div className="mt-16 w-full max-w-lg text-center">
+                  {/* Additional Metrics for Peak Evolution */}
+                  <AnimatePresence>
+                      {isTransformed && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="flex gap-4 mb-8 w-full max-w-sm"
+                          >
+                              <div className="flex-1 bg-system-success/10 border border-system-success/30 p-3 rounded-xl text-center">
+                                  <div className="text-[10px] text-system-success/70 font-bold uppercase mb-1 flex items-center justify-center gap-1"><TrendingUp size={12}/> STAT INCREASE</div>
+                                  <div className="text-2xl font-black text-system-success">+{percentIncrease}%</div>
+                              </div>
+                              <div className="flex-1 bg-system-success/10 border border-system-success/30 p-3 rounded-xl text-center">
+                                  <div className="text-[10px] text-system-success/70 font-bold uppercase mb-1 flex items-center justify-center gap-1"><Clock size={12}/> EST. TIME</div>
+                                  <div className="text-2xl font-black text-system-success">{estimatedTime}</div>
+                              </div>
+                          </motion.div>
+                      )}
+                  </AnimatePresence>
+                  
+                  <div className="w-full max-w-lg text-center h-32"> 
                     <AnimatePresence mode="wait">
-                        {!isTransformed ? (
+                        {!isTransformed && !isAnimating ? (
                             <motion.div 
                                 key="init"
                                 initial={{ opacity: 0, y: 10 }}
@@ -360,31 +462,40 @@ const HealthView: React.FC<HealthViewProps> = ({
                                 <p className="text-xs text-gray-500 max-w-xs mx-auto leading-relaxed">
                                     The System has analyzed your current vessel. You are capable of reaching peak human potential within this cycle.
                                 </p>
-                                <button onClick={() => {
-                                    let p = 0;
-                                    const timer = setInterval(() => {
-                                        p += 0.01;
-                                        if (p >= 1) { p = 1; setIsTransformed(true); clearInterval(timer); }
-                                        setTransformProgress(p);
-                                    }, 40);
-                                }} className="w-full py-5 bg-red-600 text-white font-black rounded-2xl animate-pulse shadow-[0_0_30px_#ef4444] tracking-widest">INITIATE ASCENSION SEQUENCE</button>
+                                <button onClick={handleAscensionClick} className="w-full py-5 bg-red-600 text-white font-black rounded-2xl animate-pulse shadow-[0_0_30px_#ef4444] tracking-widest">INITIATE ASCENSION SEQUENCE</button>
+                            </motion.div>
+                        ) : isAnimating ? (
+                            <motion.div
+                                key="animating"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="flex flex-col items-center justify-center"
+                            >
+                                <div className="text-system-success font-black text-xl tracking-[0.2em] animate-pulse">OPTIMIZING...</div>
+                                <div className="w-64 h-1 bg-gray-900 rounded-full mt-4 overflow-hidden">
+                                    <motion.div 
+                                        style={{ width: `${transformProgress * 100}%` }}
+                                        className="h-full bg-system-success shadow-[0_0_10px_#10b981]"
+                                    />
+                                </div>
                             </motion.div>
                         ) : (
                             <motion.div 
                                 key="accept"
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="space-y-8"
+                                className="space-y-4"
                             >
-                                <div className="p-6 bg-system-neon/5 border border-system-neon/30 rounded-3xl">
-                                    <div className="text-system-neon font-black text-sm mb-2 flex items-center justify-center gap-2">
-                                        <ShieldCheck size={18} /> SYSTEM GUARANTEE
+                                <div className="p-4 bg-system-success/5 border border-system-success/30 rounded-3xl">
+                                    <div className="text-system-success font-black text-sm mb-1 flex items-center justify-center gap-2">
+                                        <ShieldCheck size={16} /> SYSTEM GUARANTEE
                                     </div>
-                                    <p className="text-xs text-white leading-relaxed">
-                                        Adherence to established protocols ensures peak biological evolution. Your goals are now calibrated for maximum result acquisition.
+                                    <p className="text-[10px] text-gray-400 leading-relaxed max-w-xs mx-auto">
+                                        Adherence to established protocols ensures peak biological evolution. Your goals are now calibrated.
                                     </p>
                                 </div>
-                                <button onClick={startJourneySequence} className="w-full py-5 bg-system-neon text-black font-black rounded-2xl shadow-[0_0_40px_#00d2ff] hover:bg-white transition-all uppercase tracking-widest">ACCEPT SYSTEM PROTOCOLS</button>
+                                <button onClick={startJourneySequence} className="w-full py-5 bg-system-success text-black font-black rounded-2xl shadow-[0_0_40px_#10b981] hover:bg-white transition-all uppercase tracking-widest">ACCEPT SYSTEM PROTOCOLS</button>
                             </motion.div>
                         )}
                     </AnimatePresence>

@@ -1,4 +1,3 @@
-
 import { Exercise, HealthProfile, WorkoutDay } from '../types';
 
 // --- TYPES ---

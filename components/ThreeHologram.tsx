@@ -1,13 +1,17 @@
 import React, { useRef, useMemo } from 'react';
-import { Canvas, useFrame, ThreeElements } from '@react-three/fiber';
+import { Canvas, useFrame, Object3DNode } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Fix: Correctly extend JSX namespace for React Three Fiber intrinsic elements in React 18+
+// Fix: Correctly extend JSX namespace for React Three Fiber intrinsic elements
+// Using global JSX namespace augmentation which is safer for various TS setups
 declare global {
-  namespace React {
-    namespace JSX {
-      interface IntrinsicElements extends ThreeElements {}
+  namespace JSX {
+    interface IntrinsicElements {
+      mesh: Object3DNode<THREE.Mesh, typeof THREE.Mesh>;
+      group: Object3DNode<THREE.Group, typeof THREE.Group>;
+      ambientLight: Object3DNode<THREE.AmbientLight, typeof THREE.AmbientLight>;
+      pointLight: Object3DNode<THREE.PointLight, typeof THREE.PointLight>;
     }
   }
 }
@@ -85,7 +89,6 @@ const BodyPart: React.FC<BodyPartProps> = ({ geometry, position, activeTarget, p
         if (material.uniforms) material.uniforms.uTime.value = state.clock.elapsedTime;
     });
 
-    // Fix: Using mesh from IntrinsicElements
     return <mesh ref={meshRef} geometry={geometry} material={material} position={position} />;
 };
 
@@ -99,7 +102,6 @@ const ProceduralModel = ({ activeTarget }: { activeTarget: string }) => {
         if (groupRef.current) groupRef.current.rotation.y += 0.005;
     });
 
-    // Fix: Using group from IntrinsicElements
     return (
         <group ref={groupRef} position={[0, -1, 0]}>
             <BodyPart partName="head" geometry={headGeo} position={[0, 2.8, 0]} activeTarget={activeTarget} />
@@ -115,7 +117,6 @@ const ProceduralModel = ({ activeTarget }: { activeTarget: string }) => {
 const ThreeHologram: React.FC<{ activeMuscle: string }> = ({ activeMuscle }) => (
     <div className="w-full h-full relative">
         <Canvas camera={{ position: [0, 1, 5], fov: 45 }}>
-            {/* Fix: Using ambientLight and pointLight from IntrinsicElements */}
             <ambientLight intensity={0.5} />
             <pointLight position={[10, 10, 10]} intensity={1} color="#00d2ff" />
             <ProceduralModel activeTarget={activeMuscle} />
