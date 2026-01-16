@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, Database, Save, RefreshCw, Video, Link, Search, ChevronRight, Edit3, ShieldAlert, Calendar, Eye, Activity } from 'lucide-react';
-import { AdminExercise, PlayerData, WorkoutDay, Exercise } from '../types';
+import { LogOut, Database, Save, RefreshCw, Video, Link, Search, ChevronRight, ShieldAlert, Activity } from 'lucide-react';
+import { WorkoutDay } from '../types';
 import { useSystem, isEmbed } from '../hooks/useSystem';
 import { MASTER_PROTOCOL_REGISTRY } from '../utils/workoutGenerator';
 import { supabase } from '../lib/supabase';
@@ -42,7 +41,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   // User Data State
   const [users, setUsers] = useState<any[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
   const [userSearch, setUserSearch] = useState('');
 
   // Region Video State
@@ -51,15 +49,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   // --- DATA LOADING ---
   const fetchUsers = async () => {
-      setLoadingUsers(true);
       try {
           const { data, error } = await supabase.from('profiles').select('*').order('updated_at', { ascending: false });
           if (error) throw error;
           setUsers(data || []);
       } catch (err) {
           console.error("Fetch Users Error:", err);
-      } finally {
-          setLoadingUsers(false);
       }
   };
 

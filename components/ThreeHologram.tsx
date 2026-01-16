@@ -1,18 +1,12 @@
 import React, { useRef, useMemo } from 'react';
-import { Canvas, useFrame, Object3DNode } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
+import { ThreeElements } from '@react-three/fiber';
 
-// Fix: Correctly extend JSX namespace for React Three Fiber intrinsic elements
-// Using global JSX namespace augmentation which is safer for various TS setups
 declare global {
   namespace JSX {
-    interface IntrinsicElements {
-      mesh: Object3DNode<THREE.Mesh, typeof THREE.Mesh>;
-      group: Object3DNode<THREE.Group, typeof THREE.Group>;
-      ambientLight: Object3DNode<THREE.AmbientLight, typeof THREE.AmbientLight>;
-      pointLight: Object3DNode<THREE.PointLight, typeof THREE.PointLight>;
-    }
+    interface IntrinsicElements extends ThreeElements {}
   }
 }
 

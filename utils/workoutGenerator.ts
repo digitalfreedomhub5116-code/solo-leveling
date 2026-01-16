@@ -453,7 +453,7 @@ const generateBodyweightPpl = (): WorkoutDay[] => {
                 ...UNIVERSAL_WARMUP,
                 createEx('Bodyweight Squats', 3, wIdx === 2 ? '20' : wIdx === 3 ? '12' : '15', 'COMPOUND', globalNote),
                 createEx('Reverse Lunges', 3, wIdx === 2 ? '15' : wIdx === 3 ? '10' : '12', 'COMPOUND', globalNote),
-                createEx('Glute Bridges', 3, wIdx === 2 ? '20' : 15 ? '12' : '15', 'ACCESSORY', globalNote),
+                createEx('Glute Bridges', 3, wIdx === 2 ? '20' : wIdx === 3 ? '12' : '15', 'ACCESSORY', globalNote),
                 createEx('Side Lunges', 3, wIdx === 2 ? '12' : '10', 'ACCESSORY', globalNote),
                 createEx('Calf Raises', 4, wIdx === 2 ? '25' : '20', 'ACCESSORY', globalNote),
                 ...UNIVERSAL_COOLDOWN

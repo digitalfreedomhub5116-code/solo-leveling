@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Search, X, Cpu, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Search, Cpu, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
@@ -211,7 +211,7 @@ const HealthView: React.FC<HealthViewProps> = ({
   const [transformProgress, setTransformProgress] = useState(0);
   const [isTransformed, setIsTransformed] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | null>(null);
 
   const [activePlan, setActivePlan] = useState<WorkoutDay | null>(null);
   const [step, setStep] = useState(1);
