@@ -217,7 +217,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
     });
   };
 
-  // --- SIMULATION ENGINE (Every 20s) ---
+  // --- SIMULATION ENGINE (Every 10s) ---
   useEffect(() => {
     if (!isReady) return;
 
@@ -310,7 +310,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
         saveDaily(newSorted);
         return newSorted;
       });
-    }, 20000); // 20s Tick
+    }, 10000); // 10s Tick
 
     return () => { if (simInterval.current) clearInterval(simInterval.current); };
   }, [isReady, currentPlayer.dailyXp]);
@@ -323,26 +323,28 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
     <div className="h-full flex flex-col max-w-4xl mx-auto w-full px-2 font-mono selection:bg-system-neon">
        
        {/* HEADER */}
-       <div className="bg-system-card border border-system-border p-6 mb-8 rounded-2xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6">
+       <div className="bg-system-card border border-system-border p-4 md:p-6 mb-4 md:mb-8 rounded-2xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
           <div className="absolute inset-0 bg-gradient-to-br from-system-neon/5 to-transparent pointer-events-none" />
-          <div className="flex items-center gap-4 relative z-10">
-              <Trophy className="text-yellow-500" size={40} />
+          <div className="flex items-center gap-3 md:gap-4 relative z-10">
+              <div className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center">
+                  <Trophy className="text-yellow-500 w-full h-full" />
+              </div>
               <div>
-                  <h1 className="text-3xl font-black text-white tracking-tighter uppercase">SHADOW ARENA</h1>
-                  <p className="text-[10px] text-gray-500 tracking-[0.3em] uppercase">Global Ranking Engine // Live Sync</p>
+                  <h1 className="text-xl md:text-3xl font-black text-white tracking-tighter uppercase">SHADOW ARENA</h1>
+                  <p className="text-[8px] md:text-[10px] text-gray-500 tracking-[0.3em] uppercase">Global Ranking Engine // Live Sync</p>
               </div>
           </div>
 
           {rival && (
-              <div className="bg-red-950/20 border border-red-900/40 p-3 rounded-xl flex items-center gap-4 relative z-10">
-                  <div className="flex flex-col items-center">
-                      <TargetIcon className="text-red-600 animate-pulse" size={20} />
+              <div className="bg-red-950/20 border border-red-900/40 p-2 md:p-3 rounded-xl flex items-center gap-3 md:gap-4 relative z-10 w-full md:w-auto">
+                  <div className="flex flex-col items-center shrink-0">
+                      <TargetIcon className="text-red-600 animate-pulse w-4 h-4 md:w-5 md:h-5" />
                       <span className="text-[8px] text-red-700 font-bold uppercase mt-1">Target</span>
                   </div>
-                  <div>
-                      <div className="text-[9px] text-red-400 uppercase font-bold">RIVAL: {rival.name}</div>
-                      <div className="text-lg font-black text-white leading-none">
-                        -{rival.xp - (currentPlayer.dailyXp || 0)} <span className="text-[10px] text-gray-600">XP</span>
+                  <div className="min-w-0">
+                      <div className="text-[8px] md:text-[9px] text-red-400 uppercase font-bold truncate">RIVAL: {rival.name}</div>
+                      <div className="text-sm md:text-lg font-black text-white leading-none">
+                        -{rival.xp - (currentPlayer.dailyXp || 0)} <span className="text-[8px] md:text-[10px] text-gray-600">XP</span>
                       </div>
                   </div>
               </div>
@@ -350,7 +352,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
        </div>
 
        {/* ARENA LIST */}
-       <div className="flex-1 space-y-4 relative pb-20">
+       <div className="flex-1 space-y-3 md:space-y-4 relative pb-20">
           <AnimatePresence mode="popLayout">
             {roster.map((user, idx) => {
                 const rank = idx + 1;
@@ -380,7 +382,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
                         scale: { duration: 0.6 },
                         opacity: { duration: 0.4 }
                       }}
-                      className={`relative flex items-center justify-between p-5 rounded-2xl border transition-colors duration-700 ${
+                      className={`relative flex items-center justify-between p-3 md:p-5 rounded-2xl border transition-colors duration-700 ${
                           isMe ? 'border-system-neon bg-system-neon/10 ring-1 ring-system-neon/30 shadow-[0_0_30px_rgba(0,210,255,0.1)]' : 
                           'border-gray-800 bg-gray-900/40 hover:border-gray-700'
                       }`}
@@ -395,29 +397,29 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
                              />
                         )}
 
-                        <div className="flex items-center gap-6 z-10">
-                            <div className="flex flex-col items-center w-8">
+                        <div className="flex items-center gap-3 md:gap-6 z-10 overflow-hidden">
+                            <div className="flex flex-col items-center w-6 md:w-8 shrink-0">
                                 <motion.span 
                                     layout="position"
-                                    className={`text-2xl font-black ${isMe ? 'text-system-neon' : 'text-gray-700'}`}
+                                    className={`text-lg md:text-2xl font-black ${isMe ? 'text-system-neon' : 'text-gray-700'}`}
                                 >
                                     {rank}
                                 </motion.span>
-                                {isAscending && <ArrowUp size={14} className="text-system-success mt-1" />}
-                                {user.trend === 'DOWN' && <ArrowDown size={14} className="text-red-700 mt-1" />}
-                                {user.trend === 'SAME' && <Minus size={14} className="text-gray-800 mt-1" />}
+                                {isAscending && <ArrowUp size={12} className="text-system-success mt-1" />}
+                                {user.trend === 'DOWN' && <ArrowDown size={12} className="text-red-700 mt-1" />}
+                                {user.trend === 'SAME' && <Minus size={12} className="text-gray-800 mt-1" />}
                             </div>
 
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-black text-xl" style={{ backgroundColor: user.avatarColor }}>
+                            <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                                <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center font-bold text-black text-lg md:text-xl shrink-0" style={{ backgroundColor: user.avatarColor }}>
                                     {user.name.charAt(0)}
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <div className="flex items-center gap-2">
-                                        <span className={`text-sm font-bold ${isMe ? 'text-system-neon' : 'text-white'}`}>{user.name.toUpperCase()}</span>
-                                        {isMe && <span className="text-[8px] bg-system-neon text-black px-1.5 rounded font-black">YOU</span>}
+                                        <span className={`text-xs md:text-sm font-bold truncate ${isMe ? 'text-system-neon' : 'text-white'}`}>{user.name.toUpperCase()}</span>
+                                        {isMe && <span className="text-[8px] bg-system-neon text-black px-1.5 rounded font-black shrink-0">YOU</span>}
                                     </div>
-                                    <div className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">{getHunterClass(rank)}</div>
+                                    <div className="text-[8px] md:text-[9px] text-gray-500 font-bold uppercase tracking-widest truncate">{getHunterClass(rank)}</div>
                                     {isAscending && (
                                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1 text-system-success text-[8px] font-black mt-1">
                                             <Sparkles size={10} /> ASCENDING
@@ -427,12 +429,12 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
                             </div>
                         </div>
 
-                        <div className="text-right z-10">
-                            <div className="flex items-center gap-3 justify-end">
-                                {rank <= 3 && <Crown className={rank === 1 ? "text-yellow-500" : "text-purple-500"} size={18} />}
-                                <span className="text-xl font-black text-white tabular-nums">{user.xp.toLocaleString()}</span>
+                        <div className="text-right z-10 shrink-0 ml-2">
+                            <div className="flex items-center gap-2 md:gap-3 justify-end">
+                                {rank <= 3 && <Crown className={rank === 1 ? "text-yellow-500" : "text-purple-500"} size={window.innerWidth < 768 ? 14 : 18} />}
+                                <span className="text-base md:text-xl font-black text-white tabular-nums">{user.xp.toLocaleString()}</span>
                             </div>
-                            <div className="text-[8px] text-gray-600 font-bold uppercase tracking-widest flex items-center gap-2 justify-end">
+                            <div className="text-[8px] text-gray-600 font-bold uppercase tracking-widest flex items-center gap-1 md:gap-2 justify-end">
                                 <Activity size={10} className={user.status === 'OVERDRIVE' ? 'text-red-500 animate-bounce' : user.status === 'GRINDING' ? 'text-system-neon animate-pulse' : ''} />
                                 {user.status}
                             </div>
@@ -445,7 +447,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
 
        {/* FOOTER MARQUEE */}
        <div className="fixed bottom-0 left-0 w-full bg-black/95 border-t border-gray-800 h-10 overflow-hidden z-30">
-            <div className="flex whitespace-nowrap animate-[marquee_20s_linear_infinite] font-mono text-[9px] text-gray-600 items-center h-full gap-20">
+            <div className="flex whitespace-nowrap animate-[marquee_20s_linear_infinite] font-mono text-[9px] text-gray-600 items-center h-full gap-10 md:gap-20">
                 <span>SYSTEM STATUS: STABLE</span>
                 <span>ARENA SYNC: LIVE</span>
                 <span>CATCH-UP ENGINE: ACTIVE</span>
