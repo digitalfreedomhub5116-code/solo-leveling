@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Search, Cpu, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Search, Cpu, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp, Zap, Box } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
@@ -238,6 +238,7 @@ const HealthView: React.FC<HealthViewProps> = ({
   const rawBMI = useMemo(() => (formData.weight && formData.height) ? (formData.weight / ((formData.height/100) ** 2)) : 0, [formData.weight, formData.height]);
   const currentBMI = rawBMI.toFixed(1);
   const bmiCategory = useMemo(() => getBMICategory(rawBMI), [rawBMI]);
+  const estimatedTimeStr = useMemo(() => calculateTimeEstimate(healthProfile || formData), [healthProfile, formData]);
 
   const startProcessing = () => {
       setViewMode('PROCESSING');
@@ -295,16 +296,31 @@ const HealthView: React.FC<HealthViewProps> = ({
 
   if (viewMode === 'PROCESSING') {
       return (
-          <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono p-6 overflow-hidden">
-              {/* Grid Background */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono p-6 overflow-hidden"
+          >
+              {/* Complex Background Grid */}
               <div className="absolute inset-0 bg-[linear-gradient(rgba(0,210,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
               
               <div className="relative w-64 h-64 mb-12 flex items-center justify-center">
+                  {/* Rotating Hexagonal Frame */}
+                  <motion.div 
+                    animate={{ rotate: 360 }} 
+                    transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+                    className="absolute inset-[-20px] border border-system-neon/10 rounded-full flex items-center justify-center"
+                  >
+                    {[0, 60, 120, 180, 240, 300].map(deg => (
+                        <div key={deg} className="absolute w-2 h-2 bg-system-neon/30 rounded-full" style={{ transform: `rotate(${deg}deg) translateY(-140px)` }} />
+                    ))}
+                  </motion.div>
+
                   {/* Outer Hexagon Ring */}
                   <motion.div 
                     animate={{ rotate: 360 }} 
                     transition={{ duration: 20, repeat: Infinity, ease: "linear" }} 
-                    className="absolute inset-0 border border-system-neon/20 clip-hex flex items-center justify-center rounded-full"
+                    className="absolute inset-0 border border-system-neon/20 flex items-center justify-center rounded-full"
                   >
                       <div className="w-full h-full border-t-2 border-b-2 border-system-neon/50 rounded-full" />
                   </motion.div>
@@ -312,123 +328,195 @@ const HealthView: React.FC<HealthViewProps> = ({
                   {/* Middle Dashed Ring */}
                   <motion.div 
                     animate={{ rotate: -360 }} 
-                    transition={{ duration: 10, repeat: Infinity, ease: "linear" }} 
+                    transition={{ duration: 15, repeat: Infinity, ease: "linear" }} 
                     className="absolute inset-8 border-2 border-dashed border-gray-700 rounded-full" 
                   />
 
                   {/* Inner Rotating Tech Circle */}
                   <motion.div 
                     animate={{ rotate: 360 }} 
-                    transition={{ duration: 5, repeat: Infinity, ease: "linear" }} 
-                    className="absolute inset-16 border-t-4 border-r-4 border-system-neon rounded-full shadow-[0_0_20px_#00d2ff]" 
+                    transition={{ duration: 8, repeat: Infinity, ease: "linear" }} 
+                    className="absolute inset-16 border-t-4 border-r-4 border-system-neon rounded-full shadow-[0_0_30px_rgba(0,210,255,0.4)]" 
                   />
                   
                   {/* Counter-Rotating Core */}
                   <motion.div 
                     animate={{ rotate: -360 }} 
-                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }} 
-                    className="absolute inset-20 border-b-4 border-l-4 border-system-accent rounded-full" 
+                    transition={{ duration: 5, repeat: Infinity, ease: "linear" }} 
+                    className="absolute inset-20 border-b-4 border-l-4 border-system-accent rounded-full shadow-[0_0_20px_rgba(139,92,246,0.3)]" 
                   />
 
                   {/* Central Core Pulse */}
                   <motion.div 
-                      animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                      className="absolute w-12 h-12 bg-system-neon rounded-full blur-md"
+                      animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0.8, 0.3] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute w-12 h-12 bg-system-neon rounded-full blur-xl"
                   />
                   
                   <div className="absolute inset-0 flex items-center justify-center z-10">
-                      <Cpu className="text-white" size={32} />
+                      <motion.div
+                        animate={{ rotate: [0, 90, 180, 270, 360] }}
+                        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                      >
+                        <Cpu className="text-white drop-shadow-[0_0_10px_white]" size={32} />
+                      </motion.div>
                   </div>
 
                   {/* Scanning Radar Effect */}
                   <motion.div 
                       animate={{ rotate: 360 }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      className="absolute inset-0 w-full h-full rounded-full bg-gradient-to-tr from-transparent via-system-neon/10 to-transparent pointer-events-none"
-                      style={{ clipPath: 'polygon(50% 50%, 100% 0, 100% 100%, 50% 50%)' }} // Approx wedge
+                      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                      className="absolute inset-[-40px] w-[calc(100%+80px)] h-[calc(100%+80px)] rounded-full bg-gradient-to-tr from-transparent via-system-neon/10 to-transparent pointer-events-none"
+                      style={{ clipPath: 'polygon(50% 50%, 100% 0, 100% 100%, 50% 50%)' }} 
                   />
               </div>
 
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
                 className="text-center z-10"
               >
-                <h2 className="text-3xl font-black text-white tracking-tighter mb-2 glitch-text" data-text="CALIBRATING">
+                <h2 className="text-4xl font-black text-white tracking-tighter mb-2 italic" style={{ textShadow: '0 0 20px rgba(0,210,255,0.5)' }}>
                     CALIBRATING...
                 </h2>
-                <div className="text-[10px] text-system-neon font-mono tracking-[0.3em] uppercase mb-8">
-                    Syncing Biological Data to Core
+                <div className="text-[10px] text-system-neon font-mono tracking-[0.4em] uppercase mb-10 flex items-center justify-center gap-2">
+                    <span className="w-2 h-2 bg-system-neon rounded-full animate-ping" />
+                    Neural Interface Synchronization
                 </div>
 
-                {/* Segmented Progress Bar */}
-                <div className="w-64 h-2 bg-gray-900 rounded-full overflow-hidden mx-auto flex gap-0.5">
-                    {Array.from({ length: 20 }).map((_, i) => (
+                {/* Segmented Digital Progress Bar */}
+                <div className="w-72 h-4 bg-gray-900 border border-gray-800 p-1 rounded-sm mx-auto flex gap-1 relative">
+                    {Array.from({ length: 24 }).map((_, i) => (
                         <motion.div 
                             key={i}
-                            initial={{ opacity: 0.1 }}
-                            animate={{ opacity: [0.1, 1, 0.1] }}
+                            initial={{ opacity: 0.05 }}
+                            animate={{ opacity: [0.05, 1, 0.05], backgroundColor: ["#111", "#00d2ff", "#111"] }}
                             transition={{ 
-                                duration: 1.5, 
+                                duration: 2, 
                                 repeat: Infinity, 
-                                delay: i * 0.05,
-                                repeatDelay: 0.5
+                                delay: i * 0.08,
+                                ease: "easeInOut"
                             }}
-                            className="flex-1 bg-system-neon shadow-[0_0_5px_#00d2ff]"
+                            className="flex-1 rounded-sm shadow-[0_0_10px_rgba(0,210,255,0.2)]"
                         />
                     ))}
+                    <div className="absolute -bottom-6 left-0 w-full flex justify-between text-[8px] text-gray-500 font-mono tracking-widest">
+                        <span>LOAD_BUFFER_0x{Math.floor(Math.random()*1000)}</span>
+                        <span>ASYNC_SUCCESS</span>
+                    </div>
                 </div>
                 
-                {/* Random Data Stream */}
-                <div className="mt-4 text-[9px] text-gray-600 font-mono h-6 overflow-hidden">
+                {/* Visual Status Log Scroll */}
+                <div className="mt-12 text-[9px] text-gray-700 font-mono h-12 overflow-hidden border-t border-gray-900 pt-2 w-64 mx-auto">
                     <motion.div
-                        animate={{ y: -100 }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "steps(10)" }}
+                        animate={{ y: -200 }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                        className="space-y-1"
                     >
-                        {Array.from({ length: 10 }).map((_, i) => (
-                            <div key={i}>{Math.random().toString(16).substring(2, 14).toUpperCase()}</div>
+                        {[
+                            "> FETCHING BIOMETRIC PACKETS",
+                            "> RESOLVING TARGET_WEIGHT_GOAL",
+                            "> CALCULATING BASAL_METABOLIC_RATE",
+                            "> MAPPING EXERCISE_REGISTRY",
+                            "> OPTIMIZING NEURAL_SYNC_LEVEL",
+                            "> INITIALIZING SHADOW_PROTOCOLS",
+                            "> CALIBRATION_COMPLETE",
+                            "> DATASET_01_VERIFIED",
+                            "> SYSTEM_UPGRADE_PENDING"
+                        ].map((log, i) => (
+                            <div key={i}>{log}</div>
                         ))}
                     </motion.div>
                 </div>
               </motion.div>
-          </div>
+          </motion.div>
       );
   }
 
   if (viewMode === 'DIAGNOSIS') {
       return (
-          <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-6 font-mono">
-              <div className="w-full max-w-md border border-gray-800 p-8 rounded-3xl bg-system-card relative overflow-hidden group">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-system-neon opacity-50" />
-                  <h2 className="text-2xl font-black text-white mb-8 flex items-center gap-2"><Fingerprint className="text-system-neon" /> INITIAL ANALYSIS</h2>
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-6 font-mono"
+          >
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="w-full max-w-2xl border border-gray-800 p-8 rounded-3xl bg-system-card relative overflow-hidden group shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+              >
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-system-neon to-transparent opacity-50" />
                   
-                  <div className="grid grid-cols-2 gap-4 mb-8">
-                      <div className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon transition-colors group">
-                        <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold">BMI Index</div>
-                        <div className="text-3xl text-white font-black">{currentBMI}</div>
+                  <motion.div 
+                    initial={{ x: -20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="flex justify-between items-start mb-8"
+                  >
+                      <h2 className="text-3xl font-black text-white flex items-center gap-3 tracking-tighter italic">
+                        <Fingerprint className="text-system-neon animate-pulse" size={28} /> INITIAL ANALYSIS
+                      </h2>
+                      <div className="text-[10px] text-gray-500 font-bold border border-gray-800 px-3 py-1 rounded">OS_v1.0.42</div>
+                  </motion.div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                      <motion.div 
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon/50 transition-all group/card shadow-lg"
+                      >
+                        <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold tracking-widest">BMI Index</div>
+                        <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{currentBMI}</div>
                         <div className={`text-[9px] font-bold mt-2 uppercase tracking-widest ${bmiCategory.color}`}>{bmiCategory.label}</div>
-                      </div>
-                      <div className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon transition-colors group">
-                        <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold">BMR Status</div>
-                        <div className="text-3xl text-white font-black">{nutritionInfo.bmr}</div>
+                      </motion.div>
+
+                      <motion.div 
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon/50 transition-all group/card shadow-lg"
+                      >
+                        <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold tracking-widest">BMR Status</div>
+                        <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{nutritionInfo.bmr}</div>
                         <div className="text-[9px] text-gray-600 font-bold mt-2 uppercase tracking-widest">KCAL / DAY</div>
-                      </div>
+                      </motion.div>
+
+                      <motion.div 
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-accent/50 transition-all group/card shadow-lg"
+                      >
+                        <div className="text-[10px] text-system-accent mb-2 uppercase font-bold tracking-widest">Est. Duration</div>
+                        <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(139,92,246,0.3)]">{estimatedTimeStr.split(' ')[0]}</div>
+                        <div className="text-[9px] text-system-accent/70 font-bold mt-2 uppercase tracking-widest">WEEKS TO GOAL</div>
+                      </motion.div>
                   </div>
 
-                  <div className="space-y-3 mb-8">
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.6 }}
+                    className="grid grid-cols-2 gap-4 mb-8"
+                  >
                     <div className="flex items-center gap-2 text-[10px] text-gray-400 uppercase font-bold"><Check size={14} className="text-system-success" /> METABOLIC SYNC STABLE</div>
                     <div className="flex items-center gap-2 text-[10px] text-gray-400 uppercase font-bold"><Check size={14} className="text-system-success" /> NEURAL INTERFACE ONLINE</div>
-                  </div>
+                  </motion.div>
 
-                  <button 
+                  <motion.button 
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.8 }}
                     onClick={() => setViewMode('PROJECTION')} 
-                    className="w-full py-5 bg-white text-black font-black rounded-2xl shadow-[0_0_30px_white] hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                    className="w-full py-5 bg-white text-black font-black rounded-2xl shadow-[0_0_30px_white] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm"
                   >
                     VIEW ASCENSION PROJECTION <ArrowRight size={20} />
-                  </button>
-              </div>
-          </div>
+                  </motion.button>
+              </motion.div>
+          </motion.div>
       );
   }
 
@@ -441,7 +529,9 @@ const HealthView: React.FC<HealthViewProps> = ({
           { subject: 'SOCIAL', value: 20, fullMark: 100 }, 
           { subject: 'WILLPOWER', value: 60, fullMark: 100 } 
       ];
-      const highStats = [ 
+      
+      // Fix: Removed redundant and undefined highStatsHighStats reference
+      const highStatsData = [ 
           { subject: 'STRENGTH', value: 85, fullMark: 100 }, 
           { subject: 'INTELLIGENCE', value: 75, fullMark: 100 }, 
           { subject: 'FOCUS', value: 80, fullMark: 100 }, 
@@ -451,17 +541,16 @@ const HealthView: React.FC<HealthViewProps> = ({
       
       const currentStats = lowStats.map((stat, i) => ({ 
           subject: stat.subject, 
-          value: lerp(stat.value, highStats[i].value, transformProgress), 
+          value: lerp(stat.value, highStatsData[i].value, transformProgress), 
           fullMark: 100 
       }));
       
       // Transition from Red (#ef4444) to Green (#10b981)
       const currentColor = lerpColor("#ef4444", "#10b981", transformProgress);
       
-      const estimatedTime = calculateTimeEstimate(healthProfile || formData);
       // Rough calculation of average stat increase (avg high / avg low)
       const avgLow = lowStats.reduce((a, b) => a + b.value, 0) / lowStats.length;
-      const avgHigh = highStats.reduce((a, b) => a + b.value, 0) / highStats.length;
+      const avgHigh = highStatsData.reduce((a, b) => a + b.value, 0) / highStatsData.length;
       const percentIncrease = Math.round(((avgHigh - avgLow) / avgLow) * 100);
 
       return (
@@ -495,13 +584,13 @@ const HealthView: React.FC<HealthViewProps> = ({
                             animate={{ opacity: 1, y: 0 }}
                             className="flex gap-4 w-full"
                           >
-                              <div className="flex-1 bg-system-success/10 border border-system-success/30 p-3 rounded-xl text-center">
+                              <div className="flex-1 bg-system-success/10 border border-system-success/30 p-3 rounded-xl text-center shadow-lg">
                                   <div className="text-[10px] text-system-success/70 font-bold uppercase mb-1 flex items-center justify-center gap-1"><TrendingUp size={12}/> STAT INCREASE</div>
                                   <div className="text-2xl font-black text-system-success">+{percentIncrease}%</div>
                               </div>
-                              <div className="flex-1 bg-system-success/10 border border-system-success/30 p-3 rounded-xl text-center">
+                              <div className="flex-1 bg-system-success/10 border border-system-success/30 p-3 rounded-xl text-center shadow-lg">
                                   <div className="text-[10px] text-system-success/70 font-bold uppercase mb-1 flex items-center justify-center gap-1"><Clock size={12}/> EST. TIME</div>
-                                  <div className="text-2xl font-black text-system-success">{estimatedTime}</div>
+                                  <div className="text-2xl font-black text-system-success">{estimatedTimeStr}</div>
                               </div>
                           </motion.div>
                       )}
@@ -584,7 +673,11 @@ const HealthView: React.FC<HealthViewProps> = ({
   if (viewMode === 'SETUP') {
       return (
           <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 font-mono">
-              <div className="max-w-md w-full bg-system-card border border-system-border rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="max-w-md w-full bg-system-card border border-system-border rounded-3xl p-8 shadow-2xl relative overflow-hidden"
+              >
                   <div className="absolute top-0 left-0 w-full h-1 bg-gray-800">
                     <motion.div 
                         initial={{ width: 0 }}
@@ -777,7 +870,7 @@ const HealthView: React.FC<HealthViewProps> = ({
                         </motion.div>
                       )}
                   </AnimatePresence>
-              </div>
+              </motion.div>
           </div>
       );
   }
@@ -795,8 +888,8 @@ const HealthView: React.FC<HealthViewProps> = ({
                 {activeTab === 'WORKOUT' && (
                     <motion.div key="wo" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 text-center"><Flame className="text-orange-500 mx-auto mb-2 animate-pulse" size={24} /><div className="text-2xl font-black text-white">{playerData.streak}</div><div className="text-[10px] text-gray-500 uppercase">STREAK</div></div>
-                            <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 text-center"><Target className="text-system-neon mx-auto mb-2" size={24} /><div className="text-xl font-bold text-white uppercase">{calculateTimeEstimate(healthProfile || formData)}</div><div className="text-[10px] text-gray-500 uppercase">TARGET</div></div>
+                            <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 text-center shadow-lg"><Flame className="text-orange-500 mx-auto mb-2 animate-pulse" size={24} /><div className="text-2xl font-black text-white">{playerData.streak}</div><div className="text-[10px] text-gray-500 uppercase tracking-widest">STREAK</div></div>
+                            <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 text-center shadow-lg"><Target className="text-system-neon mx-auto mb-2" size={24} /><div className="text-xl font-bold text-white uppercase tracking-tight">{calculateTimeEstimate(healthProfile || formData)}</div><div className="text-[10px] text-gray-500 uppercase tracking-widest">TARGET</div></div>
                         </div>
                         <WorkoutMap currentWeight={healthProfile?.weight || 0} targetWeight={healthProfile?.targetWeight || 0} workoutPlan={calculatedPlan} completedDays={playerData.logs.filter(l => l.type === 'WORKOUT').length} onStartDay={(idx) => { setActivePlan(calculatedPlan[idx % calculatedPlan.length]); setViewMode('OVERVIEW'); }} />
                     </motion.div>
@@ -806,12 +899,12 @@ const HealthView: React.FC<HealthViewProps> = ({
                         <div className="grid grid-cols-4 gap-2">
                             {Object.entries(nutritionInfo.macros).map(([k, v]) => <div key={k} className="bg-gray-900/50 p-3 rounded-xl border border-gray-800 text-center"><div className="text-[10px] text-gray-500 uppercase">{k}</div><div className="text-sm font-bold text-white">{v}{k === 'calories' ? '' : 'g'}</div></div>)}
                         </div>
-                        <div className="bg-black border border-gray-800 p-6 rounded-2xl">
-                            <h3 className="text-xs text-white font-black mb-4 flex items-center gap-2"><Search size={14} /> FOOD SCANNER</h3>
-                            <input value={foodSearch} onChange={e => setFoodSearch(e.target.value)} placeholder="SEARCH FOODS..." className="w-full bg-gray-900 border border-gray-800 rounded-xl p-3 text-sm mb-4 outline-none focus:border-system-neon" />
+                        <div className="bg-black border border-gray-800 p-6 rounded-2xl shadow-xl">
+                            <h3 className="text-xs text-white font-black mb-4 flex items-center gap-2 tracking-widest"><Search size={14} /> FOOD SCANNER</h3>
+                            <input value={foodSearch} onChange={e => setFoodSearch(e.target.value)} placeholder="SEARCH FOODS..." className="w-full bg-gray-900 border border-gray-800 rounded-xl p-3 text-sm mb-4 outline-none focus:border-system-neon transition-all" />
                             <div className="max-h-48 overflow-y-auto space-y-2 custom-scrollbar">
                                 {INDIAN_FOOD_DB.filter(f => f.name.toLowerCase().includes(foodSearch.toLowerCase())).map(food => (
-                                    <div key={food.id} onClick={() => onLogMeal?.({ id: Math.random().toString(36).substr(2,9), label: food.name, items: [{...food, quantity: 1}], totalCalories: food.calories, totalProtein: food.protein, totalCarbs: food.carbs, totalFats: food.fats, timestamp: Date.now() })} className="p-3 bg-gray-900/30 hover:bg-gray-900 transition-colors cursor-pointer rounded-xl flex justify-between items-center group">
+                                    <div key={food.id} onClick={() => onLogMeal?.({ id: Math.random().toString(36).substr(2,9), label: food.name, items: [{...food, quantity: 1}], totalCalories: food.calories, totalProtein: food.protein, totalCarbs: food.carbs, totalFats: food.fats, timestamp: Date.now() })} className="p-3 bg-gray-900/30 hover:bg-gray-900 transition-all cursor-pointer rounded-xl flex justify-between items-center group">
                                         <div><div className="text-xs font-bold text-gray-300">{food.name}</div><div className="text-[9px] text-gray-600">{food.calories} KCAL</div></div>
                                         <div className="bg-system-neon text-black px-2 py-0.5 rounded text-[10px] font-black opacity-0 group-hover:opacity-100 transition-opacity">ADD</div>
                                     </div>
@@ -822,12 +915,12 @@ const HealthView: React.FC<HealthViewProps> = ({
                 )}
                 {activeTab === 'BODY' && (
                     <motion.div key="bd" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                        <div className="bg-gray-900/50 p-8 rounded-2xl border border-gray-800">
-                            <h3 className="text-sm text-white font-black mb-6 flex items-center gap-2"><Fingerprint size={16} /> BIOMETRIC_REPORT</h3>
+                        <div className="bg-gray-900/50 p-8 rounded-2xl border border-gray-800 shadow-xl">
+                            <h3 className="text-sm text-white font-black mb-6 flex items-center gap-2 tracking-widest"><Fingerprint size={16} /> BIOMETRIC_REPORT</h3>
                             <div className="space-y-4">
-                                <div className="flex justify-between border-b border-gray-800 pb-4"><span className="text-gray-500 uppercase">Body Mass Index</span><span className="text-white font-bold">{healthProfile?.bmi}</span></div>
-                                <div className="flex justify-between border-b border-gray-800 pb-4"><span className="text-gray-500 uppercase">Basal Metabolic Rate</span><span className="text-white font-bold">{healthProfile?.bmr} kcal</span></div>
-                                <div className="flex justify-between border-b border-gray-800 pb-4"><span className="text-gray-500 uppercase">Status</span><span className="text-system-neon font-black">STABLE</span></div>
+                                <div className="flex justify-between border-b border-gray-800 pb-4"><span className="text-gray-500 uppercase text-xs">Body Mass Index</span><span className="text-white font-bold">{healthProfile?.bmi}</span></div>
+                                <div className="flex justify-between border-b border-gray-800 pb-4"><span className="text-gray-500 uppercase text-xs">Basal Metabolic Rate</span><span className="text-white font-bold">{healthProfile?.bmr} kcal</span></div>
+                                <div className="flex justify-between border-b border-gray-800 pb-4"><span className="text-gray-500 uppercase text-xs">Status</span><span className="text-system-neon font-black tracking-widest">STABLE</span></div>
                             </div>
                         </div>
                     </motion.div>
