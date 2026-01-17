@@ -241,6 +241,19 @@ const HealthView: React.FC<HealthViewProps> = ({
   const [foodSearch, setFoodSearch] = useState('');
   const [finalizingLog, setFinalizingLog] = useState("Initializing...");
 
+  // Calculate stable projected increase based on username to persist across re-renders/visits
+  const projectedIncrease = useMemo(() => {
+      if (playerData.username) {
+          let hash = 0;
+          for (let i = 0; i < playerData.username.length; i++) {
+              hash = playerData.username.charCodeAt(i) + ((hash << 5) - hash);
+          }
+          const normalized = Math.abs(hash) % 11; // 0 to 10
+          return 60 + normalized;
+      }
+      return Math.floor(Math.random() * 11) + 60;
+  }, [playerData.username]);
+
   useEffect(() => {
       if (onToggleNav) {
           const hideNavModes = ['SETUP', 'PROCESSING', 'DIAGNOSIS', 'PROJECTION', 'FINALIZING'];
@@ -548,7 +561,6 @@ const HealthView: React.FC<HealthViewProps> = ({
           { subject: 'WILLPOWER', value: 60, fullMark: 100 } 
       ];
       
-      // Fix: Removed redundant and undefined highStatsHighStats reference
       const highStatsData = [ 
           { subject: 'STRENGTH', value: 85, fullMark: 100 }, 
           { subject: 'INTELLIGENCE', value: 75, fullMark: 100 }, 
@@ -566,11 +578,6 @@ const HealthView: React.FC<HealthViewProps> = ({
       // Transition from Red (#ef4444) to Green (#10b981)
       const currentColor = lerpColor("#ef4444", "#10b981", transformProgress);
       
-      // Rough calculation of average stat increase (avg high / avg low)
-      const avgLow = lowStats.reduce((a, b) => a + b.value, 0) / lowStats.length;
-      const avgHigh = highStatsData.reduce((a, b) => a + b.value, 0) / highStatsData.length;
-      const percentIncrease = Math.round(((avgHigh - avgLow) / avgLow) * 100);
-
       return (
           <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-between p-6 font-mono overflow-hidden h-[100dvh]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.05)_0%,transparent_70%)]" />
@@ -603,8 +610,8 @@ const HealthView: React.FC<HealthViewProps> = ({
                             className="flex gap-4 w-full"
                           >
                               <div className="flex-1 bg-system-success/10 border border-system-success/30 p-3 rounded-xl text-center shadow-lg">
-                                  <div className="text-[10px] text-system-success/70 font-bold uppercase mb-1 flex items-center justify-center gap-1"><TrendingUp size={12}/> STAT INCREASE</div>
-                                  <div className="text-2xl font-black text-system-success">+{percentIncrease}%</div>
+                                  <div className="text-[10px] text-system-success/70 font-bold uppercase mb-1 flex items-center justify-center gap-1"><TrendingUp size={12}/> PROJECTED STAT INCREASE</div>
+                                  <div className="text-2xl font-black text-system-success">+{projectedIncrease}%</div>
                               </div>
                               <div className="flex-1 bg-system-success/10 border border-system-success/30 p-3 rounded-xl text-center shadow-lg">
                                   <div className="text-[10px] text-system-success/70 font-bold uppercase mb-1 flex items-center justify-center gap-1"><Clock size={12}/> EST. TIME</div>
@@ -840,7 +847,7 @@ const HealthView: React.FC<HealthViewProps> = ({
                                         onClick={() => { setFormData({...formData, goal: g as any}); setStep(8); }} 
                                         className="w-full py-4 border border-gray-800 rounded-xl font-black text-[10px] tracking-widest hover:bg-white hover:text-black transition-all uppercase"
                                     >
-                                        {g.replace('_', ' ')}
+                                        {g === 'RECOMP' ? 'LOSE WEIGHT + BUILD MUSCLE' : g.replace('_', ' ')}
                                     </button>
                                 ))}
                             </motion.div>
@@ -871,23 +878,36 @@ const HealthView: React.FC<HealthViewProps> = ({
                       )}
 
                       {step === 9 && (
-                        <motion.div key="s9" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-4">
-                            <motion.div variants={setupItemVariants} className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Training Architecture</motion.div>
-                            <motion.div variants={setupItemVariants} className="grid gap-4">
-                                {['PPL', 'CLASSIC'].map(s => (
-                                    <button 
-                                        key={s} 
-                                        onClick={() => { setFormData({...formData, workoutSplit: s as any}); startProcessing(); }} 
-                                        className="w-full py-6 border border-gray-800 rounded-2xl font-black text-sm tracking-widest hover:bg-white hover:text-black transition-all uppercase shadow-lg group"
-                                    >
-                                        {s} SPLIT
-                                        <div className="text-[8px] text-gray-500 mt-1 font-normal group-hover:text-black/50">
-                                            {s === 'PPL' ? 'PUSH-PULL-LEGS REVOLUTION' : 'TRADITIONAL SYNC PATTERN'}
-                                        </div>
-                                    </button>
-                                ))}
+                        <motion.div key="s9" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6 text-center">
+                            <motion.h3 variants={setupItemVariants} className="text-xl text-white font-black italic">CONFIRM CONFIGURATION</motion.h3>
+                            <motion.div variants={setupItemVariants} className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 text-left space-y-3 font-mono text-xs">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">PROFILE</span>
+                                    <span className="text-white">{formData.gender}, {formData.age}y</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">METRICS</span>
+                                    <span className="text-white">{formData.height}cm / {formData.weight}kg</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">GOAL</span>
+                                    <span className="text-system-neon">
+                                        {formData.goal === 'RECOMP' ? 'LOSE WEIGHT + BUILD MUSCLE' : formData.goal?.replace('_', ' ')}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">PROTOCOL</span>
+                                    <span className="text-white">{formData.equipment} / {formData.workoutSplit}</span>
+                                </div>
                             </motion.div>
-                            <motion.button variants={setupItemVariants} onClick={() => setStep(8)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-6"><ChevronLeft size={14}/> BACK</motion.button>
+                            <motion.button 
+                              variants={setupItemVariants}
+                              onClick={startProcessing}
+                              className="w-full bg-system-neon text-black font-black py-5 rounded-xl shadow-[0_0_30px_#00d2ff] hover:scale-105 transition-transform"
+                            >
+                                INITIALIZE SYSTEM
+                            </motion.button>
+                            <motion.button variants={setupItemVariants} onClick={() => setStep(8)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-6 mx-auto"><ChevronLeft size={14}/> BACK</motion.button>
                         </motion.div>
                       )}
                   </AnimatePresence>
