@@ -90,10 +90,10 @@ const TechRadar = React.memo(({ data, color, label, isAnimating, showEntrance = 
                     </filter>
                 </defs>
                 {gridPaths.map((pts, i) => (
-                    <polygon key={`grid-${i}`} points={pts} fill="none" stroke="#222" strokeWidth="1" strokeDasharray="2 2" />
+                    <polygon key={`grid-${i}`} points={pts} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="4 4" />
                 ))}
                 {axesLines.map((line, i) => (
-                    <line key={`axis-${i}`} {...line} stroke="#222" strokeWidth="1" strokeDasharray="2 2" />
+                    <line key={`axis-${i}`} {...line} stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="4 4" />
                 ))}
                 
                 {/* Connecting Line */}
@@ -124,7 +124,8 @@ const TechRadar = React.memo(({ data, color, label, isAnimating, showEntrance = 
                 {/* Data Points (Dots) */}
                 {data.map((d, i) => {
                      const angle = (360 / data.length) * i;
-                     const labelPos = polarToCartesian(center, center, radius + 25, angle);
+                     // Push labels out a bit more
+                     const labelPos = polarToCartesian(center, center, radius + 30, angle);
                      const point = points[i];
                      return (
                         <g key={i}>
@@ -134,8 +135,8 @@ const TechRadar = React.memo(({ data, color, label, isAnimating, showEntrance = 
                                 transition={{ delay: showEntrance ? i * DOT_DELAY : 0 }}
                                 x={labelPos.x} y={labelPos.y} 
                                 textAnchor="middle" dominantBaseline="middle" 
-                                fill="#888" fontSize="9" fontWeight="bold" letterSpacing="1px"
-                                className="uppercase"
+                                fill="rgba(255,255,255,0.5)" fontSize="9" fontWeight="bold" letterSpacing="1px"
+                                className="uppercase font-mono"
                              >
                                  {d.subject}
                              </motion.text>
@@ -294,54 +295,101 @@ const HealthView: React.FC<HealthViewProps> = ({
 
   if (viewMode === 'PROCESSING') {
       return (
-          <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono p-6">
-              <div className="relative w-48 h-48 mb-12">
+          <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono p-6 overflow-hidden">
+              {/* Grid Background */}
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(0,210,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
+              
+              <div className="relative w-64 h-64 mb-12 flex items-center justify-center">
+                  {/* Outer Hexagon Ring */}
                   <motion.div 
                     animate={{ rotate: 360 }} 
-                    transition={{ duration: 10, repeat: Infinity, ease: "linear" }} 
-                    className="absolute inset-0 border-2 border-system-neon/20 border-dashed rounded-full" 
-                  />
+                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }} 
+                    className="absolute inset-0 border border-system-neon/20 clip-hex flex items-center justify-center rounded-full"
+                  >
+                      <div className="w-full h-full border-t-2 border-b-2 border-system-neon/50 rounded-full" />
+                  </motion.div>
+
+                  {/* Middle Dashed Ring */}
                   <motion.div 
                     animate={{ rotate: -360 }} 
-                    transition={{ duration: 6, repeat: Infinity, ease: "linear" }} 
-                    className="absolute inset-4 border-2 border-system-accent/40 border-dotted rounded-full" 
+                    transition={{ duration: 10, repeat: Infinity, ease: "linear" }} 
+                    className="absolute inset-8 border-2 border-dashed border-gray-700 rounded-full" 
                   />
+
+                  {/* Inner Rotating Tech Circle */}
                   <motion.div 
-                    animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }} 
-                    transition={{ duration: 2, repeat: Infinity }} 
-                    className="absolute inset-8 border-t-2 border-white rounded-full shadow-[0_0_20px_#fff]" 
+                    animate={{ rotate: 360 }} 
+                    transition={{ duration: 5, repeat: Infinity, ease: "linear" }} 
+                    className="absolute inset-16 border-t-4 border-r-4 border-system-neon rounded-full shadow-[0_0_20px_#00d2ff]" 
                   />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                      <Cpu className="text-system-neon animate-pulse" size={48} />
+                  
+                  {/* Counter-Rotating Core */}
+                  <motion.div 
+                    animate={{ rotate: -360 }} 
+                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }} 
+                    className="absolute inset-20 border-b-4 border-l-4 border-system-accent rounded-full" 
+                  />
+
+                  {/* Central Core Pulse */}
+                  <motion.div 
+                      animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className="absolute w-12 h-12 bg-system-neon rounded-full blur-md"
+                  />
+                  
+                  <div className="absolute inset-0 flex items-center justify-center z-10">
+                      <Cpu className="text-white" size={32} />
                   </div>
-                  {/* Binary Data Pulse */}
-                  <div className="absolute -inset-8 pointer-events-none overflow-hidden flex flex-col items-center justify-center opacity-20 text-[8px] text-system-neon leading-none">
-                      {Array.from({ length: 8 }).map((_, i) => (
-                        <motion.div 
-                          key={i}
-                          initial={{ x: -100 }}
-                          animate={{ x: 100 }}
-                          transition={{ duration: 2, repeat: Infinity, delay: i * 0.25, ease: "linear" }}
-                        >
-                          {Math.random() > 0.5 ? '10110011' : '01001101'}
-                        </motion.div>
-                      ))}
-                  </div>
+
+                  {/* Scanning Radar Effect */}
+                  <motion.div 
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                      className="absolute inset-0 w-full h-full rounded-full bg-gradient-to-tr from-transparent via-system-neon/10 to-transparent pointer-events-none"
+                      style={{ clipPath: 'polygon(50% 50%, 100% 0, 100% 100%, 50% 50%)' }} // Approx wedge
+                  />
               </div>
+
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center z-10"
               >
-                <h2 className="text-2xl font-black text-white tracking-[0.5em] mb-2">CALIBRATING SYSTEM</h2>
-                <div className="text-[10px] text-system-neon/60 tracking-widest uppercase">Analyzing Biological Signature...</div>
-                <div className="mt-8 w-64 h-1 bg-gray-900 rounded-full overflow-hidden mx-auto">
-                    <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: "100%" }}
-                        transition={{ duration: 5, ease: "easeInOut" }}
-                        className="h-full bg-system-neon shadow-[0_0_15px_#00d2ff]" 
-                    />
+                <h2 className="text-3xl font-black text-white tracking-tighter mb-2 glitch-text" data-text="CALIBRATING">
+                    CALIBRATING...
+                </h2>
+                <div className="text-[10px] text-system-neon font-mono tracking-[0.3em] uppercase mb-8">
+                    Syncing Biological Data to Core
+                </div>
+
+                {/* Segmented Progress Bar */}
+                <div className="w-64 h-2 bg-gray-900 rounded-full overflow-hidden mx-auto flex gap-0.5">
+                    {Array.from({ length: 20 }).map((_, i) => (
+                        <motion.div 
+                            key={i}
+                            initial={{ opacity: 0.1 }}
+                            animate={{ opacity: [0.1, 1, 0.1] }}
+                            transition={{ 
+                                duration: 1.5, 
+                                repeat: Infinity, 
+                                delay: i * 0.05,
+                                repeatDelay: 0.5
+                            }}
+                            className="flex-1 bg-system-neon shadow-[0_0_5px_#00d2ff]"
+                        />
+                    ))}
+                </div>
+                
+                {/* Random Data Stream */}
+                <div className="mt-4 text-[9px] text-gray-600 font-mono h-6 overflow-hidden">
+                    <motion.div
+                        animate={{ y: -100 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "steps(10)" }}
+                    >
+                        {Array.from({ length: 10 }).map((_, i) => (
+                            <div key={i}>{Math.random().toString(16).substring(2, 14).toUpperCase()}</div>
+                        ))}
+                    </motion.div>
                 </div>
               </motion.div>
           </div>
@@ -385,21 +433,27 @@ const HealthView: React.FC<HealthViewProps> = ({
   }
 
   if (viewMode === 'PROJECTION') {
+      // 5-Point Stats: Strength, Intelligence, Focus, Social, Willpower
       const lowStats = [ 
           { subject: 'STRENGTH', value: 40, fullMark: 100 }, 
-          { subject: 'VITALITY', value: 45, fullMark: 100 }, 
-          { subject: 'AGILITY', value: 35, fullMark: 100 }, 
           { subject: 'INTELLIGENCE', value: 50, fullMark: 100 }, 
-          { subject: 'PERCEPTION', value: 40, fullMark: 100 } 
+          { subject: 'FOCUS', value: 30, fullMark: 100 }, 
+          { subject: 'SOCIAL', value: 20, fullMark: 100 }, 
+          { subject: 'WILLPOWER', value: 60, fullMark: 100 } 
       ];
       const highStats = [ 
           { subject: 'STRENGTH', value: 85, fullMark: 100 }, 
-          { subject: 'VITALITY', value: 90, fullMark: 100 }, 
-          { subject: 'AGILITY', value: 80, fullMark: 100 }, 
           { subject: 'INTELLIGENCE', value: 75, fullMark: 100 }, 
-          { subject: 'PERCEPTION', value: 95, fullMark: 100 } 
+          { subject: 'FOCUS', value: 80, fullMark: 100 }, 
+          { subject: 'SOCIAL', value: 65, fullMark: 100 }, 
+          { subject: 'WILLPOWER', value: 95, fullMark: 100 } 
       ];
-      const currentStats = lowStats.map((stat, i) => ({ subject: stat.subject, value: lerp(stat.value, highStats[i].value, transformProgress), fullMark: 100 }));
+      
+      const currentStats = lowStats.map((stat, i) => ({ 
+          subject: stat.subject, 
+          value: lerp(stat.value, highStats[i].value, transformProgress), 
+          fullMark: 100 
+      }));
       
       // Transition from Red (#ef4444) to Green (#10b981)
       const currentColor = lerpColor("#ef4444", "#10b981", transformProgress);
@@ -411,31 +465,35 @@ const HealthView: React.FC<HealthViewProps> = ({
       const percentIncrease = Math.round(((avgHigh - avgLow) / avgLow) * 100);
 
       return (
-          <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-6 font-mono overflow-hidden">
+          <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-between p-6 font-mono overflow-hidden h-[100dvh]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.05)_0%,transparent_70%)]" />
               
-              <div className="relative z-10 w-full flex flex-col items-center">
+              <div className="flex-1 w-full flex flex-col items-center justify-center min-h-0 relative z-10">
                   {/* Floating Context Labels */}
-                  <div className="absolute top-0 -left-12 opacity-30 text-[10px] space-y-4 hidden lg:block">
+                  <div className="absolute top-4 left-4 opacity-30 text-[10px] space-y-4 hidden lg:block">
                       <div className="p-2 border border-gray-800 rounded">TARGET_GOAL: {formData.goal}</div>
                       <div className="p-2 border border-gray-800 rounded">EQUIPMENT: {formData.equipment}</div>
                   </div>
 
-                  <TechRadar 
-                    label={isTransformed ? "PEAK EVOLUTION REALISED" : isAnimating ? "REWRITING BIOLOGY..." : "CURRENT BIO-SCAN"} 
-                    color={currentColor} 
-                    data={currentStats} 
-                    isAnimating={isAnimating}
-                    showEntrance={!isTransformed && !isAnimating}
-                  />
-                  
+                  <div className="w-full max-w-md aspect-square flex items-center justify-center">
+                    <TechRadar 
+                      label={isTransformed ? "PEAK EVOLUTION REALISED" : isAnimating ? "REWRITING BIOLOGY..." : "CURRENT BIO-SCAN"} 
+                      color={currentColor} 
+                      data={currentStats} 
+                      isAnimating={isAnimating}
+                      showEntrance={!isTransformed && !isAnimating}
+                    />
+                  </div>
+              </div>
+              
+              <div className="w-full max-w-md shrink-0 space-y-6 pb-4 relative z-10">
                   {/* Additional Metrics for Peak Evolution */}
                   <AnimatePresence>
                       {isTransformed && (
                           <motion.div 
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="flex gap-4 mb-8 w-full max-w-sm"
+                            className="flex gap-4 w-full"
                           >
                               <div className="flex-1 bg-system-success/10 border border-system-success/30 p-3 rounded-xl text-center">
                                   <div className="text-[10px] text-system-success/70 font-bold uppercase mb-1 flex items-center justify-center gap-1"><TrendingUp size={12}/> STAT INCREASE</div>
@@ -449,7 +507,7 @@ const HealthView: React.FC<HealthViewProps> = ({
                       )}
                   </AnimatePresence>
                   
-                  <div className="w-full max-w-lg text-center h-32"> 
+                  <div className="w-full text-center"> 
                     <AnimatePresence mode="wait">
                         {!isTransformed && !isAnimating ? (
                             <motion.div 
@@ -457,12 +515,12 @@ const HealthView: React.FC<HealthViewProps> = ({
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
-                                className="space-y-6"
+                                className="space-y-4"
                             >
                                 <p className="text-xs text-gray-500 max-w-xs mx-auto leading-relaxed">
                                     The System has analyzed your current vessel. You are capable of reaching peak human potential within this cycle.
                                 </p>
-                                <button onClick={handleAscensionClick} className="w-full py-5 bg-red-600 text-white font-black rounded-2xl animate-pulse shadow-[0_0_30px_#ef4444] tracking-widest">INITIATE ASCENSION SEQUENCE</button>
+                                <button onClick={handleAscensionClick} className="w-full py-4 bg-red-600 text-white font-black rounded-2xl animate-pulse shadow-[0_0_30px_#ef4444] tracking-widest text-xs sm:text-sm uppercase">INITIATE ASCENSION SEQUENCE</button>
                             </motion.div>
                         ) : isAnimating ? (
                             <motion.div
@@ -470,7 +528,7 @@ const HealthView: React.FC<HealthViewProps> = ({
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
-                                className="flex flex-col items-center justify-center"
+                                className="flex flex-col items-center justify-center py-4"
                             >
                                 <div className="text-system-success font-black text-xl tracking-[0.2em] animate-pulse">OPTIMIZING...</div>
                                 <div className="w-64 h-1 bg-gray-900 rounded-full mt-4 overflow-hidden">
@@ -487,15 +545,15 @@ const HealthView: React.FC<HealthViewProps> = ({
                                 animate={{ opacity: 1, y: 0 }}
                                 className="space-y-4"
                             >
-                                <div className="p-4 bg-system-success/5 border border-system-success/30 rounded-3xl">
-                                    <div className="text-system-success font-black text-sm mb-1 flex items-center justify-center gap-2">
-                                        <ShieldCheck size={16} /> SYSTEM GUARANTEE
+                                <div className="p-3 bg-system-success/5 border border-system-success/30 rounded-2xl">
+                                    <div className="text-system-success font-black text-xs mb-1 flex items-center justify-center gap-2">
+                                        <ShieldCheck size={14} /> SYSTEM GUARANTEE
                                     </div>
                                     <p className="text-[10px] text-gray-400 leading-relaxed max-w-xs mx-auto">
-                                        Adherence to established protocols ensures peak biological evolution. Your goals are now calibrated.
+                                        Adherence to established protocols ensures peak biological evolution.
                                     </p>
                                 </div>
-                                <button onClick={startJourneySequence} className="w-full py-5 bg-system-success text-black font-black rounded-2xl shadow-[0_0_40px_#10b981] hover:bg-white transition-all uppercase tracking-widest">ACCEPT SYSTEM PROTOCOLS</button>
+                                <button onClick={startJourneySequence} className="w-full py-4 bg-system-success text-black font-black rounded-2xl shadow-[0_0_40px_#10b981] hover:bg-white transition-all uppercase tracking-widest text-xs sm:text-sm">ACCEPT SYSTEM PROTOCOLS</button>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -503,7 +561,7 @@ const HealthView: React.FC<HealthViewProps> = ({
               </div>
 
               {/* Decorative HUD Elements */}
-              <div className="absolute bottom-8 left-8 flex items-center gap-3 text-gray-800 opacity-50">
+              <div className="absolute top-6 right-6 flex items-center gap-3 text-gray-800 opacity-50 pointer-events-none">
                   <Activity size={24} />
                   <div className="text-[10px] font-bold">BIO_SYNC_V2 // STABLE</div>
               </div>

@@ -4,11 +4,7 @@ import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { ThreeElements } from '@react-three/fiber';
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements extends ThreeElements {}
-  }
-}
+// Removed manual global declaration causing conflict with React DOM intrinsics
 
 const HologramMaterial = {
   uniforms: {
