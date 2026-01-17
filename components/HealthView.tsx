@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Search, Cpu, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Search, Cpu, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp, BarChart, Zap, Save } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
@@ -23,6 +23,106 @@ interface HealthViewProps {
   onToggleNav?: (visible: boolean) => void;
 }
 
+// --- MICRO VISUALIZATIONS ---
+
+const BMIGauge = ({ value }: { value: number }) => {
+    const clamped = Math.min(40, Math.max(15, value));
+    const percentage = (clamped - 15) / (40 - 15);
+    const rotation = -90 + (percentage * 180);
+
+    return (
+        <div className="relative w-24 h-12 overflow-hidden">
+            <div className="absolute top-0 left-0 w-24 h-24 rounded-full border-[6px] border-gray-800 border-t-system-neon border-r-gray-800 border-b-gray-800 border-l-system-neon transform rotate-[-45deg]" />
+            <motion.div 
+                initial={{ rotate: -90 }}
+                animate={{ rotate: rotation }}
+                transition={{ duration: 1.5, ease: "easeOut", delay: 0.5 }}
+                className="absolute bottom-0 left-1/2 w-1 h-12 bg-white origin-bottom rounded-full z-10"
+                style={{ marginLeft: '-2px' }}
+            >
+                <div className="w-2 h-2 bg-white rounded-full absolute bottom-0 left-1/2 -translate-x-1/2 shadow-[0_0_10px_white]" />
+            </motion.div>
+            <div className="absolute bottom-0 w-full text-center">
+                <span className="text-[9px] text-gray-500 font-mono">15</span>
+                <span className="absolute right-0 text-[9px] text-gray-500 font-mono">40</span>
+            </div>
+        </div>
+    );
+};
+
+const BMRWave = () => (
+    <div className="relative w-24 h-12 flex items-center justify-center overflow-hidden bg-gray-900/30 rounded-lg border border-gray-800">
+        <Activity className="text-system-accent animate-pulse" />
+    </div>
+);
+
+const DurationGraph = () => (
+    <div className="flex items-end gap-1 h-12 w-24">
+        {[0.4, 0.7, 0.5, 0.9, 0.6, 0.8].map((h, i) => (
+            <motion.div
+                key={i}
+                initial={{ height: 0 }}
+                animate={{ height: `${h * 100}%` }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+                className={`flex-1 rounded-t-sm ${i % 2 === 0 ? 'bg-system-accent' : 'bg-gray-700'}`}
+            />
+        ))}
+    </div>
+);
+
+const CircularCalibration = ({ percent }: { percent: number }) => {
+    const radius = 45;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (percent / 100) * circumference;
+
+    return (
+        <div className="relative w-64 h-64 flex items-center justify-center p-4">
+            {/* Outer Decorative Ring */}
+            <motion.div 
+                animate={{ rotate: 360 }}
+                transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-0 rounded-full border border-dashed border-gray-800"
+            />
+            
+            {/* Inner Decorative Ring - Spaced Inwards */}
+            <motion.div 
+                animate={{ rotate: -360 }}
+                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-8 rounded-full border border-gray-800/50"
+            />
+
+            {/* Progress SVG - Centered with Padding */}
+            <div className="absolute inset-0 flex items-center justify-center">
+                <svg className="w-48 h-48 -rotate-90 drop-shadow-[0_0_15px_rgba(0,210,255,0.2)]" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r={radius} stroke="#1f2937" strokeWidth="6" fill="none" strokeOpacity={0.5} />
+                    <motion.circle 
+                        cx="60" cy="60" r={radius} 
+                        stroke="#00d2ff" 
+                        strokeWidth="6" 
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeDasharray={circumference}
+                        animate={{ strokeDashoffset: offset }}
+                        transition={{ ease: "linear" }}
+                    />
+                </svg>
+            </div>
+
+            {/* Inner Content */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center z-10">
+                <div className="text-5xl font-black text-white tabular-nums tracking-tighter">
+                    {percent}%
+                </div>
+                <div className="text-[10px] text-system-neon font-bold tracking-[0.3em] uppercase mt-2 animate-pulse">
+                    Analyzing
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- END MICRO VISUALIZATIONS ---
+
 const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
   return {
@@ -38,9 +138,14 @@ const TechRadar = React.memo(({ data, color, label, isAnimating, showEntrance = 
     const gridLevels = 4;
     
     // Animation constants
-    const DOT_DELAY = 0.15;
-    const PATH_DELAY = data.length * DOT_DELAY;
-    const FILL_DELAY = PATH_DELAY + 0.6;
+    const DOT_STAGGER = 0.2;
+    // Line starts after all dots (5 * 0.2 = 1.0s)
+    const LINE_DELAY = data.length * DOT_STAGGER; 
+    // Fill starts after line finishes drawing (1.0s + 0.8s = 1.8s)
+    const FILL_DELAY = LINE_DELAY + 0.8;
+
+    // Sanitize label for ID (remove spaces/special chars)
+    const gradientId = useMemo(() => `radarFill-${label.replace(/[^a-z0-9]/gi, '')}`, [label]);
 
     const gridPaths = useMemo(() => {
         const paths = [];
@@ -77,9 +182,9 @@ const TechRadar = React.memo(({ data, color, label, isAnimating, showEntrance = 
             <h3 className="text-sm font-bold mb-6 tracking-[0.4em] uppercase transition-colors duration-300" style={{ color }}>{label}</h3>
             <svg width={size} height={size} className="overflow-visible">
                 <defs>
-                    <linearGradient id={`radarFill-${label}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={color} stopOpacity={0.7}/>
-                        <stop offset="100%" stopColor={color} stopOpacity={0.2}/>
+                    <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={color} stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor={color} stopOpacity={0.3}/>
                     </linearGradient>
                     <filter id="glow">
                       <feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
@@ -96,7 +201,17 @@ const TechRadar = React.memo(({ data, color, label, isAnimating, showEntrance = 
                     <line key={`axis-${i}`} {...line} stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="4 4" />
                 ))}
                 
-                {/* Connecting Line */}
+                {/* Fill Area (Last in sequence) */}
+                <motion.path
+                    d={pathD}
+                    fill={`url(#${gradientId})`}
+                    stroke="none"
+                    initial={showEntrance ? { opacity: 0 } : { opacity: 1 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: showEntrance ? FILL_DELAY : 0, duration: 0.8 }}
+                />
+
+                {/* Connecting Line (Stroke) - Draws after dots */}
                 <motion.path
                     d={pathD}
                     fill="none"
@@ -106,22 +221,12 @@ const TechRadar = React.memo(({ data, color, label, isAnimating, showEntrance = 
                     initial={showEntrance ? { pathLength: 0, opacity: 0 } : { pathLength: 1, opacity: 1 }}
                     animate={{ pathLength: 1, opacity: 1 }}
                     transition={{ 
-                        pathLength: { delay: showEntrance ? PATH_DELAY : 0, duration: 1.5, ease: "easeInOut" },
-                        opacity: { delay: showEntrance ? PATH_DELAY : 0, duration: 0.2 }
+                        pathLength: { delay: showEntrance ? LINE_DELAY : 0, duration: 1.0, ease: "easeInOut" },
+                        opacity: { delay: showEntrance ? LINE_DELAY : 0, duration: 0.2 }
                     }}
                 />
 
-                {/* Fill Area */}
-                <motion.path
-                    d={pathD}
-                    fill={`url(#radarFill-${label})`}
-                    stroke="none"
-                    initial={showEntrance ? { opacity: 0 } : { opacity: 1 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: showEntrance ? FILL_DELAY : 0, duration: 0.8 }}
-                />
-
-                {/* Data Points (Dots) */}
+                {/* Data Points (Dots) - Appear First */}
                 {data.map((d, i) => {
                      const angle = (360 / data.length) * i;
                      // Push labels out a bit more
@@ -132,7 +237,7 @@ const TechRadar = React.memo(({ data, color, label, isAnimating, showEntrance = 
                              <motion.text 
                                 initial={showEntrance ? { opacity: 0, scale: 0.5 } : { opacity: 1, scale: 1 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: showEntrance ? i * DOT_DELAY : 0 }}
+                                transition={{ delay: showEntrance ? i * DOT_STAGGER : 0 }}
                                 x={labelPos.x} y={labelPos.y} 
                                 textAnchor="middle" dominantBaseline="middle" 
                                 fill="rgba(255,255,255,0.5)" fontSize="9" fontWeight="bold" letterSpacing="1px"
@@ -144,8 +249,8 @@ const TechRadar = React.memo(({ data, color, label, isAnimating, showEntrance = 
                                 initial={showEntrance ? { r: 0, opacity: 0 } : { r: 4, opacity: 1 }}
                                 animate={{ r: 4, opacity: 1, cx: point.x, cy: point.y }}
                                 transition={{ 
-                                    r: { delay: showEntrance ? i * DOT_DELAY : 0, type: "spring" },
-                                    opacity: { delay: showEntrance ? i * DOT_DELAY : 0, duration: 0.2 },
+                                    r: { delay: showEntrance ? i * DOT_STAGGER : 0, type: "spring" },
+                                    opacity: { delay: showEntrance ? i * DOT_STAGGER : 0, duration: 0.2 },
                                     cx: { duration: isAnimating ? 0 : 0.5 },
                                     cy: { duration: isAnimating ? 0 : 0.5 }
                                 }}
@@ -228,6 +333,7 @@ const HealthView: React.FC<HealthViewProps> = ({
   
   // Projection Animation States
   const [transformProgress, setTransformProgress] = useState(0);
+  const [processingPercent, setProcessingPercent] = useState(0);
   const [isTransformed, setIsTransformed] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const animationRef = useRef<number | null>(null);
@@ -273,7 +379,17 @@ const HealthView: React.FC<HealthViewProps> = ({
 
   const startProcessing = () => {
       setViewMode('PROCESSING');
-      setTimeout(() => setViewMode('DIAGNOSIS'), 5000);
+      setProcessingPercent(0);
+      
+      let p = 0;
+      const interval = setInterval(() => {
+          p += 1;
+          setProcessingPercent(p);
+          if (p >= 100) {
+              clearInterval(interval);
+              setTimeout(() => setViewMode('DIAGNOSIS'), 500);
+          }
+      }, 40); // Total approx 4 seconds
   };
 
   const startJourneySequence = () => {
@@ -332,13 +448,8 @@ const HealthView: React.FC<HealthViewProps> = ({
             animate={{ opacity: 1 }}
             className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono p-6 overflow-hidden"
           >
-              <div className="relative mb-8">
-                  <motion.div 
-                      animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="absolute inset-0 bg-system-neon/20 rounded-full blur-2xl"
-                  />
-                  <Cpu className="text-white relative z-10 drop-shadow-[0_0_15px_rgba(0,210,255,0.5)]" size={64} />
+              <div className="relative mb-12">
+                  <CircularCalibration percent={processingPercent} />
               </div>
 
               <motion.div
@@ -347,32 +458,17 @@ const HealthView: React.FC<HealthViewProps> = ({
                 transition={{ delay: 0.2 }}
                 className="text-center"
               >
-                <h2 className="text-2xl font-black text-white tracking-widest mb-2 italic">
-                    CALIBRATING...
-                </h2>
-                <div className="text-[10px] text-system-neon font-bold tracking-[0.3em] uppercase mb-8">
-                    Neural Interface Synchronization
-                </div>
-
-                <div className="w-64 h-0.5 bg-gray-900 rounded-full overflow-hidden mx-auto relative mb-2">
-                    <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: "100%" }}
-                        transition={{ duration: 4.5, ease: "easeInOut" }}
-                        className="h-full bg-system-neon shadow-[0_0_10px_#00d2ff]"
-                    />
-                </div>
-                
-                <div className="flex justify-between w-64 mx-auto text-[8px] text-gray-600 font-mono tracking-widest uppercase">
+                <div className="text-[9px] text-gray-500 font-mono tracking-widest uppercase mb-4 flex gap-4 justify-center">
                     <span>Load_Buffer_0x692</span>
                     <span>Async_Success</span>
                 </div>
                 
-                <div className="mt-8 h-6 overflow-hidden w-64 mx-auto border-t border-gray-900/50 pt-2">
+                <div className="mt-8 h-6 overflow-hidden w-64 mx-auto border-t border-gray-900/50 pt-2 relative">
+                    <div className="absolute inset-0 bg-gradient-to-b from-black to-transparent z-10 pointer-events-none opacity-50" />
                     <motion.div
                         animate={{ y: -80 }}
                         transition={{ duration: 4, ease: "linear" }}
-                        className="text-[9px] text-gray-500 space-y-1 text-center"
+                        className="text-[9px] text-system-neon/70 space-y-1 text-center"
                     >
                         <div>MAPPING EXERCISE REGISTRY</div>
                         <div>OPTIMIZING NEURAL SYNC LEVEL</div>
@@ -414,37 +510,55 @@ const HealthView: React.FC<HealthViewProps> = ({
                     </motion.div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        {/* BMI CARD */}
                         <motion.div 
                             initial={{ scale: 0.8, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             transition={{ delay: 0.3 }}
-                            className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon/50 transition-all group/card shadow-lg"
+                            className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon/50 transition-all group/card shadow-lg flex flex-col justify-between"
                         >
-                            <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold tracking-widest">BMI Index</div>
-                            <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{currentBMI}</div>
-                            <div className={`text-[9px] font-bold mt-2 uppercase tracking-widest ${bmiCategory.color}`}>{bmiCategory.label}</div>
+                            <div>
+                                <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold tracking-widest">BMI Index</div>
+                                <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{currentBMI}</div>
+                                <div className={`text-[9px] font-bold mt-2 uppercase tracking-widest ${bmiCategory.color}`}>{bmiCategory.label}</div>
+                            </div>
+                            <div className="mt-4 self-end">
+                                <BMIGauge value={parseFloat(currentBMI)} />
+                            </div>
                         </motion.div>
 
+                        {/* BMR CARD */}
                         <motion.div 
                             initial={{ scale: 0.8, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             transition={{ delay: 0.4 }}
-                            className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon/50 transition-all group/card shadow-lg"
+                            className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon/50 transition-all group/card shadow-lg flex flex-col justify-between"
                         >
-                            <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold tracking-widest">BMR Status</div>
-                            <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{nutritionInfo.bmr}</div>
-                            <div className="text-[9px] text-gray-600 font-bold mt-2 uppercase tracking-widest">KCAL / DAY</div>
+                            <div>
+                                <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold tracking-widest">BMR Status</div>
+                                <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{nutritionInfo.bmr}</div>
+                                <div className="text-[9px] text-gray-600 font-bold mt-2 uppercase tracking-widest">KCAL / DAY</div>
+                            </div>
+                            <div className="mt-4 self-end">
+                                <BMRWave />
+                            </div>
                         </motion.div>
 
+                        {/* DURATION CARD */}
                         <motion.div 
                             initial={{ scale: 0.8, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             transition={{ delay: 0.5 }}
-                            className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-accent/50 transition-all group/card shadow-lg"
+                            className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-accent/50 transition-all group/card shadow-lg flex flex-col justify-between"
                         >
-                            <div className="text-[10px] text-system-accent mb-2 uppercase font-bold tracking-widest">Est. Duration</div>
-                            <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(139,92,246,0.3)]">{estimatedTimeStr.split(' ')[0]}</div>
-                            <div className="text-[9px] text-system-accent/70 font-bold mt-2 uppercase tracking-widest">WEEKS TO GOAL</div>
+                            <div>
+                                <div className="text-[10px] text-system-accent mb-2 uppercase font-bold tracking-widest">Est. Duration</div>
+                                <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(139,92,246,0.3)]">{estimatedTimeStr.split(' ')[0]}</div>
+                                <div className="text-[9px] text-system-accent/70 font-bold mt-2 uppercase tracking-widest">WEEKS TO GOAL</div>
+                            </div>
+                            <div className="mt-4 self-end">
+                                <DurationGraph />
+                            </div>
                         </motion.div>
                     </div>
 

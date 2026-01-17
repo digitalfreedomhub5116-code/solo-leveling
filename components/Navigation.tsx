@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { LayoutDashboard, Sword, ShoppingCart, TrendingUp, Activity, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -85,12 +84,10 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="md:hidden fixed bottom-4 left-4 right-4 z-40 pointer-events-none"
+        className="md:hidden fixed bottom-4 left-2 right-2 z-40 pointer-events-none"
       >
-        <motion.div
-          animate={{ y: [0, -6, 0] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          className="h-16 bg-[#0a0a0a]/90 backdrop-blur-xl border border-gray-800 rounded-2xl flex justify-around items-center shadow-2xl pointer-events-auto"
+        <div
+          className="h-16 bg-[#0a0a0a]/95 backdrop-blur-xl border border-gray-800 rounded-2xl grid grid-cols-6 items-center shadow-2xl pointer-events-auto px-1"
         >
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
@@ -101,17 +98,17 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
                 key={item.id}
                 id={`tut-nav-${item.id.toLowerCase()}-mob`}
                 onClick={() => onTabChange(item.id)}
-                className="flex-1 flex flex-col items-center justify-center h-full relative"
+                className="flex flex-col items-center justify-center h-full relative"
               >
                 {isActive && (
                   <motion.div 
                     layoutId="active-nav-mobile"
-                    className="absolute inset-2 bg-gray-800/60 rounded-xl"
+                    className="absolute inset-x-0.5 inset-y-1 bg-gray-800/60 rounded-xl"
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   />
                 )}
                 
-                <div className={`relative z-10 transition-all duration-300 ${isActive ? 'text-system-neon -translate-y-1' : 'text-gray-500'} ${isQuest && isActive ? 'drop-shadow-[0_0_8px_rgba(0,210,255,0.8)]' : ''}`}>
+                <div className={`relative z-10 transition-all duration-300 ${isActive ? 'text-system-neon -translate-y-2' : 'text-gray-500'} ${isQuest && isActive ? 'drop-shadow-[0_0_8px_rgba(0,210,255,0.8)]' : ''}`}>
                     {item.icon}
                 </div>
                 
@@ -119,7 +116,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
                   <motion.span 
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="absolute bottom-2 text-[9px] font-mono text-system-neon font-bold"
+                    className="absolute bottom-1.5 text-[9px] font-mono text-system-neon font-bold tracking-tight"
                   >
                     {item.label}
                   </motion.span>
@@ -127,7 +124,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
               </button>
             );
           })}
-        </motion.div>
+        </div>
       </motion.nav>
     </>
   );
