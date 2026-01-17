@@ -332,132 +332,52 @@ const HealthView: React.FC<HealthViewProps> = ({
             animate={{ opacity: 1 }}
             className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono p-6 overflow-hidden"
           >
-              {/* Complex Background Grid */}
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(0,210,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
-              
-              <div className="relative w-64 h-64 mb-12 flex items-center justify-center">
-                  {/* Rotating Hexagonal Frame */}
+              <div className="relative mb-8">
                   <motion.div 
-                    animate={{ rotate: 360 }} 
-                    transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-                    className="absolute inset-[-20px] border border-system-neon/10 rounded-full flex items-center justify-center"
-                  >
-                    {[0, 60, 120, 180, 240, 300].map(deg => (
-                        <div key={deg} className="absolute w-2 h-2 bg-system-neon/30 rounded-full" style={{ transform: `rotate(${deg}deg) translateY(-140px)` }} />
-                    ))}
-                  </motion.div>
-
-                  {/* Outer Hexagon Ring */}
-                  <motion.div 
-                    animate={{ rotate: 360 }} 
-                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }} 
-                    className="absolute inset-0 border border-system-neon/20 flex items-center justify-center rounded-full"
-                  >
-                      <div className="w-full h-full border-t-2 border-b-2 border-system-neon/50 rounded-full" />
-                  </motion.div>
-
-                  {/* Middle Dashed Ring */}
-                  <motion.div 
-                    animate={{ rotate: -360 }} 
-                    transition={{ duration: 15, repeat: Infinity, ease: "linear" }} 
-                    className="absolute inset-8 border-2 border-dashed border-gray-700 rounded-full" 
-                  />
-
-                  {/* Inner Rotating Tech Circle */}
-                  <motion.div 
-                    animate={{ rotate: 360 }} 
-                    transition={{ duration: 8, repeat: Infinity, ease: "linear" }} 
-                    className="absolute inset-16 border-t-4 border-r-4 border-system-neon rounded-full shadow-[0_0_30px_rgba(0,210,255,0.4)]" 
-                  />
-                  
-                  {/* Counter-Rotating Core */}
-                  <motion.div 
-                    animate={{ rotate: -360 }} 
-                    transition={{ duration: 5, repeat: Infinity, ease: "linear" }} 
-                    className="absolute inset-20 border-b-4 border-l-4 border-system-accent rounded-full shadow-[0_0_20px_rgba(139,92,246,0.3)]" 
-                  />
-
-                  {/* Central Core Pulse */}
-                  <motion.div 
-                      animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0.8, 0.3] }}
+                      animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
                       transition={{ duration: 2, repeat: Infinity }}
-                      className="absolute w-12 h-12 bg-system-neon rounded-full blur-xl"
+                      className="absolute inset-0 bg-system-neon/20 rounded-full blur-2xl"
                   />
-                  
-                  <div className="absolute inset-0 flex items-center justify-center z-10">
-                      <motion.div
-                        animate={{ rotate: [0, 90, 180, 270, 360] }}
-                        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                      >
-                        <Cpu className="text-white drop-shadow-[0_0_10px_white]" size={32} />
-                      </motion.div>
-                  </div>
-
-                  {/* Scanning Radar Effect */}
-                  <motion.div 
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                      className="absolute inset-[-40px] w-[calc(100%+80px)] h-[calc(100%+80px)] rounded-full bg-gradient-to-tr from-transparent via-system-neon/10 to-transparent pointer-events-none"
-                      style={{ clipPath: 'polygon(50% 50%, 100% 0, 100% 100%, 50% 50%)' }} 
-                  />
+                  <Cpu className="text-white relative z-10 drop-shadow-[0_0_15px_rgba(0,210,255,0.5)]" size={64} />
               </div>
 
               <motion.div
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-                className="text-center z-10"
+                transition={{ delay: 0.2 }}
+                className="text-center"
               >
-                <h2 className="text-4xl font-black text-white tracking-tighter mb-2 italic" style={{ textShadow: '0 0 20px rgba(0,210,255,0.5)' }}>
+                <h2 className="text-2xl font-black text-white tracking-widest mb-2 italic">
                     CALIBRATING...
                 </h2>
-                <div className="text-[10px] text-system-neon font-mono tracking-[0.4em] uppercase mb-10 flex items-center justify-center gap-2">
-                    <span className="w-2 h-2 bg-system-neon rounded-full animate-ping" />
+                <div className="text-[10px] text-system-neon font-bold tracking-[0.3em] uppercase mb-8">
                     Neural Interface Synchronization
                 </div>
 
-                {/* Segmented Digital Progress Bar */}
-                <div className="w-72 h-4 bg-gray-900 border border-gray-800 p-1 rounded-sm mx-auto flex gap-1 relative">
-                    {Array.from({ length: 24 }).map((_, i) => (
-                        <motion.div 
-                            key={i}
-                            initial={{ opacity: 0.05 }}
-                            animate={{ opacity: [0.05, 1, 0.05], backgroundColor: ["#111", "#00d2ff", "#111"] }}
-                            transition={{ 
-                                duration: 2, 
-                                repeat: Infinity, 
-                                delay: i * 0.08,
-                                ease: "easeInOut"
-                            }}
-                            className="flex-1 rounded-sm shadow-[0_0_10px_rgba(0,210,255,0.2)]"
-                        />
-                    ))}
-                    <div className="absolute -bottom-6 left-0 w-full flex justify-between text-[8px] text-gray-500 font-mono tracking-widest">
-                        <span>LOAD_BUFFER_0x{Math.floor(Math.random()*1000)}</span>
-                        <span>ASYNC_SUCCESS</span>
-                    </div>
+                <div className="w-64 h-0.5 bg-gray-900 rounded-full overflow-hidden mx-auto relative mb-2">
+                    <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 4.5, ease: "easeInOut" }}
+                        className="h-full bg-system-neon shadow-[0_0_10px_#00d2ff]"
+                    />
                 </div>
                 
-                {/* Visual Status Log Scroll */}
-                <div className="mt-12 text-[9px] text-gray-700 font-mono h-12 overflow-hidden border-t border-gray-900 pt-2 w-64 mx-auto">
+                <div className="flex justify-between w-64 mx-auto text-[8px] text-gray-600 font-mono tracking-widest uppercase">
+                    <span>Load_Buffer_0x692</span>
+                    <span>Async_Success</span>
+                </div>
+                
+                <div className="mt-8 h-6 overflow-hidden w-64 mx-auto border-t border-gray-900/50 pt-2">
                     <motion.div
-                        animate={{ y: -200 }}
-                        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                        className="space-y-1"
+                        animate={{ y: -80 }}
+                        transition={{ duration: 4, ease: "linear" }}
+                        className="text-[9px] text-gray-500 space-y-1 text-center"
                     >
-                        {[
-                            "> FETCHING BIOMETRIC PACKETS",
-                            "> RESOLVING TARGET_WEIGHT_GOAL",
-                            "> CALCULATING BASAL_METABOLIC_RATE",
-                            "> MAPPING EXERCISE_REGISTRY",
-                            "> OPTIMIZING NEURAL_SYNC_LEVEL",
-                            "> INITIALIZING SHADOW_PROTOCOLS",
-                            "> CALIBRATION_COMPLETE",
-                            "> DATASET_01_VERIFIED",
-                            "> SYSTEM_UPGRADE_PENDING"
-                        ].map((log, i) => (
-                            <div key={i}>{log}</div>
-                        ))}
+                        <div>MAPPING EXERCISE REGISTRY</div>
+                        <div>OPTIMIZING NEURAL SYNC LEVEL</div>
+                        <div>INITIALIZING SHADOW PROTOCOLS</div>
+                        <div>CALIBRATION COMPLETE</div>
                     </motion.div>
                 </div>
               </motion.div>
