@@ -62,7 +62,6 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
   const [roster, setRoster] = useState<LeaderboardEntry[]>([]);
   const [isReady, setIsReady] = useState(false);
   const simInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   // --- INITIALIZATION ---
   useEffect(() => {
