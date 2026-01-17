@@ -2,7 +2,6 @@ import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
-import { ThreeElements } from '@react-three/fiber';
 
 // Removed manual global declaration causing conflict with React DOM intrinsics
 
