@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Search, Cpu, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp, Zap, Box } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Search, Cpu, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
@@ -470,83 +470,85 @@ const HealthView: React.FC<HealthViewProps> = ({
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-6 font-mono"
+            className="fixed inset-0 z-50 bg-black/95 overflow-y-auto font-mono"
           >
-              <motion.div 
-                initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="w-full max-w-2xl border border-gray-800 p-8 rounded-3xl bg-system-card relative overflow-hidden group shadow-[0_0_50px_rgba(0,0,0,0.5)]"
-              >
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-system-neon to-transparent opacity-50" />
-                  
-                  <motion.div 
-                    initial={{ x: -20, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="flex justify-between items-start mb-8"
-                  >
-                      <h2 className="text-3xl font-black text-white flex items-center gap-3 tracking-tighter italic">
-                        <Fingerprint className="text-system-neon animate-pulse" size={28} /> INITIAL ANALYSIS
-                      </h2>
-                      <div className="text-[10px] text-gray-500 font-bold border border-gray-800 px-3 py-1 rounded">OS_v1.0.42</div>
-                  </motion.div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                      <motion.div 
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.3 }}
-                        className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon/50 transition-all group/card shadow-lg"
-                      >
-                        <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold tracking-widest">BMI Index</div>
-                        <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{currentBMI}</div>
-                        <div className={`text-[9px] font-bold mt-2 uppercase tracking-widest ${bmiCategory.color}`}>{bmiCategory.label}</div>
-                      </motion.div>
+              <div className="flex min-h-full items-center justify-center p-4">
+                <motion.div 
+                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className="w-full max-w-2xl border border-gray-800 p-6 md:p-8 rounded-3xl bg-system-card relative overflow-hidden group shadow-[0_0_50px_rgba(0,0,0,0.5)] my-8"
+                >
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-system-neon to-transparent opacity-50" />
+                    
+                    <motion.div 
+                        initial={{ x: -20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className="flex justify-between items-start mb-8"
+                    >
+                        <h2 className="text-3xl font-black text-white flex items-center gap-3 tracking-tighter italic">
+                            <Fingerprint className="text-system-neon animate-pulse" size={28} /> INITIAL ANALYSIS
+                        </h2>
+                        <div className="text-[10px] text-gray-500 font-bold border border-gray-800 px-3 py-1 rounded">OS_v1.0.42</div>
+                    </motion.div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <motion.div 
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon/50 transition-all group/card shadow-lg"
+                        >
+                            <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold tracking-widest">BMI Index</div>
+                            <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{currentBMI}</div>
+                            <div className={`text-[9px] font-bold mt-2 uppercase tracking-widest ${bmiCategory.color}`}>{bmiCategory.label}</div>
+                        </motion.div>
 
-                      <motion.div 
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.4 }}
-                        className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon/50 transition-all group/card shadow-lg"
-                      >
-                        <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold tracking-widest">BMR Status</div>
-                        <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{nutritionInfo.bmr}</div>
-                        <div className="text-[9px] text-gray-600 font-bold mt-2 uppercase tracking-widest">KCAL / DAY</div>
-                      </motion.div>
+                        <motion.div 
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.4 }}
+                            className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon/50 transition-all group/card shadow-lg"
+                        >
+                            <div className="text-[10px] text-gray-500 mb-2 uppercase font-bold tracking-widest">BMR Status</div>
+                            <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{nutritionInfo.bmr}</div>
+                            <div className="text-[9px] text-gray-600 font-bold mt-2 uppercase tracking-widest">KCAL / DAY</div>
+                        </motion.div>
 
-                      <motion.div 
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.5 }}
-                        className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-accent/50 transition-all group/card shadow-lg"
-                      >
-                        <div className="text-[10px] text-system-accent mb-2 uppercase font-bold tracking-widest">Est. Duration</div>
-                        <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(139,92,246,0.3)]">{estimatedTimeStr.split(' ')[0]}</div>
-                        <div className="text-[9px] text-system-accent/70 font-bold mt-2 uppercase tracking-widest">WEEKS TO GOAL</div>
-                      </motion.div>
-                  </div>
+                        <motion.div 
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.5 }}
+                            className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-accent/50 transition-all group/card shadow-lg"
+                        >
+                            <div className="text-[10px] text-system-accent mb-2 uppercase font-bold tracking-widest">Est. Duration</div>
+                            <div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(139,92,246,0.3)]">{estimatedTimeStr.split(' ')[0]}</div>
+                            <div className="text-[9px] text-system-accent/70 font-bold mt-2 uppercase tracking-widest">WEEKS TO GOAL</div>
+                        </motion.div>
+                    </div>
 
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.6 }}
-                    className="grid grid-cols-2 gap-4 mb-8"
-                  >
-                    <div className="flex items-center gap-2 text-[10px] text-gray-400 uppercase font-bold"><Check size={14} className="text-system-success" /> METABOLIC SYNC STABLE</div>
-                    <div className="flex items-center gap-2 text-[10px] text-gray-400 uppercase font-bold"><Check size={14} className="text-system-success" /> NEURAL INTERFACE ONLINE</div>
-                  </motion.div>
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.6 }}
+                        className="grid grid-cols-2 gap-4 mb-8"
+                    >
+                        <div className="flex items-center gap-2 text-[10px] text-gray-400 uppercase font-bold"><Check size={14} className="text-system-success" /> METABOLIC SYNC STABLE</div>
+                        <div className="flex items-center gap-2 text-[10px] text-gray-400 uppercase font-bold"><Check size={14} className="text-system-success" /> NEURAL INTERFACE ONLINE</div>
+                    </motion.div>
 
-                  <motion.button 
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.8 }}
-                    onClick={() => setViewMode('PROJECTION')} 
-                    className="w-full py-5 bg-white text-black font-black rounded-2xl shadow-[0_0_30px_white] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm"
-                  >
-                    VIEW ASCENSION PROJECTION <ArrowRight size={20} />
-                  </motion.button>
-              </motion.div>
+                    <motion.button 
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.8 }}
+                        onClick={() => setViewMode('PROJECTION')} 
+                        className="w-full py-5 bg-white text-black font-black rounded-2xl shadow-[0_0_30px_white] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm"
+                    >
+                        VIEW ASCENSION PROJECTION <ArrowRight size={20} />
+                    </motion.button>
+                </motion.div>
+              </div>
           </motion.div>
       );
   }
@@ -713,7 +715,13 @@ const HealthView: React.FC<HealthViewProps> = ({
                   
                   <div className="flex justify-between items-center mb-10">
                     <h2 className="text-xl font-bold text-white tracking-widest uppercase">Calibration Phase {step}/{TOTAL_STEPS}</h2>
-                    <span className="text-[10px] text-system-neon font-black bg-system-neon/10 px-2 py-0.5 rounded border border-system-neon/30">SYNCING...</span>
+                    <motion.span 
+                        animate={{ opacity: [1, 0.3, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        className="text-[10px] text-system-neon font-black bg-system-neon/10 px-2 py-0.5 rounded border border-system-neon/30"
+                    >
+                        SYNCING...
+                    </motion.span>
                   </div>
 
                   <AnimatePresence mode="wait">
