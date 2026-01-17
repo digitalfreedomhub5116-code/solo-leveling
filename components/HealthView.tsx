@@ -202,6 +202,24 @@ const lerpColor = (a: string, b: string, amount: number) => {
     return '#' + ((1 << 24) + (Math.round(rr) << 16) + (Math.round(rg) << 8) + Math.round(rb)).toString(16).slice(1);
 }
 
+// Animation Variants
+const setupContainerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2
+    }
+  },
+  exit: { opacity: 0, x: -20, transition: { duration: 0.2 } }
+};
+
+const setupItemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
+
 const HealthView: React.FC<HealthViewProps> = ({ 
   healthProfile, onSaveProfile, onCompleteWorkout, onFailWorkout, onLogMeal, playerData, onToggleNav
 }) => {
@@ -693,12 +711,12 @@ const HealthView: React.FC<HealthViewProps> = ({
 
                   <AnimatePresence mode="wait">
                       {step === 1 && (
-                        <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                            <div className="flex items-center gap-3 mb-4">
+                        <motion.div key="s1" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
+                            <motion.div variants={setupItemVariants} className="flex items-center gap-3 mb-4">
                                 <User className="text-system-neon" size={24} />
                                 <div className="text-xs text-gray-500 uppercase tracking-widest font-bold">Vessel Identification</div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            </motion.div>
+                            <motion.div variants={setupItemVariants} className="grid grid-cols-2 gap-4">
                                 {['MALE', 'FEMALE'].map(g => (
                                     <button 
                                         key={g} 
@@ -708,74 +726,77 @@ const HealthView: React.FC<HealthViewProps> = ({
                                         {g}
                                     </button>
                                 ))}
-                            </div>
+                            </motion.div>
                         </motion.div>
                       )}
 
                       {step === 2 && (
-                        <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                            <div className="flex items-center gap-3 mb-4">
+                        <motion.div key="s2" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
+                            <motion.div variants={setupItemVariants} className="flex items-center gap-3 mb-4">
                                 <Activity className="text-system-neon" size={24} />
                                 <div className="text-xs text-gray-500 uppercase tracking-widest font-bold">Chronological Age</div>
-                            </div>
-                            <input 
+                            </motion.div>
+                            <motion.input 
+                                variants={setupItemVariants}
                                 type="number" 
                                 value={formData.age} 
                                 onChange={e => setFormData({...formData, age: Number(e.target.value)})} 
                                 className="w-full bg-black border-b-2 border-gray-800 text-center text-6xl text-white outline-none focus:border-system-neon py-6 transition-colors"
                             />
-                            <div className="flex justify-between items-center mt-8">
+                            <motion.div variants={setupItemVariants} className="flex justify-between items-center mt-8">
                                 <button onClick={() => setStep(1)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase"><ChevronLeft size={14}/> BACK</button>
                                 <button onClick={() => setStep(3)} className="bg-system-neon text-black px-10 py-3 rounded-full font-black text-xs shadow-[0_0_15px_#00d2ff] hover:bg-white transition-all uppercase flex items-center gap-2">NEXT <ChevronRight size={14}/></button>
-                            </div>
+                            </motion.div>
                         </motion.div>
                       )}
 
                       {step === 3 && (
-                        <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                            <div className="flex items-center gap-3 mb-4">
+                        <motion.div key="s3" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
+                            <motion.div variants={setupItemVariants} className="flex items-center gap-3 mb-4">
                                 <Ruler className="text-system-neon" size={24} />
                                 <div className="text-xs text-gray-500 uppercase tracking-widest font-bold">Verticality Mapping (CM)</div>
-                            </div>
-                            <input 
+                            </motion.div>
+                            <motion.input 
+                                variants={setupItemVariants}
                                 type="number" 
                                 value={formData.height} 
                                 onChange={e => setFormData({...formData, height: Number(e.target.value)})} 
                                 className="w-full bg-black border-b-2 border-gray-800 text-center text-6xl text-white outline-none focus:border-system-neon py-6 transition-colors"
                             />
-                            <div className="flex justify-between items-center mt-8">
+                            <motion.div variants={setupItemVariants} className="flex justify-between items-center mt-8">
                                 <button onClick={() => setStep(2)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase"><ChevronLeft size={14}/> BACK</button>
                                 <button onClick={() => setStep(4)} className="bg-system-neon text-black px-10 py-3 rounded-full font-black text-xs shadow-[0_0_15px_#00d2ff] hover:bg-white transition-all uppercase flex items-center gap-2">NEXT <ChevronRight size={14}/></button>
-                            </div>
+                            </motion.div>
                         </motion.div>
                       )}
 
                       {step === 4 && (
-                        <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                            <div className="flex items-center gap-3 mb-4">
+                        <motion.div key="s4" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
+                            <motion.div variants={setupItemVariants} className="flex items-center gap-3 mb-4">
                                 <Weight className="text-system-neon" size={24} />
                                 <div className="text-xs text-gray-500 uppercase tracking-widest font-bold">Current Mass (KG)</div>
-                            </div>
-                            <input 
+                            </motion.div>
+                            <motion.input 
+                                variants={setupItemVariants}
                                 type="number" 
                                 value={formData.weight} 
                                 onChange={e => setFormData({...formData, weight: Number(e.target.value)})} 
                                 className="w-full bg-black border-b-2 border-gray-800 text-center text-6xl text-white outline-none focus:border-system-neon py-6 transition-colors"
                             />
-                            <div className="flex justify-between items-center mt-8">
+                            <motion.div variants={setupItemVariants} className="flex justify-between items-center mt-8">
                                 <button onClick={() => setStep(3)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase"><ChevronLeft size={14}/> BACK</button>
                                 <button onClick={() => setStep(5)} className="bg-system-neon text-black px-10 py-3 rounded-full font-black text-xs shadow-[0_0_15px_#00d2ff] hover:bg-white transition-all uppercase flex items-center gap-2">NEXT <ChevronRight size={14}/></button>
-                            </div>
+                            </motion.div>
                         </motion.div>
                       )}
 
                       {step === 5 && (
-                        <motion.div key="s5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                            <div className="flex items-center gap-3 mb-4">
+                        <motion.div key="s5" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
+                            <motion.div variants={setupItemVariants} className="flex items-center gap-3 mb-4">
                                 <Target className="text-system-accent" size={24} />
                                 <div className="text-xs text-system-accent uppercase tracking-widest font-black">Target Mass (KG)</div>
-                            </div>
-                            <div className="relative">
+                            </motion.div>
+                            <motion.div variants={setupItemVariants} className="relative">
                                 <div className="absolute inset-0 bg-system-accent/10 blur-xl -z-10 rounded-full" />
                                 <input 
                                     type="number" 
@@ -783,18 +804,18 @@ const HealthView: React.FC<HealthViewProps> = ({
                                     onChange={e => setFormData({...formData, targetWeight: Number(e.target.value)})} 
                                     className="w-full bg-black border-b-2 border-system-accent text-center text-6xl text-white outline-none focus:shadow-[0_4px_15px_rgba(139,92,246,0.5)] py-6 transition-all font-black"
                                 />
-                            </div>
-                            <div className="flex justify-between items-center mt-8">
+                            </motion.div>
+                            <motion.div variants={setupItemVariants} className="flex justify-between items-center mt-8">
                                 <button onClick={() => setStep(4)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase"><ChevronLeft size={14}/> BACK</button>
                                 <button onClick={() => setStep(6)} className="bg-system-accent text-white px-10 py-3 rounded-full font-black text-xs shadow-[0_0_20px_#8b5cf6] hover:bg-white hover:text-black transition-all uppercase flex items-center gap-2">NEXT <ChevronRight size={14}/></button>
-                            </div>
+                            </motion.div>
                         </motion.div>
                       )}
 
                       {step === 6 && (
-                        <motion.div key="s6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
-                            <div className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Energy Flux Levels</div>
-                            <div className="grid gap-2">
+                        <motion.div key="s6" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-4">
+                            <motion.div variants={setupItemVariants} className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Energy Flux Levels</motion.div>
+                            <motion.div variants={setupItemVariants} className="grid gap-2">
                                 {['SEDENTARY', 'LIGHT', 'MODERATE', 'VERY_ACTIVE'].map(a => (
                                     <button 
                                         key={a} 
@@ -804,15 +825,15 @@ const HealthView: React.FC<HealthViewProps> = ({
                                         {a}
                                     </button>
                                 ))}
-                            </div>
-                            <button onClick={() => setStep(5)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-4"><ChevronLeft size={14}/> BACK</button>
+                            </motion.div>
+                            <motion.button variants={setupItemVariants} onClick={() => setStep(5)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-4"><ChevronLeft size={14}/> BACK</motion.button>
                         </motion.div>
                       )}
 
                       {step === 7 && (
-                        <motion.div key="s7" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
-                            <div className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Primary Directive</div>
-                            <div className="grid gap-2">
+                        <motion.div key="s7" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-4">
+                            <motion.div variants={setupItemVariants} className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Primary Directive</motion.div>
+                            <motion.div variants={setupItemVariants} className="grid gap-2">
                                 {['LOSE_WEIGHT', 'BUILD_MUSCLE', 'RECOMP'].map(g => (
                                     <button 
                                         key={g} 
@@ -822,15 +843,15 @@ const HealthView: React.FC<HealthViewProps> = ({
                                         {g.replace('_', ' ')}
                                     </button>
                                 ))}
-                            </div>
-                            <button onClick={() => setStep(6)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-4"><ChevronLeft size={14}/> BACK</button>
+                            </motion.div>
+                            <motion.button variants={setupItemVariants} onClick={() => setStep(6)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-4"><ChevronLeft size={14}/> BACK</motion.button>
                         </motion.div>
                       )}
 
                       {step === 8 && (
-                        <motion.div key="s8" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
-                            <div className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Resource Availability</div>
-                            <div className="grid gap-2">
+                        <motion.div key="s8" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-4">
+                            <motion.div variants={setupItemVariants} className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Resource Availability</motion.div>
+                            <motion.div variants={setupItemVariants} className="grid gap-2">
                                 {['GYM', 'HOME_DUMBBELLS', 'BODYWEIGHT'].map(eq => (
                                     <button 
                                         key={eq} 
@@ -844,15 +865,15 @@ const HealthView: React.FC<HealthViewProps> = ({
                                         {eq.replace('_', ' ')}
                                     </button>
                                 ))}
-                            </div>
-                            <button onClick={() => setStep(7)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-4"><ChevronLeft size={14}/> BACK</button>
+                            </motion.div>
+                            <motion.button variants={setupItemVariants} onClick={() => setStep(7)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-4"><ChevronLeft size={14}/> BACK</motion.button>
                         </motion.div>
                       )}
 
                       {step === 9 && (
-                        <motion.div key="s9" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
-                            <div className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Training Architecture</div>
-                            <div className="grid gap-4">
+                        <motion.div key="s9" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-4">
+                            <motion.div variants={setupItemVariants} className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Training Architecture</motion.div>
+                            <motion.div variants={setupItemVariants} className="grid gap-4">
                                 {['PPL', 'CLASSIC'].map(s => (
                                     <button 
                                         key={s} 
@@ -865,8 +886,8 @@ const HealthView: React.FC<HealthViewProps> = ({
                                         </div>
                                     </button>
                                 ))}
-                            </div>
-                            <button onClick={() => setStep(8)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-6"><ChevronLeft size={14}/> BACK</button>
+                            </motion.div>
+                            <motion.button variants={setupItemVariants} onClick={() => setStep(8)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-6"><ChevronLeft size={14}/> BACK</motion.button>
                         </motion.div>
                       )}
                   </AnimatePresence>
@@ -875,7 +896,7 @@ const HealthView: React.FC<HealthViewProps> = ({
       );
   }
 
-  if (viewMode === 'OVERVIEW' && activePlan) return <WorkoutOverview plan={activePlan} focusVideos={playerData.focusVideos} onStart={(p) => { setActivePlan(p); setViewMode('ACTIVE'); }} onCancel={() => setViewMode('MAP')} />;
+  if (viewMode === 'OVERVIEW' && activePlan) return <WorkoutOverview plan={activePlan} focusVideos={playerData.focusVideos} onStart={(p) => { setActivePlan(p); setViewMode('ACTIVE'); }} onCancel={() => setViewMode('MAP')} userWeight={healthProfile?.weight} />;
   if (viewMode === 'ACTIVE' && activePlan) return <ActiveWorkoutPlayer plan={activePlan} onComplete={(c, t, r) => { onCompleteWorkout(c, t, r, false); setViewMode('MAP'); }} onFail={() => { onFailWorkout(); setViewMode('MAP'); }} streak={playerData.streak} />;
 
   return (

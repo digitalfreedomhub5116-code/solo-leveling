@@ -1,15 +1,16 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Flame, Dumbbell, Zap, Activity, HeartPulse, ChevronRight, Fingerprint, ScanLine, Video, AlertTriangle } from 'lucide-react';
 import { WorkoutDay, Exercise } from '../types';
 import { isEmbed } from '../hooks/useSystem';
+import { calculateExerciseCalories } from '../utils/workoutGenerator';
 
 interface WorkoutOverviewProps {
   plan: WorkoutDay;
   focusVideos: Record<string, string>;
   onStart: (modifiedPlan: WorkoutDay, isCardioActive: boolean) => void;
   onCancel: () => void;
+  userWeight?: number;
 }
 
 // --- VISUAL ANATOMY DISPLAY (VIDEO) ---
@@ -120,7 +121,7 @@ const HolographicBody: React.FC<{ focus: string; isCardio: boolean; videos: Reco
 };
 
 // --- EXERCISE ROW ---
-const ExerciseRow: React.FC<{ exercise: Exercise }> = ({ exercise }) => (
+const ExerciseRow: React.FC<{ exercise: Exercise; calories: number }> = ({ exercise, calories }) => (
     <motion.div 
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
@@ -132,7 +133,12 @@ const ExerciseRow: React.FC<{ exercise: Exercise }> = ({ exercise }) => (
         </div>
         <div className="flex-1 min-w-0">
             <h4 className="text-sm font-bold text-white font-mono group-hover:text-system-neon transition-colors truncate pr-2">{exercise.name}</h4>
-            <span className="text-[10px] text-gray-500 font-mono tracking-wider">{exercise.type} CLASS</span>
+            <div className="flex items-center gap-3">
+                <span className="text-[10px] text-gray-500 font-mono tracking-wider">{exercise.type} CLASS</span>
+                <span className="text-[10px] text-orange-500/80 font-mono flex items-center gap-1">
+                    <Flame size={10} /> ~{calories} kcal
+                </span>
+            </div>
         </div>
         <div className="text-right font-mono shrink-0">
             <div className="text-xs font-bold text-white">{exercise.sets} SETS</div>
@@ -141,15 +147,20 @@ const ExerciseRow: React.FC<{ exercise: Exercise }> = ({ exercise }) => (
     </motion.div>
 );
 
-const WorkoutOverview: React.FC<WorkoutOverviewProps> = ({ plan, focusVideos, onStart, onCancel }) => {
+const WorkoutOverview: React.FC<WorkoutOverviewProps> = ({ plan, focusVideos, onStart, onCancel, userWeight = 70 }) => {
   const [isCardio, setIsCardio] = useState(false);
 
   const baseStats = useMemo(() => {
       const sets = plan.exercises.reduce((acc, curr) => acc + curr.sets, 0);
       const time = plan.totalDuration || 45;
-      const cals = Math.floor(time * 6.5);
-      return { sets, time, cals };
-  }, [plan]);
+      
+      // Dynamic Calorie Calculation based on User Weight
+      const baseCalories = plan.exercises.reduce((acc, curr) => {
+          return acc + calculateExerciseCalories(curr, userWeight);
+      }, 0);
+
+      return { sets, time, cals: baseCalories };
+  }, [plan, userWeight]);
 
   const activeStats = {
       time: isCardio ? baseStats.time + 15 : baseStats.time,
@@ -237,10 +248,19 @@ const WorkoutOverview: React.FC<WorkoutOverviewProps> = ({ plan, focusVideos, on
                             <span className="text-white font-bold">{plan.exercises.length} DETECTED</span>
                         </h3>
                         <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar max-h-[350px]">
-                            {plan.exercises.map((ex, i) => <ExerciseRow key={i} exercise={ex} />)}
+                            {plan.exercises.map((ex, i) => (
+                                <ExerciseRow 
+                                    key={i} 
+                                    exercise={ex} 
+                                    calories={calculateExerciseCalories(ex, userWeight)} 
+                                />
+                            ))}
                             {isCardio && (
                                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                                    <ExerciseRow exercise={{ name: "Shadow Sprint (HIIT)", sets: 3, reps: "45s Intervals", duration: 15, completed: false, type: "CARDIO" }} />
+                                    <ExerciseRow 
+                                        exercise={{ name: "Shadow Sprint (HIIT)", sets: 3, reps: "45s Intervals", duration: 15, completed: false, type: "CARDIO" }} 
+                                        calories={calculateExerciseCalories({ name: "HIIT", sets: 3, reps: "45s", duration: 15, completed: false, type: "CARDIO" }, userWeight)}
+                                    />
                                 </motion.div>
                             )}
                         </div>
