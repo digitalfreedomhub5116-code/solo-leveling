@@ -62,6 +62,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
   const [roster, setRoster] = useState<LeaderboardEntry[]>([]);
   const [isReady, setIsReady] = useState(false);
   const simInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -175,6 +176,19 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
     setIsReady(true);
   }, [currentPlayer.username, currentPlayer.dailyXp]);
 
+  // --- AUTO SCROLL ---
+  useEffect(() => {
+      if (isReady) {
+          // Delay slightly to ensure render cycle finishes
+          setTimeout(() => {
+              const playerEl = document.getElementById('current-player-card');
+              if (playerEl) {
+                  playerEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+          }, 500);
+      }
+  }, [isReady]);
+
   // --- SAVE STATE ---
   const saveDaily = (data: LeaderboardEntry[]) => {
       const xpMap: Record<string, number> = {};
@@ -204,7 +218,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
     });
   };
 
-  // --- SIMULATION ENGINE (Every 3s) ---
+  // --- SIMULATION ENGINE (Every 20s) ---
   useEffect(() => {
     if (!isReady) return;
 
@@ -261,7 +275,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
         saveDaily(newSorted);
         return newSorted;
       });
-    }, 3000); // 3s Tick
+    }, 20000); // 20s Tick
 
     return () => { if (simInterval.current) clearInterval(simInterval.current); };
   }, [isReady, currentPlayer.dailyXp]);
@@ -311,6 +325,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
                 return (
                     <motion.div
                       key={user.id}
+                      id={isMe ? "current-player-card" : undefined}
                       layout
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ 
