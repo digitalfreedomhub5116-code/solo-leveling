@@ -236,10 +236,10 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
         
         let rubberBandMode = false;
         
-        // TRIGGER: If Player is #1 and has > 800 XP lead on the top bot
+        // TRIGGER: If Player is #1 and has > 600 XP lead on the top bot
         if (playerRank === 1 && topBot) {
             const gap = playerXp - topBot.xp;
-            if (gap > 800) {
+            if (gap > 600) {
                 rubberBandMode = true;
             }
         }
