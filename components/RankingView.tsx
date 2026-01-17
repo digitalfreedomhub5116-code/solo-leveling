@@ -118,6 +118,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
         // 300 + (0..10 * 10)
         const randomStart = 300 + (Math.floor(Math.random() * 11) * 10);
         const startXp = dailyData ? (dailyData.xpMap[bot.id!] || randomStart) : randomStart;
+        const tier = bot.tier ?? 15;
         
         return {
             id: bot.id!,
@@ -125,8 +126,8 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
             isPlayer: false,
             xp: startXp,
             avatarColor: bot.avatarColor!,
-            grindPower: bot.tier === 1 ? 1.5 : bot.tier <= 3 ? 1.3 : 1.1,
-            tier: bot.tier || 15,
+            grindPower: tier === 1 ? 1.5 : tier <= 3 ? 1.3 : 1.1,
+            tier: tier,
             lastRank: 0,
             trend: 'SAME',
             status: 'GRINDING'
@@ -210,7 +211,6 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
     simInterval.current = setInterval(() => {
       setRoster(prev => {
         // Player XP Sync
-        const playerEntry = prev.find(p => p.isPlayer);
         const playerXp = currentPlayer.dailyXp || 0; 
 
         const next = prev.map(bot => {
