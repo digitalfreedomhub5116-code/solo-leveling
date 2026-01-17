@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Flame } from 'lucide-react';
+import { Shield, Flame, Coins } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface LayoutProps {
@@ -7,9 +7,12 @@ interface LayoutProps {
   navigation?: React.ReactNode;
   playerLevel?: number;
   streak?: number;
+  gold?: number;
+  onGoldClick?: () => void;
+  hideHeader?: boolean;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, navigation, playerLevel = 1, streak = 0 }) => {
+const Layout: React.FC<LayoutProps> = ({ children, navigation, playerLevel = 1, streak = 0, gold = 0, onGoldClick, hideHeader = false }) => {
   const isShadowMonarch = playerLevel >= 10;
 
   return (
@@ -37,28 +40,37 @@ const Layout: React.FC<LayoutProps> = ({ children, navigation, playerLevel = 1, 
       <div className="relative z-10 md:pl-64 pb-24 md:pb-6 transition-all duration-300">
         <main className="max-w-7xl mx-auto p-4 md:p-6 flex flex-col min-h-screen">
           
-          {/* Top Bar Status */}
-          <header className="flex justify-between items-center mb-8 py-2 border-b border-system-border/50 backdrop-blur-sm sticky top-0 z-30 bg-system-bg/80 px-2">
-             <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                    <Shield className={`w-5 h-5 ${isShadowMonarch ? 'text-system-accent' : 'text-system-neon'} animate-pulse`} />
-                    <span className={`font-mono text-xs ${isShadowMonarch ? 'text-system-accent' : 'text-system-neon'} tracking-widest hidden sm:inline`}>
-                      {isShadowMonarch ? 'SHADOW MONARCH' : 'SYSTEM ONLINE'}
-                    </span>
-                </div>
-                
-                {/* Streak Counter */}
-                {streak > 0 && (
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-orange-900/20 border border-orange-500/30 text-orange-500">
-                     <Flame size={12} className="fill-orange-500 animate-pulse" />
-                     <span className="text-[10px] font-mono font-bold">{streak} DAY STREAK</span>
-                  </div>
-                )}
-             </div>
-             <div className="font-mono text-xs text-gray-500">
-                BIO-SYNC OS v1.0
-             </div>
-          </header>
+          {/* Top Bar Status - SCROLLS WITH PAGE */}
+          {!hideHeader && (
+              <header className="flex justify-between items-center mb-8 py-2 border-b border-system-border/50 px-2 relative">
+                 <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <Shield className={`w-5 h-5 ${isShadowMonarch ? 'text-system-accent' : 'text-system-neon'} animate-pulse`} />
+                        <span className={`font-mono text-xs ${isShadowMonarch ? 'text-system-accent' : 'text-system-neon'} tracking-widest hidden sm:inline`}>
+                          {isShadowMonarch ? 'SHADOW MONARCH' : 'SYSTEM ONLINE'}
+                        </span>
+                    </div>
+                    
+                    {/* Streak Counter */}
+                    {streak > 0 && (
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-orange-900/20 border border-orange-500/30 text-orange-500">
+                         <Flame size={12} className="fill-orange-500 animate-pulse" />
+                         <span className="text-[10px] font-mono font-bold">{streak} DAY STREAK</span>
+                      </div>
+                    )}
+                 </div>
+                 
+                 {/* Gold Counter - Scrollable */}
+                 <button 
+                    onClick={onGoldClick}
+                    className="flex items-center gap-3 px-4 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.1)] hover:bg-yellow-500/20 hover:border-yellow-500/40 hover:shadow-[0_0_20px_rgba(234,179,8,0.2)] transition-all duration-300 group active:scale-95 backdrop-blur-md"
+                 >
+                    <Coins size={18} className="fill-yellow-500/20 group-hover:scale-110 transition-transform" />
+                    {/* Added ID here for the animation target */}
+                    <span id="user-wallet-balance" className="font-mono text-sm md:text-lg font-black tabular-nums tracking-wide leading-none">{gold.toLocaleString()} G</span>
+                 </button>
+              </header>
+          )}
 
           <motion.div 
             initial={{ opacity: 0, y: 20 }}

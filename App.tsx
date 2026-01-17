@@ -492,6 +492,10 @@ const App: React.FC = () => {
       navigation={isNavVisible ? <Navigation activeTab={activeTab} onTabChange={setActiveTab} /> : null}
       playerLevel={player.level}
       streak={player.streak}
+      gold={player.gold}
+      onGoldClick={() => setActiveTab('SHOP')}
+      // Pass hideHeader based on navigation visibility (Calibration Mode = No Nav = No Header)
+      hideHeader={!isNavVisible}
     >
       <SystemMessage notifications={notifications} removeNotification={removeNotification} />
       

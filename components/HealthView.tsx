@@ -446,9 +446,9 @@ const HealthView: React.FC<HealthViewProps> = ({
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono p-6 overflow-hidden"
+            className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono p-12 overflow-hidden"
           >
-              <div className="relative mb-12">
+              <div className="relative mb-24 scale-125">
                   <CircularCalibration percent={processingPercent} />
               </div>
 
@@ -456,7 +456,7 @@ const HealthView: React.FC<HealthViewProps> = ({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="text-center"
+                className="text-center space-y-8"
               >
                 <div className="text-[9px] text-gray-500 font-mono tracking-widest uppercase mb-4 flex gap-4 justify-center">
                     <span>Load_Buffer_0x692</span>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Dumbbell, Brain, Target, Users, Shield, AlertOctagon, Zap, ZapOff } from 'lucide-react';
 import { Quest, CoreStats, Rank, Priority } from '../types';
+import { useCoinReward } from '../hooks/useCoinReward';
 
 interface QuestCardProps {
   quest: Quest;
@@ -38,6 +39,9 @@ const statIcons: Record<keyof CoreStats, React.ReactNode> = {
 const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onReset, onDelete }) => {
   const [isMiniView, setIsMiniView] = useState(false);
   const [isFailing, setIsFailing] = useState(false);
+  
+  // Hook for coin animation
+  const { triggerCoinReward } = useCoinReward();
 
   const miniTitle = quest.miniQuest || "Activation: Just Start.";
   const miniXp = Math.floor(quest.xpReward * 0.1);
@@ -54,6 +58,13 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onRese
       setTimeout(() => {
           setIsFailing(false);
       }, 500);
+  };
+
+  const handleCompleteClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+      // Trigger the juicy animation
+      triggerCoinReward(e);
+      // Execute logic
+      onComplete(quest.id, isMiniActive);
   };
 
   const handleDeleteClick = () => {
@@ -237,7 +248,7 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onFail, onRese
                 <motion.button 
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => onComplete(quest.id, isMiniActive)}
+                    onClick={handleCompleteClick}
                     disabled={isFailing}
                     className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-mono text-xs font-bold transition-all shadow-lg
                         ${isMiniActive 

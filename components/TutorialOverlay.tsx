@@ -118,6 +118,8 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
   if (currentStep === 7 && dynamicTargetId) {
       stepData.targetId = dynamicTargetId;
       stepData.body = "Focus on this specific task.\nComplete it to calibrate your stats.\n\nThe System requires full compliance.";
+      // Remove forced position to allow smart positioning to avoid overlap
+      stepData.forcePosition = undefined;
   }
 
   // --- SCROLL LOCK & AUTO-NAV ---
