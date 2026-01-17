@@ -212,7 +212,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
           ...entry,
           trend: newTrend,
           lastRank: currentRank,
-          status: entry.isPlayer ? 'GRINDING' : (Math.random() > 0.7 ? 'GRINDING' : 'RESTING')
+          status: entry.isPlayer ? 'GRINDING' : (entry.status === 'OVERDRIVE' ? 'OVERDRIVE' : (Math.random() > 0.7 ? 'GRINDING' : 'RESTING'))
       };
     });
   };
@@ -226,6 +226,24 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
         // Player XP Sync
         const playerXp = currentPlayer.dailyXp || 0; 
 
+        // 1. Analyze Current State for Rubber Banding Logic
+        // We create a temporary sorted list to understand ranks *before* applying updates
+        const tempSorted = [...prev].map(p => p.isPlayer ? { ...p, xp: playerXp } : p).sort((a, b) => b.xp - a.xp);
+        const playerRank = tempSorted.findIndex(p => p.isPlayer) + 1;
+        
+        // Find the highest ranked bot (Rival)
+        const topBot = tempSorted.find(p => !p.isPlayer);
+        
+        let rubberBandMode = false;
+        
+        // TRIGGER: If Player is #1 and has > 800 XP lead on the top bot
+        if (playerRank === 1 && topBot) {
+            const gap = playerXp - topBot.xp;
+            if (gap > 800) {
+                rubberBandMode = true;
+            }
+        }
+
         const next = prev.map(bot => {
           if (bot.isPlayer) {
               return { ...bot, xp: playerXp };
@@ -233,32 +251,49 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
 
           let change = 0;
           const roll = Math.random();
+          let currentStatus = bot.status;
 
-          // 50% Chance to GAIN XP
-          if (roll < 0.50) {
-              // Gain: 10, 20, 30
-              const base = (Math.floor(Math.random() * 3) + 1) * 10;
-              // Apply Grind Power scaling but keep it multiple of 10
-              // E.g. 20 * 1.5 = 30. 10 * 1.1 = 11 -> round to 10.
-              change = Math.round((base * bot.grindPower) / 10) * 10;
+          // --- DYNAMIC LOGIC ---
+          // If Rubber Band is active AND bot is high tier (Top 5 capability), they go into overdrive
+          if (rubberBandMode && bot.tier <= 5) {
+              currentStatus = 'OVERDRIVE';
+              // Massive boost to catch up: 50 to 250 XP per tick
+              const surge = 50 + Math.floor(Math.random() * 200); 
+              change = surge;
           } 
-          // 30% Chance to LOSE XP (Minus Logic)
-          else if (roll < 0.80) {
-              // Lose: 10, 20
-              change = -(Math.floor(Math.random() * 2) + 1) * 10;
-          }
-          // 20% No Change
+          // Standard Logic
+          else {
+              // Reset status if they were in overdrive but player is no longer #1 with huge lead
+              if (currentStatus === 'OVERDRIVE') currentStatus = 'GRINDING';
 
-          // Gravity System: If very close to player, slightly biased to create competition
-          const distToPlayer = Math.abs(bot.xp - playerXp);
-          if (distToPlayer <= 20) {
-              // 50/50 scramble
-              if (Math.random() > 0.5) change += 10;
-              else change -= 10;
+              // 50% Chance to GAIN XP
+              if (roll < 0.50) {
+                  // Gain: 10, 20, 30
+                  const base = (Math.floor(Math.random() * 3) + 1) * 10;
+                  change = Math.round((base * bot.grindPower) / 10) * 10;
+              } 
+              // 30% Chance to LOSE XP (Minus Logic)
+              else if (roll < 0.80) {
+                  change = -(Math.floor(Math.random() * 2) + 1) * 10;
+              }
+              // 20% No Change
+
+              // Gravity System: If very close to player, slightly biased to create competition
+              const distToPlayer = Math.abs(bot.xp - playerXp);
+              if (distToPlayer <= 20) {
+                  if (Math.random() > 0.5) change += 10;
+                  else change -= 10;
+              }
           }
 
           // XP Band Clamping
-          const max = getBandMax(bot.tier);
+          let max = getBandMax(bot.tier);
+          
+          // CRITICAL: If in Overdrive, ignore the band cap so they can actually chase the player
+          if (rubberBandMode && bot.tier <= 5) {
+              max = playerXp + 500; // Allow them to potentially pass the player
+          }
+
           let newXp = bot.xp + change;
           
           if (newXp > max) newXp = max;
@@ -266,7 +301,8 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
 
           return {
               ...bot,
-              xp: newXp
+              xp: newXp,
+              status: currentStatus
           };
         });
 
