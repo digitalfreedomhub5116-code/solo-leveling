@@ -9,16 +9,20 @@ interface RankingViewProps {
 
 type Trend = 'UP' | 'DOWN' | 'SAME';
 
+// Extended Interface for internal logic
 interface LeaderboardEntry {
   id: string;
   name: string;
   isPlayer: boolean;
   xp: number;
   avatarColor: string;
-  grindPower: number; // XP per tick (10 seconds)
+  grindPower: number; // Used as base potential multiplier
   lastRank: number; 
   trend: Trend; 
   status: 'GRINDING' | 'RESTING' | 'OVERDRIVE';
+  // New Fields for Logic
+  tier: number; // 1-15, determines XP Band cap
+  accumulatedXp: number; // Float for precise increments
 }
 
 const ROSTER_SIZE = 15;
@@ -26,6 +30,21 @@ const BOT_NAMES = [
     "Arjun", "Reyansh", "Vihaan", "Aditya", "Ishaan", "Shaurya", "Aarav", 
     "Kabir", "Riyan", "Vivaan", "Anaya", "Saanvi", "Aadya", "Kiara", "Diya"
 ];
+
+// XP BANDS CONFIGURATION
+const XP_BANDS = [
+    { tier: 1, min: 5600, max: 6213 }, // Rank 1 Potential
+    { tier: 2, min: 5200, max: 5599 }, // Rank 2
+    { tier: 3, min: 4800, max: 5199 }, // Rank 3
+    { tier: 6, min: 4200, max: 4799 }, // Rank 4-6
+    { tier: 10, min: 3000, max: 4199 }, // Rank 7-10
+    { tier: 15, min: 1000, max: 2999 }  // Rank 11-15
+];
+
+const getBandMax = (tier: number) => {
+    const band = XP_BANDS.find(b => tier <= b.tier);
+    return band ? band.max : 2999;
+};
 
 const getHunterClass = (rank: number) => {
     if (rank === 1) return "S-RANK MONARCH";
@@ -35,88 +54,151 @@ const getHunterClass = (rank: number) => {
 };
 
 const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
+  const username = currentPlayer.username || 'User';
   const todayStr = new Date().toISOString().split('T')[0];
-  const STORAGE_KEY = `shadow_arena_v11_${currentPlayer.username}_${todayStr}`;
   
+  // Storage Keys
+  const CONFIG_KEY = `shadow_arena_config_${username}`; // Persists identities & long-term stats
+  const DAILY_KEY = `shadow_arena_daily_${username}_${todayStr}`; // Persists today's XP
+
   const [roster, setRoster] = useState<LeaderboardEntry[]>([]);
   const [isReady, setIsReady] = useState(false);
   const simInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // --- INITIALIZATION & TEMPORAL CATCH-UP ---
+  // --- INITIALIZATION ---
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    let currentRoster: LeaderboardEntry[] = [];
     const now = Date.now();
+    
+    // 1. Load Long-term Config (Identities, Motivation Stats)
+    let config = {
+        bots: [] as Partial<LeaderboardEntry>[],
+        lastTop3Timestamp: 0,
+        wasTop3Yesterday: false,
+        lastLoginDate: ''
+    };
+    
+    try {
+        const savedConfig = localStorage.getItem(CONFIG_KEY);
+        if (savedConfig) config = JSON.parse(savedConfig);
+    } catch (e) { console.error("Config Load Error", e); }
 
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        currentRoster = parsed.data;
-        
-        // Calculate catch-up XP for time spent offline
-        const lastUpdate = parsed.lastUpdated || now;
-        const secondsPassed = (now - lastUpdate) / 1000;
-        
-        if (secondsPassed > 10) {
-            const ticks = Math.floor(secondsPassed / 10);
-            currentRoster = currentRoster.map(h => {
-                if (h.isPlayer) return { ...h, xp: currentPlayer.dailyXp || 0 };
-                // Simulate random grinding while away (50% efficiency)
-                const gained = Math.floor(h.grindPower * ticks * (0.3 + Math.random() * 0.4));
-                return { ...h, xp: h.xp + gained };
-            });
-        } else {
-            currentRoster = currentRoster.map(h => h.isPlayer ? { ...h, xp: currentPlayer.dailyXp || 0 } : h);
-        }
-      } catch (e) { console.error("Sync Failure", e); }
+    // 2. Daily Reset Logic check
+    if (config.lastLoginDate !== todayStr) {
+        // It's a new day (or first run)
+        // Check yesterday's performance if possible (simplified here to assume calculation happened at EOD yesterday)
+        // For robustness, we just reset XP.
+        // If we want to track "Was Top 3 Yesterday", we'd ideally store it at 23:59 previous day.
+        // Here we rely on the persisted value.
+        config.lastLoginDate = todayStr;
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
     }
 
-    if (currentRoster.length === 0) {
-      const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
-      currentRoster = BOT_NAMES.map((name, i) => ({
-        id: `bot_${name}`,
-        name,
-        isPlayer: false,
-        xp: Math.floor(Math.random() * 800), 
-        avatarColor: colors[i % colors.length],
-        grindPower: Math.floor(Math.random() * 40) + 20,
-        lastRank: i + 1,
-        trend: 'SAME',
-        status: 'GRINDING'
-      }));
+    // 3. Load Daily State
+    let dailyData: { xpMap: Record<string, number>, lastUpdated: number } | null = null;
+    try {
+        const savedDaily = localStorage.getItem(DAILY_KEY);
+        if (savedDaily) dailyData = JSON.parse(savedDaily);
+    } catch (e) { console.error("Daily Load Error", e); }
 
-      currentRoster.push({
+    // 4. Generate Roster
+    let currentRoster: LeaderboardEntry[] = [];
+    
+    // If no bots in config, generate them
+    if (!config.bots || config.bots.length === 0) {
+        const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+        // Shuffle bot names for randomness
+        const shuffledNames = [...BOT_NAMES].sort(() => 0.5 - Math.random());
+        
+        config.bots = shuffledNames.slice(0, ROSTER_SIZE - 1).map((name, i) => ({
+            id: `bot_${name}`,
+            name,
+            isPlayer: false,
+            avatarColor: colors[i % colors.length],
+            grindPower: 1, // Multiplier
+            tier: i + 1, // Assign potential tier (1 = best)
+        }));
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+    }
+
+    // Merge Config with Daily XP
+    currentRoster = config.bots.map((bot) => {
+        // Base XP if daily data missing (start of day) is random low amount to simulate morning activity
+        const startXp = dailyData ? (dailyData.xpMap[bot.id!] || 0) : Math.floor(Math.random() * 100);
+        
+        return {
+            id: bot.id!,
+            name: bot.name!,
+            isPlayer: false,
+            xp: startXp,
+            accumulatedXp: startXp,
+            avatarColor: bot.avatarColor!,
+            grindPower: bot.tier === 1 ? 1.2 : bot.tier <= 3 ? 1.1 : 1.0,
+            tier: bot.tier || 15,
+            lastRank: 0,
+            trend: 'SAME',
+            status: 'GRINDING'
+        } as LeaderboardEntry;
+    });
+
+    // Add Player
+    currentRoster.push({
         id: 'player_main',
         name: currentPlayer.username || 'You',
         isPlayer: true,
         xp: currentPlayer.dailyXp || 0,
+        accumulatedXp: currentPlayer.dailyXp || 0,
         avatarColor: '#00d2ff',
         grindPower: 0,
+        tier: 0, // Player has no cap
         lastRank: ROSTER_SIZE,
         trend: 'SAME',
         status: 'GRINDING'
-      });
+    });
+
+    // 5. Offline Catch-up (Simulate missed time)
+    if (dailyData) {
+        const secondsPassed = (now - dailyData.lastUpdated) / 1000;
+        if (secondsPassed > 60) { // Only calculate if > 1 min passed
+            const catchUpTicks = Math.floor(secondsPassed / 10);
+            // Limit catchup to avoid huge jumps (max 2 hours)
+            const cappedTicks = Math.min(catchUpTicks, 720); 
+            
+            currentRoster.forEach(bot => {
+                if (!bot.isPlayer) {
+                    // Avg 40 XP per 30 mins -> ~0.22 XP per tick
+                    const gain = cappedTicks * 0.22 * bot.grindPower * (0.5 + Math.random());
+                    const max = getBandMax(bot.tier);
+                    bot.accumulatedXp = Math.min(max, bot.accumulatedXp + gain);
+                    bot.xp = Math.floor(bot.accumulatedXp);
+                }
+            });
+        }
     }
 
+    // Initial Sort
     const sorted = sortAndLabel(currentRoster);
     setRoster(sorted);
-    save(sorted);
     setIsReady(true);
-  }, [currentPlayer.dailyXp, STORAGE_KEY]);
+  }, [currentPlayer.username, currentPlayer.dailyXp]);
 
-  const save = (data: LeaderboardEntry[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      lastUpdated: Date.now(),
-      data: data
-    }));
+  // --- SAVE STATE ---
+  const saveDaily = (data: LeaderboardEntry[]) => {
+      const xpMap: Record<string, number> = {};
+      data.forEach(d => { if(!d.isPlayer) xpMap[d.id] = d.accumulatedXp; });
+      localStorage.setItem(DAILY_KEY, JSON.stringify({
+          xpMap,
+          lastUpdated: Date.now()
+      }));
   };
 
   const sortAndLabel = (data: LeaderboardEntry[]): LeaderboardEntry[] => {
     const sorted = [...data].sort((a, b) => b.xp - a.xp);
     return sorted.map((entry, index) => {
       const currentRank = index + 1;
+      // Initialize lastRank if 0
       const prevRank = entry.lastRank || currentRank;
-      let newTrend: Trend = entry.trend;
+      
+      let newTrend: Trend = 'SAME';
       if (currentRank < prevRank) newTrend = 'UP';
       else if (currentRank > prevRank) newTrend = 'DOWN';
 
@@ -124,30 +206,137 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
           ...entry,
           trend: newTrend,
           lastRank: currentRank,
-          status: entry.isPlayer ? 'GRINDING' : (Math.random() > 0.85 ? 'RESTING' : 'GRINDING')
+          status: entry.isPlayer ? 'GRINDING' : (Math.random() > 0.8 ? 'RESTING' : 'GRINDING')
       };
     });
   };
 
-  // --- ARENA SIMULATION (Every 10 seconds) ---
+  // --- SIMULATION ENGINE (Every 10s) ---
   useEffect(() => {
     if (!isReady) return;
-    simInterval.current = setInterval(() => {
-      setRoster(prev => {
-        const next = prev.map(h => {
-          if (h.isPlayer) return h;
-          if (h.status === 'RESTING' && Math.random() > 0.2) return h;
-          const gain = Math.floor(Math.random() * h.grindPower);
-          return { ...h, xp: h.xp + gain };
-        });
-        const sorted = sortAndLabel(next);
-        save(sorted);
-        return sorted;
-      });
-    }, 10000); 
-    return () => { if (simInterval.current) clearInterval(simInterval.current); };
-  }, [isReady]);
 
+    simInterval.current = setInterval(() => {
+      const now = new Date();
+      const hour = now.getHours();
+      const minutes = now.getMinutes();
+      
+      // Load Motivation Config
+      let config = { wasTop3Yesterday: false, lastTop3Timestamp: 0 };
+      try {
+          const c = localStorage.getItem(CONFIG_KEY);
+          if (c) config = JSON.parse(c);
+      } catch {}
+
+      // Pity System Check
+      const hoursSinceTop3 = (Date.now() - (config.lastTop3Timestamp || 0)) / (1000 * 60 * 60);
+      const isMotivationMode = hoursSinceTop3 > 72; // 3 Days without Top 3
+
+      // Top 3 Anti-Camp Logic (8PM+)
+      const isLateGame = hour >= 20;
+      
+      // Emergency Surge (11:50 PM)
+      const isEmergency = hour === 23 && minutes >= 50;
+
+      setRoster(prev => {
+        // Find Player XP for gravity
+        const playerEntry = prev.find(p => p.isPlayer);
+        const playerXp = currentPlayer.dailyXp || 0; // Sync with prop
+        const playerRank = prev.findIndex(p => p.isPlayer) + 1;
+
+        const next = prev.map(bot => {
+          if (bot.isPlayer) {
+              return { ...bot, xp: playerXp, accumulatedXp: playerXp };
+          }
+
+          // 1. BASE GAIN
+          // Target: Random 20-60 XP per 30 mins
+          // Per 10s Tick: Avg 0.22 XP
+          // Base Variance: 0.1 to 0.4
+          let gain = (0.1 + Math.random() * 0.3); 
+          
+          // Apply Grind Power (Tier based multiplier)
+          gain *= bot.grindPower;
+
+          // 2. ACTIVITY CYCLE (Inactivity Simulation)
+          // 10% chance to lose small XP (AFK/decay simulation) or just 0 gain
+          if (Math.random() < 0.1) gain = -0.5; 
+
+          // 3. GRAVITY SYSTEM
+          // If close to player, adjust tension
+          const distToPlayer = Math.abs(bot.xp - playerXp);
+          if (distToPlayer < 200) {
+              // If user is climbing fast, bots speed up slightly to maintain challenge
+              gain *= 1.15;
+          }
+
+          // 4. TOP 3 CONTROL (Anti-Camp)
+          if (config.wasTop3Yesterday && isLateGame && playerRank <= 3) {
+              // If user is top 3 again, boost ranks 4-6 to threaten overtake
+              // Bot must be close to user to matter
+              const botRank = prev.indexOf(bot) + 1;
+              if (botRank >= 4 && botRank <= 6) {
+                  gain *= 2.0; // Significant boost
+                  bot.status = 'OVERDRIVE';
+              }
+          }
+
+          // 5. EMERGENCY FALLBACK
+          // If 11:50 PM and user still Top 3 after being Top 3 yesterday
+          if (isEmergency && config.wasTop3Yesterday && playerRank <= 3) {
+              const botRank = prev.indexOf(bot) + 1;
+              // Pick the bot immediately behind player
+              if (botRank === playerRank + 1) {
+                  const overtakeNeeded = (playerXp - bot.xp) + 15;
+                  if (overtakeNeeded > 0 && overtakeNeeded < 100) {
+                      gain += overtakeNeeded; // Instant surge
+                      bot.status = 'OVERDRIVE';
+                  }
+              }
+          }
+
+          // 6. MOTIVATION ENGINE (Pity)
+          // If user hasn't won in 3 days, slow down bots above user slightly
+          if (isMotivationMode && bot.xp > playerXp) {
+              gain *= 0.8;
+          }
+
+          // 7. XP BAND CLAMPING
+          const max = getBandMax(bot.tier);
+          let newAccumulated = bot.accumulatedXp + gain;
+          
+          // Hard cap check
+          if (newAccumulated > max) newAccumulated = max;
+          if (newAccumulated < 0) newAccumulated = 0;
+
+          return {
+              ...bot,
+              accumulatedXp: newAccumulated,
+              xp: Math.floor(newAccumulated)
+          };
+        });
+
+        // Store Top 3 Timestamp if player is currently Top 3
+        // Only update once per day effectively to avoid spam, or update timestamp to 'now' so diff remains 0
+        const newSorted = sortAndLabel(next);
+        const newPlayerRank = newSorted.findIndex(p => p.isPlayer) + 1;
+        
+        if (newPlayerRank <= 3) {
+            const currentConfig = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
+            if (Date.now() - (currentConfig.lastTop3Timestamp || 0) > 3600000) { // Update hourly
+                currentConfig.lastTop3Timestamp = Date.now();
+                localStorage.setItem(CONFIG_KEY, JSON.stringify(currentConfig));
+            }
+        }
+
+        saveDaily(newSorted);
+        return newSorted;
+      });
+    }, 10000); // 10s Tick
+
+    return () => { if (simInterval.current) clearInterval(simInterval.current); };
+  }, [isReady, currentPlayer.dailyXp, CONFIG_KEY]);
+
+  // --- RENDER HELPERS ---
   const playerRank = roster.findIndex(u => u.isPlayer) + 1;
   const rival = playerRank > 1 ? roster[playerRank - 2] : null;
 
@@ -181,7 +370,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
           )}
        </div>
 
-       {/* ARENA LIST - PREMIUM ANIMATIONS */}
+       {/* ARENA LIST */}
        <div className="flex-1 space-y-4 relative pb-20">
           <AnimatePresence mode="popLayout">
             {roster.map((user, idx) => {
@@ -201,7 +390,6 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
                         y: 0 
                       }}
                       exit={{ opacity: 0, scale: 0.8 }}
-                      // Premium Heavy Spring Physics
                       transition={{ 
                         layout: { 
                             type: "spring", 
@@ -265,7 +453,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
                                 <span className="text-xl font-black text-white tabular-nums">{user.xp.toLocaleString()}</span>
                             </div>
                             <div className="text-[8px] text-gray-600 font-bold uppercase tracking-widest flex items-center gap-2 justify-end">
-                                <Activity size={10} className={user.status === 'GRINDING' ? 'text-system-neon animate-pulse' : ''} />
+                                <Activity size={10} className={user.status === 'OVERDRIVE' ? 'text-red-500 animate-bounce' : user.status === 'GRINDING' ? 'text-system-neon animate-pulse' : ''} />
                                 {user.status}
                             </div>
                         </div>
