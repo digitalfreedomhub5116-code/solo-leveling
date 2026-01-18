@@ -3,6 +3,19 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
+// Fix for missing JSX types for React Three Fiber elements
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      mesh: any;
+      group: any;
+      ambientLight: any;
+      pointLight: any;
+      primitive: any;
+    }
+  }
+}
+
 const HologramMaterial = {
   uniforms: {
     uTime: { value: 0 },

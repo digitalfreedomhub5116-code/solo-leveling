@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Search, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp, Trash2, Plus, Utensils, Camera, Scan, X, Loader2, Save, Droplets, Wheat, Beef } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp, Trash2, Utensils, Camera, X, Loader2, Save, Droplets, Wheat, Beef } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog, FoodItem } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';

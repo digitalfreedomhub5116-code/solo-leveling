@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Check, Settings, LogOut, Lock, Calendar, Flame, TrendingUp, Award, Zap, Activity } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Settings, LogOut, Lock, Calendar, Flame, Award, Zap, Activity } from 'lucide-react';
 import { PlayerData } from '../types';
 
 interface GrowthViewProps {
@@ -129,7 +129,7 @@ const GrowthView: React.FC<GrowthViewProps> = ({ player, onAdminRequest, onLogou
       setCurrentDate(newDate);
   };
 
-  const getDayStyle = (percentage: number, isFuture: boolean, isToday: boolean) => {
+  const getDayStyle = (percentage: number, isFuture: boolean) => {
       if (isFuture) return 'bg-gray-900/30 border-gray-800 text-gray-700';
       if (percentage === 0) return 'bg-gray-900 border-gray-800 text-gray-600';
       
@@ -283,7 +283,7 @@ const GrowthView: React.FC<GrowthViewProps> = ({ player, onAdminRequest, onLogou
                                     <div 
                                         className={`
                                             w-full h-full rounded-lg border transition-all duration-300 flex flex-col items-center justify-center relative cursor-default
-                                            ${getDayStyle(day.percentage, day.isFuture, day.isToday)}
+                                            ${getDayStyle(day.percentage, day.isFuture)}
                                             ${day.isToday ? 'ring-2 ring-system-neon ring-offset-2 ring-offset-black' : ''}
                                         `}
                                     >
