@@ -158,9 +158,6 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                         const isSelected = selectedPreview === index;
                         const isDimmed = selectedPreview !== null && !isSelected;
                         
-                        // Map generic day index to the 7-day workout plan cycle
-                        const planDay = workoutPlan[index % 7] || { day: `DAY ${index + 1}`, focus: 'UNKNOWN', exercises: [] };
-
                         // Dynamic Z-Index: Selected always on top
                         const zIndexClass = isSelected ? 'z-[60]' : isCurrent ? 'z-50' : point.isBoss ? 'z-40' : 'z-10';
                         

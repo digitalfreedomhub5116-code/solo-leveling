@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Search, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp, Trash2, Plus, Utensils, Camera, Scan, X, Loader2, Save, Droplets, Wheat, Beef } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp, Trash2, Utensils, Camera, Loader2, Save, Droplets, Wheat, Beef } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog, FoodItem } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
@@ -345,7 +345,6 @@ const HealthView: React.FC<HealthViewProps> = ({
   const [formData, setFormData] = useState<Partial<HealthProfile>>({
       gender: 'MALE', activityLevel: 'MODERATE', goal: 'RECOMP', equipment: 'GYM', workoutSplit: 'CLASSIC', age: 25, height: 175, weight: 70, targetWeight: 70
   });
-  const [foodSearch, setFoodSearch] = useState('');
   const [finalizingLog, setFinalizingLog] = useState("Initializing...");
 
   // --- NUTRITION SCANNER STATE ---
@@ -1186,7 +1185,7 @@ const HealthView: React.FC<HealthViewProps> = ({
                         </div>
                     </motion.div>
                 )}
-                {/* ... (NUTRITION and BODY tabs remain unchanged) ... */}
+                
                 {activeTab === 'NUTRITION' && (
                     <motion.div 
                         key="nut" 
@@ -1395,7 +1394,7 @@ const HealthView: React.FC<HealthViewProps> = ({
                                             onClick={resetScanner}
                                             className="py-4 rounded-xl border border-gray-700 text-gray-400 font-bold text-xs hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
                                         >
-                                            <X size={16} /> DISCARD
+                                            <Trash2 size={16} /> DISCARD
                                         </button>
                                         <button 
                                             onClick={confirmLog}

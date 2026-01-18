@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { WorkoutDay } from '../types';
-import { ChevronDown, ChevronUp, Calendar, Clock, Dumbbell, Activity } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ProtocolMonthViewProps {
