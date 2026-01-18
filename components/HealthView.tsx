@@ -344,7 +344,6 @@ const HealthView: React.FC<HealthViewProps> = ({
   const [formData, setFormData] = useState<Partial<HealthProfile>>({
       gender: 'MALE', activityLevel: 'MODERATE', goal: 'RECOMP', equipment: 'GYM', workoutSplit: 'CLASSIC', age: 25, height: 175, weight: 70, targetWeight: 70
   });
-  const [foodSearch, setFoodSearch] = useState('');
   const [finalizingLog, setFinalizingLog] = useState("Initializing...");
 
   // --- NUTRITION SCANNER STATE ---

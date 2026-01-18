@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+
+import { useState, useEffect } from 'react';
 import { 
   PlayerData, Quest, ShopItem, SystemNotification, NotificationType, 
   ActivityLog, HealthProfile, ProgressPhoto, MealLog, WorkoutDay, 

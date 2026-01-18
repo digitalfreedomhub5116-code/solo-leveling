@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Crown, ArrowUp, ArrowDown, Minus, Target as TargetIcon, Activity, Sparkles, Sword, Shield, Zap, Skull, Medal, User } from 'lucide-react';
+import { Trophy, Crown, ArrowUp, ArrowDown, Target as TargetIcon, Activity, Sword, Shield, Zap, Skull, Medal } from 'lucide-react';
 import { PlayerData } from '../types';
 
 interface RankingViewProps {
@@ -360,7 +360,6 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
                 const rank = idx + 1;
                 const isMe = user.isPlayer;
                 const isAscending = user.trend === 'UP';
-                const isTop3 = rank <= 3;
 
                 return (
                     <motion.div
