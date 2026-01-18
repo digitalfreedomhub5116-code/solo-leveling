@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Crown, ArrowUp, ArrowDown, Target as TargetIcon, Activity, Sword, Shield, Zap, Skull, Medal } from 'lucide-react';
+import { Crown, ArrowUp, ArrowDown, Activity, Sword, Shield, Zap, Skull } from 'lucide-react';
 import { PlayerData } from '../types';
 
 interface RankingViewProps {
