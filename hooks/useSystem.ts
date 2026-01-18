@@ -2,11 +2,10 @@
 import { useState, useEffect } from 'react';
 import { 
   PlayerData, Quest, ShopItem, SystemNotification, NotificationType, 
-  ActivityLog, HealthProfile, ProgressPhoto, MealLog, WorkoutDay, 
-  TournamentReward, Rank, CoreStats
+  ActivityLog, HealthProfile, ProgressPhoto, MealLog
 } from '../types';
 import { supabase } from '../lib/supabase';
-import { playSystemSoundEffect, speakSystemMessage } from '../utils/soundEngine';
+import { playSystemSoundEffect } from '../utils/soundEngine';
 
 // Helper for Video URLs
 export const isEmbed = (url: string) => {
@@ -207,8 +206,6 @@ export const useSystem = () => {
           };
           
           // Trigger XP add externally or handle here (handling here for simplicity of atomic update)
-          // Since addXp is separate, we'll just chain it or duplicate logic. 
-          // Duplicating logic inside setState is safer for atomic updates.
           let { currentXp, requiredXp, level, totalXp, dailyXp } = updated;
           currentXp += reward;
           totalXp += reward;
@@ -393,10 +390,6 @@ export const useSystem = () => {
           // Merge Personal Bests
           const newPBs = { ...prev.personalBests };
           Object.entries(results).forEach(([key, val]) => {
-              // Simplified PB logic: if val > existing, update
-              // Key format: "ExerciseName_SetX" -> simplified to just name check?
-              // For now, let's assume raw results are saved directly to PBs if key doesn't exist or is higher
-              // A real app would parse the exercise name
               if (!newPBs[key] || val > newPBs[key]) {
                   newPBs[key] = val;
               }
@@ -471,15 +464,18 @@ export const useSystem = () => {
   const reducePenalty = (ms: number) => {
       setPlayer(prev => {
           if (!prev.penaltyEndTime) return prev;
-          const updated = { ...prev, penaltyEndTime: prev.penaltyEndTime - ms };
+          const updatedTime = prev.penaltyEndTime - ms;
           // If reduced to now, resolve it
-          if (updated.penaltyEndTime <= Date.now()) {
-              updated.isPenaltyActive = false;
-              updated.penaltyEndTime = undefined;
-              updated.penaltyTask = undefined;
+          if (updatedTime <= Date.now()) {
               addNotification("Penalty Lifted.", "SUCCESS");
+              return { 
+                  ...prev, 
+                  penaltyEndTime: undefined, 
+                  isPenaltyActive: false, 
+                  penaltyTask: undefined 
+              };
           }
-          return updated; // Local update only for performance, sync on resolve
+          return { ...prev, penaltyEndTime: updatedTime }; 
       });
   };
 
@@ -505,6 +501,7 @@ export const useSystem = () => {
     setPlayer,
     notifications,
     registerUser,
+    addXp,
     addQuest,
     completeQuest,
     failQuest,
