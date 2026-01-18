@@ -3,8 +3,6 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Removed manual global declaration causing conflict with React DOM intrinsics
-
 const HologramMaterial = {
   uniforms: {
     uTime: { value: 0 },

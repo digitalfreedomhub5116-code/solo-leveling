@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Search, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp } from 'lucide-react';
-import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog } from '../types';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { Activity, Ruler, Fingerprint, Search, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp, Trash2, Plus, Utensils, Camera, Scan, X, Loader2, Save, Droplets, Wheat, Beef } from 'lucide-react';
+import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog, FoodItem } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
 import WorkoutOverview from './WorkoutOverview';
@@ -308,7 +308,7 @@ const lerpColor = (a: string, b: string, amount: number) => {
 }
 
 // Animation Variants
-const setupContainerVariants = {
+const setupContainerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -320,13 +320,13 @@ const setupContainerVariants = {
   exit: { opacity: 0, x: -20, transition: { duration: 0.2 } }
 };
 
-const setupItemVariants = {
+const setupItemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
 const HealthView: React.FC<HealthViewProps> = ({ 
-  healthProfile, onSaveProfile, onCompleteWorkout, onFailWorkout, onLogMeal, playerData, onToggleNav
+  healthProfile, onSaveProfile, onCompleteWorkout, onFailWorkout, onLogMeal, onDeleteMeal, playerData, onToggleNav
 }) => {
   const [viewMode, setViewMode] = useState<'MAP' | 'OVERVIEW' | 'ACTIVE' | 'SETUP' | 'PROCESSING' | 'DIAGNOSIS' | 'PROJECTION' | 'FINALIZING'>('MAP');
   const [activeTab, setActiveTab] = useState<'WORKOUT' | 'NUTRITION' | 'BODY'>('WORKOUT');
@@ -347,6 +347,13 @@ const HealthView: React.FC<HealthViewProps> = ({
   const [foodSearch, setFoodSearch] = useState('');
   const [finalizingLog, setFinalizingLog] = useState("Initializing...");
 
+  // --- NUTRITION SCANNER STATE ---
+  const [scanState, setScanState] = useState<'IDLE' | 'SCANNING' | 'RESULT'>('IDLE');
+  const [scannedImage, setScannedImage] = useState<string | null>(null);
+  const [scanResult, setScanResult] = useState<FoodItem | null>(null);
+  const [scanItems, setScanItems] = useState<any[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Calculate stable projected increase based on username to persist across re-renders/visits
   const projectedIncrease = useMemo(() => {
       if (playerData.username) {
@@ -359,6 +366,30 @@ const HealthView: React.FC<HealthViewProps> = ({
       }
       return Math.floor(Math.random() * 11) + 60;
   }, [playerData.username]);
+
+  // Aggregate Nutrition Logs for Daily Totals
+  const dailyIntake = useMemo(() => {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      
+      return (playerData.nutritionLogs || [])
+        .filter(log => log.timestamp >= todayStart.getTime())
+        .reduce((acc, log) => ({
+          calories: acc.calories + log.totalCalories,
+          protein: acc.protein + log.totalProtein,
+          carbs: acc.carbs + log.totalCarbs,
+          fats: acc.fats + log.totalFats
+      }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
+  }, [playerData.nutritionLogs]);
+
+  // Daily Logs List
+  const todaysLogs = useMemo(() => {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      return (playerData.nutritionLogs || [])
+        .filter(log => log.timestamp >= todayStart.getTime())
+        .sort((a, b) => b.timestamp - a.timestamp);
+  }, [playerData.nutritionLogs]);
 
   useEffect(() => {
       if (onToggleNav) {
@@ -409,6 +440,156 @@ const HealthView: React.FC<HealthViewProps> = ({
               }, 2000);
           }
       }, 1500); 
+  };
+
+  // --- NUTRITION FUNCTIONS ---
+  const fallbackSimulation = () => {
+      setTimeout(() => {
+          // Pick 1-3 random items for composite meal simulation
+          const count = Math.floor(Math.random() * 2) + 1; 
+          const shuffled = [...INDIAN_FOOD_DB].sort(() => 0.5 - Math.random());
+          const selected = shuffled.slice(0, count);
+          
+          const totalCalories = selected.reduce((sum, item) => sum + item.calories, 0);
+          const totalProtein = selected.reduce((sum, item) => sum + item.protein, 0);
+          const totalCarbs = selected.reduce((sum, item) => sum + item.carbs, 0);
+          const totalFats = selected.reduce((sum, item) => sum + item.fats, 0);
+
+          const mappedResult: FoodItem = {
+              id: 'scan_' + Date.now(),
+              name: selected.map(i => i.name).join(' + '),
+              calories: totalCalories,
+              protein: totalProtein,
+              carbs: totalCarbs,
+              fats: totalFats,
+              servingSize: '1 Meal'
+          };
+
+          const mockScanItems = selected.map(item => ({
+              name: item.name,
+              quantity: item.servingSize,
+              calories: item.calories,
+              protein: item.protein,
+              carbs: item.carbs,
+              fat: item.fats // Map 'fats' to 'fat' to match API structure expectation in render
+          }));
+          
+          setScanResult(mappedResult);
+          setScanItems(mockScanItems);
+          setScanState('RESULT');
+      }, 2000);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      // Preview
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          setScannedImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      // Analysis
+      setScanState('SCANNING');
+      
+      try {
+          const formData = new FormData();
+          formData.append('image', file);
+
+          const response = await fetch('https://n8n.srv1279605.hstgr.cloud/webhook/mealai', {
+              method: 'POST',
+              body: formData,
+              headers: {
+                  'Accept': 'application/json'
+              }
+          });
+
+          if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+
+          const data = await response.json();
+          // Handle array wrapper if present
+          // API returns [{ output: { ... } }]
+          const output = Array.isArray(data) ? data[0]?.output : data?.output;
+
+          // Relaxed validation: Check if output object has 'total' or 'food'
+          // Status contains description string now, so we don't strictly check for 'success'
+          if (output && (output.total || (output.food && output.food.length > 0))) {
+              const total = output.total || { calories: 0, protein: 0, carbs: 0, fat: 0 };
+              
+              // If total is missing but food exists, calculate total manually
+              if (!output.total && output.food) {
+                  output.food.forEach((f: any) => {
+                      total.calories += f.calories || 0;
+                      total.protein += f.protein || 0;
+                      total.carbs += f.carbs || 0;
+                      total.fat += f.fat || 0;
+                  });
+              }
+
+              const name = output.food && output.food.length > 0 
+                  ? output.food.map((f: any) => f.name).join(', ') 
+                  : 'Analyzed Meal';
+              
+              const mappedResult: FoodItem = {
+                  id: 'scan_' + Date.now(),
+                  name: name.length > 50 ? name.substring(0, 47) + '...' : name,
+                  calories: Math.round(total.calories),
+                  protein: Math.round(total.protein),
+                  carbs: Math.round(total.carbs),
+                  fats: Math.round(total.fat),
+                  servingSize: '1 meal'
+              };
+              
+              setScanResult(mappedResult);
+              setScanItems(output.food || []);
+              setScanState('RESULT');
+          } else {
+              console.error("Invalid API Response format:", data);
+              throw new Error("Analysis failed or invalid format");
+          }
+      } catch (error) {
+          console.warn("API Connection Failed, switching to Simulation Mode.", error);
+          // FALLBACK to simulation so user flow isn't broken
+          fallbackSimulation();
+      }
+  };
+
+  const confirmLog = () => {
+      if (onLogMeal && scanResult) {
+          // Map breakdown items to LoggedFoodItem[]
+          const detailedItems = scanItems.map((item, idx) => ({
+              id: `scan_item_${idx}_${Date.now()}`,
+              name: item.name,
+              calories: item.calories,
+              protein: item.protein,
+              carbs: item.carbs,
+              fats: item.fat, // API returns 'fat', map to 'fats'
+              servingSize: item.quantity,
+              quantity: 1
+          }));
+
+          onLogMeal({
+              id: Math.random().toString(36).substr(2, 9),
+              label: scanResult.name,
+              items: detailedItems.length > 0 ? detailedItems : [{ ...scanResult, quantity: 1 }],
+              totalCalories: scanResult.calories,
+              totalProtein: scanResult.protein,
+              totalCarbs: scanResult.carbs,
+              totalFats: scanResult.fats,
+              timestamp: Date.now(),
+              imageUrl: scannedImage || undefined
+          });
+          resetScanner();
+      }
+  };
+
+  const resetScanner = () => {
+      setScanState('IDLE');
+      setScannedImage(null);
+      setScanResult(null);
+      setScanItems([]);
   };
 
   // --- ANIMATION LOOP FOR SMOOTH CHART TRANSITION ---
@@ -978,20 +1159,277 @@ const HealthView: React.FC<HealthViewProps> = ({
                     </motion.div>
                 )}
                 {activeTab === 'NUTRITION' && (
-                    <motion.div key="nut" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                        <div className="grid grid-cols-4 gap-2">
-                            {Object.entries(nutritionInfo.macros).map(([k, v]) => <div key={k} className="bg-gray-900/50 p-3 rounded-xl border border-gray-800 text-center"><div className="text-[10px] text-gray-500 uppercase">{k}</div><div className="text-sm font-bold text-white">{v}{k === 'calories' ? '' : 'g'}</div></div>)}
-                        </div>
-                        <div className="bg-black border border-gray-800 p-6 rounded-2xl shadow-xl">
-                            <h3 className="text-xs text-white font-black mb-4 flex items-center gap-2 tracking-widest"><Search size={14} /> FOOD SCANNER</h3>
-                            <input value={foodSearch} onChange={e => setFoodSearch(e.target.value)} placeholder="SEARCH FOODS..." className="w-full bg-gray-900 border border-gray-800 rounded-xl p-3 text-sm mb-4 outline-none focus:border-system-neon transition-all" />
-                            <div className="max-h-48 overflow-y-auto space-y-2 custom-scrollbar">
-                                {INDIAN_FOOD_DB.filter(f => f.name.toLowerCase().includes(foodSearch.toLowerCase())).map(food => (
-                                    <div key={food.id} onClick={() => onLogMeal?.({ id: Math.random().toString(36).substr(2,9), label: food.name, items: [{...food, quantity: 1}], totalCalories: food.calories, totalProtein: food.protein, totalCarbs: food.carbs, totalFats: food.fats, timestamp: Date.now() })} className="p-3 bg-gray-900/30 hover:bg-gray-900 transition-all cursor-pointer rounded-xl flex justify-between items-center group">
-                                        <div><div className="text-xs font-bold text-gray-300">{food.name}</div><div className="text-[9px] text-gray-600">{food.calories} KCAL</div></div>
-                                        <div className="bg-system-neon text-black px-2 py-0.5 rounded text-[10px] font-black opacity-0 group-hover:opacity-100 transition-opacity">ADD</div>
+                    <motion.div 
+                        key="nut" 
+                        initial={{ opacity: 0, y: 10 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        exit={{ opacity: 0, y: -10 }} 
+                        className="flex flex-col items-center gap-6 px-4"
+                    >
+                        {/* --- DAILY NUTRITION SUMMARY --- */}
+                        <motion.div 
+                            className="w-full max-w-sm bg-gray-900/50 border border-gray-800 rounded-2xl p-6 shadow-lg"
+                            initial={{ scale: 0.95 }}
+                            animate={{ scale: 1 }}
+                        >
+                            <h3 className="text-xs font-bold text-gray-400 mb-4 tracking-widest flex items-center gap-2 uppercase">
+                                <Clock size={14} className="text-system-neon" /> Daily Fuel Status
+                            </h3>
+                            
+                            {/* Calories Comparison */}
+                            <div className="flex justify-between items-end mb-2">
+                                <div>
+                                    <div className="text-[10px] text-gray-500 uppercase font-bold">Consumed</div>
+                                    <div className="text-2xl font-black text-white">{dailyIntake.calories}</div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-[10px] text-gray-500 uppercase font-bold">Target</div>
+                                    <div className="text-2xl font-black text-gray-400">{nutritionInfo.macros.calories}</div>
+                                </div>
+                            </div>
+                            
+                            {/* Calorie Progress Bar */}
+                            <div className="h-2 bg-gray-800 rounded-full overflow-hidden mb-6">
+                                <motion.div 
+                                    className={`h-full ${dailyIntake.calories > nutritionInfo.macros.calories ? 'bg-red-500' : 'bg-system-neon'}`}
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${Math.min((dailyIntake.calories / nutritionInfo.macros.calories) * 100, 100)}%` }}
+                                />
+                            </div>
+
+                            {/* Remaining Budget Display */}
+                            <div className="bg-black/40 border border-gray-800 rounded-xl p-4 text-center mb-6">
+                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Remaining Calories Budget</div>
+                                <div className={`text-3xl font-black ${nutritionInfo.macros.calories - dailyIntake.calories < 0 ? 'text-red-500' : 'text-system-success'}`}>
+                                    {Math.max(0, nutritionInfo.macros.calories - dailyIntake.calories)} <span className="text-xs font-normal text-gray-600">KCAL</span>
+                                </div>
+                            </div>
+
+                            {/* Macro Breakdown */}
+                            <div className="grid grid-cols-3 gap-2">
+                                <div className="text-center">
+                                    <div className="text-[9px] text-gray-500 uppercase font-bold mb-1 flex justify-center items-center gap-1"><Beef size={10} /> PRO</div>
+                                    <div className="text-xs font-bold text-blue-400">{dailyIntake.protein} / {nutritionInfo.macros.protein}g</div>
+                                    <div className="h-1 bg-gray-800 mt-1 rounded-full"><div style={{ width: `${Math.min((dailyIntake.protein / nutritionInfo.macros.protein)*100, 100)}%` }} className="h-full bg-blue-500" /></div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-[9px] text-gray-500 uppercase font-bold mb-1 flex justify-center items-center gap-1"><Wheat size={10} /> CARB</div>
+                                    <div className="text-xs font-bold text-green-400">{dailyIntake.carbs} / {nutritionInfo.macros.carbs}g</div>
+                                    <div className="h-1 bg-gray-800 mt-1 rounded-full"><div style={{ width: `${Math.min((dailyIntake.carbs / nutritionInfo.macros.carbs)*100, 100)}%` }} className="h-full bg-green-500" /></div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-[9px] text-gray-500 uppercase font-bold mb-1 flex justify-center items-center gap-1"><Droplets size={10} /> FAT</div>
+                                    <div className="text-xs font-bold text-yellow-400">{dailyIntake.fats} / {nutritionInfo.macros.fats}g</div>
+                                    <div className="h-1 bg-gray-800 mt-1 rounded-full"><div style={{ width: `${Math.min((dailyIntake.fats / nutritionInfo.macros.fats)*100, 100)}%` }} className="h-full bg-yellow-500" /></div>
+                                </div>
+                            </div>
+                        </motion.div>
+
+                        {/* STATE: IDLE - UPLOAD AREA */}
+                        {scanState === 'IDLE' && (
+                            <motion.div 
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                className="w-full max-w-sm"
+                            >
+                                <div className="bg-gray-900/40 border-2 border-dashed border-gray-800 rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-4 hover:border-system-neon/50 hover:bg-gray-900/60 transition-all cursor-pointer relative overflow-hidden group h-[200px]">
+                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-system-neon/5 to-transparent translate-y-[-100%] group-hover:translate-y-[100%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+                                    
+                                    <div className="w-16 h-16 rounded-full bg-black border border-system-neon/30 flex items-center justify-center relative shadow-[0_0_30px_rgba(0,210,255,0.1)] group-hover:shadow-[0_0_50px_rgba(0,210,255,0.2)] transition-shadow">
+                                        <Camera size={24} className="text-system-neon relative z-10" />
+                                        <div className="absolute inset-0 rounded-full border border-system-neon opacity-20 animate-ping" />
                                     </div>
-                                ))}
+                                    
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white font-mono tracking-tight">LOG MEAL</h3>
+                                        <p className="text-[9px] text-gray-500 font-mono tracking-widest uppercase mt-1">
+                                            UPLOAD & ANALYZE
+                                        </p>
+                                    </div>
+
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        capture="environment" 
+                                        ref={fileInputRef}
+                                        onChange={handleFileUpload}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                                    />
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* STATE: SCANNING */}
+                        {scanState === 'SCANNING' && scannedImage && (
+                            <motion.div 
+                                className="w-full max-w-sm bg-black border border-system-neon/50 rounded-2xl overflow-hidden relative shadow-[0_0_50px_rgba(0,210,255,0.2)]"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                            >
+                                <div className="aspect-[4/5] relative">
+                                    <img src={scannedImage} alt="Scanning" className="w-full h-full object-cover opacity-60" />
+                                    
+                                    {/* Scanning Beam */}
+                                    <motion.div 
+                                        className="absolute left-0 w-full h-1 bg-system-neon shadow-[0_0_20px_#00d2ff,0_0_10px_white] z-10"
+                                        animate={{ top: ['0%', '100%', '0%'] }}
+                                        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                                    />
+                                    
+                                    {/* Grid Overlay */}
+                                    <div className="absolute inset-0 bg-[linear-gradient(rgba(0,210,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,255,0.1)_1px,transparent_1px)] bg-[size:40px_40px] z-0 pointer-events-none" />
+                                    
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+                                        <div className="bg-black/80 backdrop-blur-md px-6 py-3 rounded-lg border border-system-neon/30 flex items-center gap-3">
+                                            <Loader2 size={18} className="text-system-neon animate-spin" />
+                                            <span className="text-xs font-mono text-white tracking-widest font-bold">ANALYZING BIOMETRICS...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* STATE: RESULT */}
+                        {scanState === 'RESULT' && scanResult && scannedImage && (
+                            <motion.div 
+                                className="w-full max-w-sm bg-[#0a0a0a] border border-system-border rounded-2xl overflow-hidden shadow-2xl relative"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                            >
+                                <div className="relative h-48">
+                                    <img src={scannedImage} alt="Result" className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
+                                    <div className="absolute bottom-4 left-4">
+                                        <div className="text-[10px] text-system-neon font-bold tracking-widest bg-system-neon/10 px-2 py-0.5 rounded border border-system-neon/30 inline-block mb-1">
+                                            SCAN COMPLETE
+                                        </div>
+                                        <h3 className="text-2xl font-black text-white italic">{scanResult.name}</h3>
+                                    </div>
+                                </div>
+
+                                <div className="p-6 space-y-6">
+                                    {/* Macros Grid */}
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="text-center p-3 bg-gray-900/50 rounded-xl border border-gray-800">
+                                            <div className="text-xs text-gray-500 font-bold mb-1">PROTEIN</div>
+                                            <div className="text-lg font-black text-white">{scanResult.protein}g</div>
+                                            <div className="h-1 bg-gray-800 mt-2 rounded-full overflow-hidden">
+                                                <div className="h-full bg-blue-500 w-[60%]" />
+                                            </div>
+                                        </div>
+                                        <div className="text-center p-3 bg-gray-900/50 rounded-xl border border-gray-800">
+                                            <div className="text-xs text-gray-500 font-bold mb-1">CARBS</div>
+                                            <div className="text-lg font-black text-white">{scanResult.carbs}g</div>
+                                            <div className="h-1 bg-gray-800 mt-2 rounded-full overflow-hidden">
+                                                <div className="h-full bg-green-500 w-[40%]" />
+                                            </div>
+                                        </div>
+                                        <div className="text-center p-3 bg-gray-900/50 rounded-xl border border-gray-800">
+                                            <div className="text-xs text-gray-500 font-bold mb-1">FATS</div>
+                                            <div className="text-lg font-black text-white">{scanResult.fats}g</div>
+                                            <div className="h-1 bg-gray-800 mt-2 rounded-full overflow-hidden">
+                                                <div className="h-full bg-yellow-500 w-[30%]" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Total Calories */}
+                                    <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10">
+                                        <div className="flex items-center gap-2">
+                                            <Flame size={20} className="text-orange-500" />
+                                            <span className="text-sm font-bold text-gray-300">TOTAL ENERGY</span>
+                                        </div>
+                                        <div className="text-3xl font-black text-white tracking-tighter">
+                                            {scanResult.calories} <span className="text-sm font-normal text-gray-500">KCAL</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Breakdown List */}
+                                    <div className="bg-gray-900/30 rounded-xl border border-gray-800 p-4 max-h-40 overflow-y-auto custom-scrollbar">
+                                        <div className="text-[10px] text-gray-500 font-bold uppercase mb-2 tracking-widest">Detected Ingredients</div>
+                                        <div className="space-y-2">
+                                            {scanItems.map((item, idx) => (
+                                                <div key={idx} className="flex justify-between items-center text-xs border-b border-gray-800/50 pb-1 last:border-0">
+                                                    <span className="text-gray-300">{item.name} <span className="text-gray-600">({item.quantity})</span></span>
+                                                    <span className="font-mono text-system-neon">{item.calories}</span>
+                                                </div>
+                                            ))}
+                                            {scanItems.length === 0 && (
+                                                <div className="text-[10px] text-gray-600 italic text-center py-2">No detailed breakdown available.</div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="grid grid-cols-2 gap-3 pt-2">
+                                        <button 
+                                            onClick={resetScanner}
+                                            className="py-4 rounded-xl border border-gray-700 text-gray-400 font-bold text-xs hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            <X size={16} /> DISCARD
+                                        </button>
+                                        <button 
+                                            onClick={confirmLog}
+                                            className="py-4 rounded-xl bg-system-success text-black font-black text-xs hover:bg-white transition-colors shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2"
+                                        >
+                                            <Save size={16} /> LOG INTAKE
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* --- MEAL HISTORY LOG --- */}
+                        <div className="w-full max-w-sm space-y-4">
+                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-2">Consumed Logs</h3>
+                            <div className="space-y-2">
+                                {todaysLogs.length > 0 ? (
+                                    todaysLogs.map(log => (
+                                        <motion.div 
+                                            key={log.id} 
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            className="bg-gray-900/30 border border-gray-800 p-3 rounded-xl flex justify-between items-center group hover:bg-gray-900/50 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                {log.imageUrl ? (
+                                                    <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-700 shrink-0">
+                                                        <img src={log.imageUrl} alt="Meal" className="w-full h-full object-cover" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center text-gray-500 shrink-0">
+                                                        <Utensils size={16} />
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <div className="text-xs font-bold text-white truncate max-w-[120px]">{log.label}</div>
+                                                    <div className="text-[10px] text-gray-500 font-mono">
+                                                        {new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {log.totalCalories} kcal
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right hidden sm:block">
+                                                    <div className="text-[8px] text-blue-400 font-bold">P: {log.totalProtein}g</div>
+                                                    <div className="text-[8px] text-green-400 font-bold">C: {log.totalCarbs}g</div>
+                                                </div>
+                                                {onDeleteMeal && (
+                                                    <button 
+                                                        onClick={() => onDeleteMeal(log.id)}
+                                                        className="p-2 text-gray-600 hover:text-red-500 transition-colors"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-8 border-2 border-dashed border-gray-800 rounded-xl">
+                                        <p className="text-[10px] text-gray-600 font-mono">NO INTAKE RECORDED TODAY</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </motion.div>

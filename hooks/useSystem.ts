@@ -1,32 +1,22 @@
-
 import { useState, useEffect, useCallback } from 'react';
-import { PlayerData, Quest, SystemNotification, NotificationType, ShopItem, ActivityLog, Rank, CoreStats, HealthProfile, AdminExercise, ProgressPhoto, MealLog } from '../types';
+import { 
+  PlayerData, Quest, ShopItem, SystemNotification, NotificationType, 
+  ActivityLog, HealthProfile, ProgressPhoto, MealLog, WorkoutDay, 
+  TournamentReward, Rank, CoreStats
+} from '../types';
 import { supabase } from '../lib/supabase';
+import { playSystemSoundEffect, speakSystemMessage } from '../utils/soundEngine';
 
-export const DUMMY_VIDEO = 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-a-human-body-scan-9662-large.mp4';
-
-export const sanitizeVideoUrl = (url?: string) => {
-  if (!url) return DUMMY_VIDEO;
-  // Ensure we don't break the app with bad URLs, though simple return is fine for now
-  return url;
-};
-
-// Check if string looks like a video embed URL or just a file path
-// Logic updated to allow query parameters at end of file extension
+// Helper for Video URLs
 export const isEmbed = (url: string) => {
-    if (!url) return false;
-    const clean = url.toLowerCase();
-    // Matches .mp4, .webm, .ogg, .mov followed by end of string OR a query parameter start
-    const hasDirectExtension = /\.(mp4|webm|ogg|mov)($|\?)/.test(clean);
-    const isKnownEmbed = clean.includes('youtube') || clean.includes('youtu.be') || clean.includes('vimeo');
-    return isKnownEmbed || !hasDirectExtension; // If it doesn't look like a file, assume it's a web page/embed
+    return url.includes('youtube.com/embed') || url.includes('player.vimeo.com');
 };
 
-const INITIAL_PLAYER_DATA: PlayerData = {
+const DEFAULT_PLAYER: PlayerData = {
   isConfigured: false,
   tutorialStep: 0,
   tutorialComplete: false,
-  name: 'Hunter',
+  name: '',
   level: 1,
   currentXp: 0,
   requiredXp: 100,
@@ -34,12 +24,12 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   dailyXp: 0,
   rank: 'E',
   gold: 0,
-  streak: 1,
-  stats: { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 },
+  streak: 0,
+  stats: { strength: 10, intelligence: 10, focus: 10, social: 10, willpower: 10 },
   dailyStats: { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 },
   weeklyStats: { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 },
   monthlyStats: { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 },
-  lastStatUpdate: { strength: Date.now(), intelligence: Date.now(), focus: Date.now(), social: Date.now(), willpower: Date.now() },
+  lastStatUpdate: { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 },
   lastDailyReset: Date.now(),
   lastWeeklyReset: Date.now(),
   lastMonthlyReset: Date.now(),
@@ -49,740 +39,236 @@ const INITIAL_PLAYER_DATA: PlayerData = {
   mp: 100,
   maxMp: 100,
   fatigue: 0,
-  job: 'None',
+  job: 'Civilian',
   title: 'None',
   lastLoginDate: new Date().toISOString().split('T')[0],
   dailyQuestComplete: false,
   isPenaltyActive: false,
   logs: [],
   quests: [],
-  shopItems: [
-    {
-        id: 's_def_1',
-        title: 'Cheat Meal (Biryani)',
-        description: 'Guilt-free feast.',
-        cost: 200,
-        icon: 'pizza'
-    },
-    {
-        id: 's_def_2',
-        title: 'OTT Subscription',
-        description: '1 Month of Netflix/Prime/Hotstar.',
-        cost: 300,
-        icon: 'tv'
-    },
-    {
-        id: 's_def_3',
-        title: 'Cinema Outing',
-        description: 'Movie ticket with friends.',
-        cost: 500,
-        icon: 'users'
-    },
-    {
-        id: 's_def_4',
-        title: 'Gaming Session',
-        description: '3 hours of uninterrupted play.',
-        cost: 150,
-        icon: 'gamepad'
-    },
-    {
-        id: 's_def_5',
-        title: 'Tech Fund',
-        description: 'Contribution to new gadget savings.',
-        cost: 1000,
-        icon: 'shopping-bag'
-    }
-  ],
+  shopItems: [],
   awakening: { vision: [], antiVision: [] },
   personalBests: {},
-  exerciseDatabase: [], 
-  focusVideos: {},
   nutritionLogs: [],
+  exerciseDatabase: [],
+  focusVideos: {},
   tournament: { pendingReward: null }
 };
 
-// Default S-Rank Quests for New Users (24h Expiry)
-const WELCOME_QUESTS: Quest[] = [
-    {
-        id: 'wq_1',
-        title: "Take Decisions To Change Your Life",
-        description: "The moment you decide, destiny changes. Commit to the path.",
-        rank: 'S',
-        priority: 'HIGH',
-        category: 'willpower',
-        xpReward: 100,
-        isCompleted: false,
-        isDaily: false,
-        createdAt: Date.now(),
-        expiresAt: Date.now() + 86400000 // 24h
-    },
-    {
-        id: 'wq_2',
-        title: "First Mover Advantage",
-        description: "Speed is life. You started today, not tomorrow.",
-        rank: 'S',
-        priority: 'MEDIUM',
-        category: 'focus',
-        xpReward: 100,
-        isCompleted: false,
-        isDaily: false,
-        createdAt: Date.now(),
-        expiresAt: Date.now() + 86400000
-    },
-    {
-        id: 'wq_3',
-        title: "Showed Up Today",
-        description: "Consistency beats intensity. You are here.",
-        rank: 'S',
-        priority: 'MEDIUM',
-        category: 'social',
-        xpReward: 100,
-        isCompleted: false,
-        isDaily: false,
-        createdAt: Date.now(),
-        expiresAt: Date.now() + 86400000
-    },
-    {
-        id: 'wq_4',
-        title: "Streak Starter!",
-        description: "Ignite the flame. Do not let it go out.",
-        rank: 'S',
-        priority: 'HIGH',
-        category: 'strength',
-        xpReward: 100,
-        isCompleted: false,
-        isDaily: false,
-        createdAt: Date.now(),
-        expiresAt: Date.now() + 86400000
-    },
-    {
-        id: 'wq_5',
-        title: "Make Your First Quest",
-        description: "Define your own path. (Completed via Tutorial)",
-        rank: 'S',
-        priority: 'URGENT',
-        category: 'intelligence',
-        xpReward: 100,
-        isCompleted: false,
-        isDaily: false,
-        createdAt: Date.now(),
-        expiresAt: Date.now() + 86400000
-    }
-];
-
-// Helper to ensure clean initial state copy
-const getInitialState = (): PlayerData => JSON.parse(JSON.stringify(INITIAL_PLAYER_DATA));
-
-// Helper to ensure stats are valid numbers
-const sanitizeStats = (stats: any): CoreStats => {
-    const safeStat = (val: any) => (typeof val === 'number' && !isNaN(val)) ? val : 0;
-    return {
-        strength: safeStat(stats?.strength),
-        intelligence: safeStat(stats?.intelligence),
-        focus: safeStat(stats?.focus),
-        social: safeStat(stats?.social),
-        willpower: safeStat(stats?.willpower),
-    };
-};
-
 export const useSystem = () => {
-  const [player, setPlayer] = useState<PlayerData>(getInitialState());
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [player, setPlayer] = useState<PlayerData>(() => {
+    const saved = localStorage.getItem('biosync_player_v2');
+    return saved ? JSON.parse(saved) : DEFAULT_PLAYER;
+  });
+
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
 
-  // Helpers
-  const getLocalDate = () => new Date().toISOString().split('T')[0];
+  // Sync to local storage
+  useEffect(() => {
+    localStorage.setItem('biosync_player_v2', JSON.stringify(player));
+  }, [player]);
 
-  // --- CLOUD SYNC HELPER ---
-  const syncToCloud = async (updatedPlayer: PlayerData) => {
-      // Only sync if user has a real DB ID and not a local fallback
-      if (updatedPlayer.userId && !updatedPlayer.userId.startsWith('local-')) {
-          try {
-              // We push the entire player state to 'raw_data' column
-              // This allows the Admin Dashboard to read biometrics, quest status, etc.
-              await supabase
-                  .from('profiles')
-                  .update({ 
-                      raw_data: updatedPlayer,
-                      updated_at: new Date().toISOString()
-                  })
-                  .eq('id', updatedPlayer.userId);
-          } catch (err) {
-              console.error("Cloud Sync Error:", err);
-          }
-      }
+  // Sync to Cloud (Debounced or immediate)
+  const syncToCloud = async (data: PlayerData) => {
+    if (data.userId && !data.userId.startsWith('local-')) {
+        try {
+            await supabase.from('profiles').update({
+                raw_data: data,
+                updated_at: new Date().toISOString()
+            }).eq('id', data.userId);
+        } catch (e) {
+            console.error("Cloud Sync Error", e);
+        }
+    }
+  };
+
+  const addNotification = (message: string, type: NotificationType) => {
+    const id = Date.now().toString();
+    setNotifications(prev => [...prev, { id, message, type }]);
+    
+    // Auto remove after 5s
+    setTimeout(() => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  };
+
+  const removeNotification = (id: string) => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   const createLog = (message: string, type: ActivityLog['type']): ActivityLog => ({
-    id: Math.random().toString(36).substr(2, 9),
-    message,
-    timestamp: Date.now(),
-    type
+      id: Math.random().toString(36).substring(2, 9),
+      message,
+      timestamp: Date.now(),
+      type
   });
 
-  const calculateRank = (level: number): Rank => {
-    if (level >= 100) return 'S';
-    if (level >= 75) return 'A';
-    if (level >= 50) return 'B';
-    if (level >= 25) return 'C';
-    if (level >= 10) return 'D';
-    return 'E';
-  };
+  // --- ACTIONS ---
 
-  const addNotification = useCallback((message: string, type: NotificationType) => {
-    const id = Math.random().toString(36).substr(2, 9);
-    setNotifications(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 5000);
-  }, []);
-
-  const removeNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
-  const processSystemLogic = useCallback((data: PlayerData): PlayerData => {
-    const today = getLocalDate();
-    const lastLogin = data.lastLoginDate;
-    const now = Date.now();
-    let newData = { ...data };
-    let hasChanges = false;
-
-    // --- DATA SANITIZATION ---
-    if (!newData.logs) newData.logs = [];
-    if (!newData.quests) newData.quests = [];
-    if (!newData.history) newData.history = [];
-    if (!newData.nutritionLogs) newData.nutritionLogs = [];
-    if (typeof newData.streak !== 'number') newData.streak = 1;
-    if (!newData.tournament) newData.tournament = { pendingReward: null };
-    
-    // Sanitize Stat Buckets
-    newData.stats = sanitizeStats(newData.stats);
-    newData.dailyStats = sanitizeStats(newData.dailyStats);
-    newData.weeklyStats = sanitizeStats(newData.weeklyStats);
-    newData.monthlyStats = sanitizeStats(newData.monthlyStats);
-
-    // Default timestamps if missing
-    if (!newData.lastDailyReset) newData.lastDailyReset = now;
-    if (!newData.lastWeeklyReset) newData.lastWeeklyReset = now;
-    if (!newData.lastMonthlyReset) newData.lastMonthlyReset = now;
-
-    // Default tutorial state
-    if (newData.tutorialStep === undefined) newData.tutorialStep = 0;
-    if (newData.tutorialComplete === undefined) newData.tutorialComplete = false;
-
-    // --- MIDNIGHT RESET LOGIC ---
-    // Helper to get midnight of a specific timestamp
-    const getMidnight = (ts: number) => {
-        const d = new Date(ts);
-        d.setHours(24, 0, 0, 0); // Next midnight
-        return d.getTime();
-    };
-
-    // 1. Daily Reset (Every 24h at midnight)
-    if (now > getMidnight(newData.lastDailyReset)) {
-        hasChanges = true;
-        
-        // --- TOURNAMENT REWARD CALCULATION ---
-        const yesterdayXp = newData.dailyXp || 0;
-        let rank = 15; // Default low rank
-        let rewardGold = 0;
-        
-        // Simulating Leaderboard Competition Logic
-        if (yesterdayXp > 1000) rank = 1;
-        else if (yesterdayXp > 750) rank = 2;
-        else if (yesterdayXp > 500) rank = 3;
-        else if (yesterdayXp > 0) rank = Math.floor(Math.random() * 10) + 4; // 4-14
-        else rank = 999; // No participation
-
-        if (rank <= 15 && yesterdayXp > 0) {
-            rewardGold += 50; // Base Participation Reward
-            if (rank === 1) rewardGold += 500;
-            if (rank === 2) rewardGold += 300;
-            if (rank === 3) rewardGold += 250;
-            
-            // Queue the reward for the player to claim on next login
-            newData.tournament.pendingReward = {
-                rank: rank,
-                gold: rewardGold,
-                date: new Date(newData.lastDailyReset).toISOString()
-            };
-        }
-
-        newData.dailyStats = { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 };
-        newData.dailyXp = 0;
-        newData.nutritionLogs = [];
-        newData.lastDailyReset = now;
-        
-        // Reset Daily Quests
-        let resetCount = 0;
-        newData.quests = newData.quests.map(q => {
-            if (q.isDaily && q.isCompleted) {
-                resetCount++;
-                return { ...q, isCompleted: false, completedAsMini: false, failed: false }; 
-            }
-            return q;
-        });
-        if (resetCount > 0) {
-            newData.logs.unshift(createLog(`Daily Reset: ${resetCount} Quests Refreshed`, 'SYSTEM'));
-        }
-    }
-
-    // 2. Weekly Reset (Every 7 days at midnight)
-    const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
-    if (now - newData.lastWeeklyReset > ONE_WEEK) {
-        hasChanges = true;
-        newData.weeklyStats = { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 };
-        newData.lastWeeklyReset = now;
-        newData.logs.unshift(createLog('Weekly Stats Reset', 'SYSTEM'));
-    }
-
-    // 3. Monthly Reset (Every 30 days at midnight)
-    const ONE_MONTH = 30 * 24 * 60 * 60 * 1000;
-    if (now - newData.lastMonthlyReset > ONE_MONTH) {
-        hasChanges = true;
-        newData.monthlyStats = { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 };
-        newData.lastMonthlyReset = now;
-        newData.logs.unshift(createLog('Monthly Stats Reset', 'SYSTEM'));
-    }
-
-    // --- LOGIN STREAK LOGIC ---
-    if (today !== lastLogin) {
-      hasChanges = true;
-      
-      // Calculate previous day's quest stats before shifting history
-      const totalQuests = newData.quests.length;
-      const completedQuests = newData.quests.filter(q => q.isCompleted).length;
-      const questCompletion = totalQuests > 0 ? (completedQuests / totalQuests) * 100 : 0;
-
-      const historyEntry = {
-        date: lastLogin,
-        stats: { ...newData.stats },
-        totalXp: newData.totalXp,
-        dailyXp: newData.dailyXp || 0,
-        questCompletion: Math.round(questCompletion)
-      };
-      
-      // Keep up to 365 days of history for the Growth Grid
-      newData.history = [historyEntry, ...newData.history].slice(0, 365);
-
-      const lastLoginDateObj = new Date(lastLogin);
-      const todayDateObj = new Date(today);
-      const diffTime = Math.abs(todayDateObj.getTime() - lastLoginDateObj.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 1) {
-          newData.streak += 1;
-          const streakGold = Math.min(500, newData.streak * 50);
-          newData.gold += streakGold;
-          const manaGrowth = 2;
-          newData.maxMp += manaGrowth;
-          newData.mp = newData.maxMp; 
-          
-          newData.logs.unshift(createLog(`Streak Active: ${newData.streak} Days. +${streakGold} G, +${manaGrowth} Max MP.`, 'STREAK'));
-          addNotification(`Daily Streak! +${streakGold} G, +${manaGrowth} Max MP`, 'SUCCESS');
-      } else if (diffDays > 1) {
-          if (newData.streak > 1) {
-             newData.logs.unshift(createLog(`Streak Broken (${newData.streak} days). Reset to 1.`, 'PENALTY'));
-             addNotification("Streak Broken. Momentum Lost.", 'WARNING');
-          }
-          newData.streak = 1;
-          const baseGold = 50;
-          newData.gold += baseGold;
-          newData.mp = newData.maxMp; 
-          newData.logs.unshift(createLog(`Daily Login. +${baseGold} G.`, 'SYSTEM'));
-      }
-
-      newData.lastLoginDate = today;
-    }
-
-    // --- WELCOME QUEST CLEANUP ---
-    const initialQuestCount = newData.quests.length;
-    newData.quests = newData.quests.filter(q => {
-        if (q.expiresAt && now > q.expiresAt) return false;
-        return true;
-    });
-    if (newData.quests.length !== initialQuestCount) {
-        hasChanges = true;
-    }
-
-    // Passive Decay Logic
-    const DECAY_THRESHOLD = 172800000; 
-    const statKeys = Object.keys(newData.stats) as (keyof CoreStats)[];
-    statKeys.forEach((key) => {
-      const lastActivity = newData.lastStatUpdate[key];
-      if (now - lastActivity > DECAY_THRESHOLD) {
-        if (newData.stats[key] > 1) {
-          newData.stats[key] -= 1;
-          newData.lastStatUpdate[key] = now;
-          hasChanges = true;
-          newData.logs.unshift(createLog(`Stat Decay: -1 ${key.toUpperCase()}`, 'SYSTEM'));
-          addNotification(`Stat Decay Detected: ${key.toUpperCase()} -1`, 'WARNING');
-        }
-      }
-    });
-
-    if (newData.isPenaltyActive) {
-       newData.isPenaltyActive = false;
-       newData.penaltyEndTime = undefined;
-       newData.penaltyTask = undefined;
-       hasChanges = true;
-    }
-
-    if (hasChanges) newData.rank = calculateRank(newData.level);
-    if (newData.logs.length > 20) newData.logs = newData.logs.slice(0, 20);
-
-    return newData;
-  }, [addNotification]);
-
-  // Init - Auto Login Check
-  useEffect(() => {
-    const lastUser = localStorage.getItem('shadow_system_last_user');
-    
-    if (lastUser) {
-        const key = `shadow_system_v4_${lastUser}`;
-        const savedData = localStorage.getItem(key);
-        
-        if (savedData) {
-            try {
-                const parsed = JSON.parse(savedData);
-                // Process logic to handle day changes while offline
-                const processed = processSystemLogic(parsed);
-                setPlayer({ ...processed, isConfigured: true });
-                console.log(`Auto-login successful: ${lastUser}`);
-            } catch (e) {
-                console.error("Auto-login failed: Data corruption", e);
-            }
-        }
-    }
-    
-    // System ready
-    setIsLoaded(true);
-  }, [processSystemLogic]);
-
-  // Persist Data (User-Specific Key)
-  useEffect(() => {
-    if (isLoaded && player.isConfigured && player.username) {
-        const key = `shadow_system_v4_${player.username}`;
-        // Verify we aren't saving NaN
-        const cleanPlayer = {
-            ...player,
-            stats: sanitizeStats(player.stats),
-            dailyStats: sanitizeStats(player.dailyStats),
-            weeklyStats: sanitizeStats(player.weeklyStats),
-            monthlyStats: sanitizeStats(player.monthlyStats),
-        };
-        localStorage.setItem(key, JSON.stringify(cleanPlayer));
-    }
-  }, [player, isLoaded]);
-
-  // Actions
-  const registerUser = async (profile: Partial<PlayerData>) => {
-      const username = profile.username || profile.name || 'Hunter';
-      const localKey = `shadow_system_v4_${username}`;
-      
-      let finalData: PlayerData;
-
-      try {
-          // 1. ATTEMPT CLOUD SYNC FIRST (Source of Truth)
-          let cloudData = null;
-          if (profile.userId && !profile.userId.startsWith('local-')) {
-              const { data } = await supabase
-                  .from('profiles')
-                  .select('raw_data')
-                  .eq('id', profile.userId)
-                  .single();
-                  
-              if (data && data.raw_data) {
-                  cloudData = data.raw_data;
-              }
-          }
-
-          // 2. FALLBACK TO LOCAL STORAGE
-          const localData = localStorage.getItem(localKey);
-          let loadedData = cloudData; // Default to cloud
-
-          if (!loadedData && localData) {
-              loadedData = JSON.parse(localData);
-          }
-
-          if (loadedData) {
-              // 3. PROCESS LOGIC (Midnight reset, etc.)
-              const processed = processSystemLogic(loadedData);
-              
-              finalData = { 
-                  ...processed, 
-                  // Ensure identity fields are consistent with auth
-                  name: profile.name || processed.name,
-                  username: profile.username || processed.username,
-                  pin: profile.pin || processed.pin,
-                  userId: profile.userId || processed.userId,
-                  
-                  // Restore Stats & Progress from Cloud/Local
-                  stats: sanitizeStats(processed.stats),
-                  dailyStats: sanitizeStats(processed.dailyStats),
-                  weeklyStats: sanitizeStats(processed.weeklyStats),
-                  monthlyStats: sanitizeStats(processed.monthlyStats),
-                  quests: processed.quests || [],
-                  level: processed.level,
-                  currentXp: processed.currentXp,
-                  totalXp: processed.totalXp,
-                  
-                  isConfigured: true 
-              };
-              addNotification(`System Synchronized. Welcome back, ${finalData.username || finalData.name}.`, "SUCCESS");
-          } else {
-              // 4. NEW USER INITIALIZATION
-              finalData = { 
-                  ...getInitialState(), 
-                  ...profile, 
-                  username, 
-                  isConfigured: true,
-                  quests: [...WELCOME_QUESTS] 
-              };
-              addNotification("Identity Confirmed. System Link Established.", "SUCCESS");
-          }
-      } catch (e) {
-          console.error("Login Sync Error", e);
-          finalData = { ...getInitialState(), ...profile, username, isConfigured: true };
-          addNotification("Connection Unstable. Local Protocol Active.", "WARNING");
-      }
-      
-      // Store Last User
-      localStorage.setItem('shadow_system_last_user', username);
-      
-      // Update State & Cloud Immediately
-      setPlayer(finalData);
-      syncToCloud(finalData);
-  };
-
-  const updateProfile = (data: { name: string; job: string; title: string }) => {
+  const registerUser = (profile: Partial<PlayerData>) => {
       setPlayer(prev => {
-          const updated = { ...prev, ...data };
+          const updated = { ...prev, ...profile, isConfigured: true };
           syncToCloud(updated);
           return updated;
       });
-      addNotification("Profile Updated", "SUCCESS");
+      playSystemSoundEffect('SYSTEM');
   };
 
-  // --- TUTORIAL ACTIONS ---
-  const advanceTutorial = (step: number) => {
-      setPlayer(prev => ({
-          ...prev,
-          tutorialStep: step
-      }));
-  };
-
-  const completeTutorial = () => {
+  const updateFocusVideos = (videos: Record<string, string>) => {
       setPlayer(prev => {
-          const updated = {
-              ...prev,
-              tutorialComplete: true,
-              tutorialStep: 999
-          };
+          const updated = { ...prev, focusVideos: videos };
           syncToCloud(updated);
           return updated;
       });
-      addNotification("System Tutorial Complete. Full Access Granted.", "SUCCESS");
   };
 
-  const gainXp = (amount: number) => {
+  const logout = () => {
+      localStorage.removeItem('biosync_player_v2');
+      window.location.reload();
+  };
+
+  // XP & Leveling Logic
+  const addXp = (amount: number, source: string) => {
       setPlayer(prev => {
-          let newXp = prev.currentXp + amount;
-          let newTotalXp = prev.totalXp + amount;
-          let newDailyXp = (prev.dailyXp || 0) + amount;
-          let newLevel = prev.level;
-          let newRequiredXp = prev.requiredXp;
+          let { currentXp, requiredXp, level, totalXp, dailyXp } = prev;
+          currentXp += amount;
+          totalXp += amount;
+          dailyXp += amount;
+
           let leveledUp = false;
-
-          while (newXp >= newRequiredXp) {
-              newXp -= newRequiredXp;
-              newLevel++;
-              newRequiredXp = Math.floor(newRequiredXp * 1.5);
+          while (currentXp >= requiredXp) {
+              currentXp -= requiredXp;
+              level++;
+              requiredXp = Math.floor(requiredXp * 1.2);
               leveledUp = true;
           }
 
-          let updatedLogs = prev.logs;
+          const newLogs = [createLog(`Gained ${amount} XP (${source})`, 'XP'), ...prev.logs];
           if (leveledUp) {
-              addNotification(`LEVEL UP! REACHED LEVEL ${newLevel}`, "LEVEL_UP");
-              updatedLogs = [createLog(`Reached Level ${newLevel}`, 'LEVEL_UP'), ...prev.logs];
+              newLogs.unshift(createLog(`LEVEL UP! REACHED LEVEL ${level}`, 'LEVEL_UP'));
+              addNotification(`LEVEL UP! You are now Level ${level}`, 'LEVEL_UP');
+              playSystemSoundEffect('LEVEL_UP');
           }
 
-          const updatedPlayer = {
-              ...prev,
-              currentXp: newXp,
-              totalXp: newTotalXp,
-              dailyXp: newDailyXp,
-              level: newLevel,
-              requiredXp: newRequiredXp,
-              hp: leveledUp ? prev.maxHp : prev.hp,
-              mp: leveledUp ? prev.maxMp : prev.mp,
-              logs: updatedLogs
-          };
+          const updated = { ...prev, currentXp, requiredXp, level, totalXp, dailyXp, logs: newLogs };
           
-          // Force Sync on XP change
-          syncToCloud(updatedPlayer);
-          return updatedPlayer;
+          if (leveledUp) {
+              // Restore HP/MP on level up
+              updated.hp = updated.maxHp;
+              updated.mp = updated.maxMp;
+          }
+
+          syncToCloud(updated);
+          return updated;
       });
   };
 
-  const completeDaily = () => {};
-
+  // Quests
   const addQuest = (quest: Quest) => {
       setPlayer(prev => {
-          if (prev.quests.some(q => q.title.toLowerCase() === quest.title.toLowerCase())) {
-              return prev; 
-          }
-
-          const updatedPlayer = {
-              ...prev,
-              quests: [quest, ...prev.quests],
-              logs: [createLog(`New Quest: ${quest.title}`, 'SYSTEM'), ...prev.logs]
-          };
-          
-          syncToCloud(updatedPlayer);
-          return updatedPlayer;
+          const updated = { ...prev, quests: [quest, ...prev.quests] };
+          syncToCloud(updated);
+          return updated;
       });
-      addNotification("New Quest Assigned", "SYSTEM");
+      addNotification("New Quest Protocol Initialized", "SYSTEM");
   };
 
   const completeQuest = (id: string, asMini: boolean = false) => {
       setPlayer(prev => {
-          const quest = prev.quests.find(q => q.id === id);
-          if (!quest || quest.isCompleted) return prev;
+          const quests = [...prev.quests];
+          const qIndex = quests.findIndex(q => q.id === id);
+          if (qIndex === -1) return prev;
 
-          // REWARD SCALING TABLE
-          const RANK_REWARDS: Record<Rank, { xp: number, gold: number }> = {
-              'E': { xp: 10, gold: 10 },
-              'D': { xp: 25, gold: 25 },
-              'C': { xp: 50, gold: 50 },
-              'B': { xp: 100, gold: 100 },
-              'A': { xp: 200, gold: 250 },
-              'S': { xp: 400, gold: 300 }
+          const quest = quests[qIndex];
+          if (quest.isCompleted || quest.failed) return prev;
+
+          const reward = asMini ? Math.floor(quest.xpReward * 0.1) : quest.xpReward;
+          const goldReward = asMini ? 5 : 20;
+
+          quests[qIndex] = { ...quest, isCompleted: true, completedAsMini: asMini };
+
+          // Update stats
+          const stats = { ...prev.stats };
+          const dailyStats = { ...prev.dailyStats };
+          
+          if (quest.category) {
+              stats[quest.category] = (stats[quest.category] || 0) + (asMini ? 0.2 : 1);
+              dailyStats[quest.category] = (dailyStats[quest.category] || 0) + (asMini ? 0.2 : 1);
+          }
+
+          const updated = {
+              ...prev,
+              quests,
+              gold: prev.gold + goldReward,
+              stats,
+              dailyStats,
+              logs: [createLog(`Completed Quest: ${quest.title} (+${reward} XP)`, 'XP'), ...prev.logs]
           };
-
-          const tier = RANK_REWARDS[quest.rank] || RANK_REWARDS['E'];
-          const baseXp = quest.xpReward > 0 ? quest.xpReward : tier.xp;
-          const baseGold = tier.gold;
-
-          const rewardXp = asMini ? Math.floor(baseXp * 0.1) : baseXp;
-          const rewardGold = asMini ? Math.floor(baseGold * 0.1) : baseGold;
-
-          const logMsg = asMini 
-            ? `Quest Activated (Mini): ${quest.title} (+${rewardXp} XP, +${rewardGold} G)` 
-            : `Quest Complete: ${quest.title} (+${rewardXp} XP, +${rewardGold} G)`;
-            
-          const statKey = quest.category;
           
-          const newStats = { ...prev.stats };
-          const newDailyStats = { ...prev.dailyStats };
-          const newWeeklyStats = { ...prev.weeklyStats };
-          const newMonthlyStats = { ...prev.monthlyStats };
-
-          const increment = 1;
-
-          if (typeof newStats[statKey] === 'number') newStats[statKey] += increment;
-          if (typeof newDailyStats[statKey] === 'number') newDailyStats[statKey] += increment;
-          if (typeof newWeeklyStats[statKey] === 'number') newWeeklyStats[statKey] += increment;
-          if (typeof newMonthlyStats[statKey] === 'number') newMonthlyStats[statKey] += increment;
+          // Trigger XP add externally or handle here (handling here for simplicity of atomic update)
+          // Since addXp is separate, we'll just chain it or duplicate logic. 
+          // Duplicating logic inside setState is safer for atomic updates.
+          let { currentXp, requiredXp, level, totalXp, dailyXp } = updated;
+          currentXp += reward;
+          totalXp += reward;
+          dailyXp += reward;
           
-          let newXp = prev.currentXp + rewardXp;
-          let newTotalXp = prev.totalXp + rewardXp;
-          let newDailyXp = (prev.dailyXp || 0) + rewardXp;
-          let newLevel = prev.level;
-          let newRequiredXp = prev.requiredXp;
           let leveledUp = false;
-
-          while (newXp >= newRequiredXp) {
-              newXp -= newRequiredXp;
-              newLevel++;
-              newRequiredXp = Math.floor(newRequiredXp * 1.5);
+          while (currentXp >= requiredXp) {
+              currentXp -= requiredXp;
+              level++;
+              requiredXp = Math.floor(requiredXp * 1.2);
               leveledUp = true;
           }
-
-          const updatedQuests = prev.quests.map(q => q.id === id ? { ...q, isCompleted: true, completedAsMini: asMini } : q);
-
+          
           if (leveledUp) {
-               addNotification(`LEVEL UP! REACHED LEVEL ${newLevel}`, "LEVEL_UP");
+              updated.logs.unshift(createLog(`LEVEL UP! REACHED LEVEL ${level}`, 'LEVEL_UP'));
+              playSystemSoundEffect('LEVEL_UP');
           } else {
-               if (!['wq_1', 'wq_2', 'wq_3', 'wq_4', 'wq_5'].includes(id)) {
-                   addNotification(`Quest Complete +${rewardXp} XP, +${rewardGold} G`, "SUCCESS");
-               }
+              playSystemSoundEffect('SUCCESS');
           }
 
-          let newTutorialStep = prev.tutorialStep;
-          if (prev.tutorialStep === 7) {
-              const welcomeIds = ['wq_1', 'wq_2', 'wq_3', 'wq_4', 'wq_5'];
-              const pendingWelcome = updatedQuests.filter(q => welcomeIds.includes(q.id) && !q.isCompleted);
-              if (pendingWelcome.length === 0) {
-                  newTutorialStep = 8;
-              }
-          }
+          updated.currentXp = currentXp;
+          updated.requiredXp = requiredXp;
+          updated.level = level;
+          updated.totalXp = totalXp;
+          updated.dailyXp = dailyXp;
 
-          const updatedPlayer = {
-              ...prev,
-              quests: updatedQuests,
-              currentXp: newXp,
-              totalXp: newTotalXp,
-              dailyXp: newDailyXp,
-              level: newLevel,
-              requiredXp: newRequiredXp,
-              gold: prev.gold + rewardGold,
-              stats: newStats,
-              dailyStats: newDailyStats,
-              weeklyStats: newWeeklyStats,
-              monthlyStats: newMonthlyStats,
-              lastStatUpdate: { ...prev.lastStatUpdate, [statKey]: Date.now() },
-              logs: [createLog(logMsg, 'XP'), ...prev.logs],
-              tutorialStep: newTutorialStep,
-              dailyQuestComplete: true 
-          };
-
-          syncToCloud(updatedPlayer);
-          return updatedPlayer;
+          syncToCloud(updated);
+          return updated;
       });
   };
 
   const failQuest = (id: string) => {
-       setPlayer(prev => {
-           const quest = prev.quests.find(q => q.id === id);
-           if (!quest || quest.failed) return prev; 
-           
-           const newStats = { ...prev.stats };
-           const penalty = 1;
-           
-           newStats.willpower = Math.max(0, (newStats.willpower || 0) - penalty);
-           newStats.focus = Math.max(0, (newStats.focus || 0) - penalty);
-           
-           if (quest.category && typeof newStats[quest.category] === 'number') {
-                newStats[quest.category] = Math.max(0, newStats[quest.category] - penalty);
-           }
-           
-           const xpPenalty = 50;
-           const newXp = Math.max(0, prev.currentXp - xpPenalty);
-
-           const updatedQuests = prev.quests.map(q => q.id === id ? { ...q, failed: true } : q);
-
-           const updatedPlayer = {
-               ...prev,
-               quests: updatedQuests,
-               stats: newStats,
-               currentXp: newXp,
-               logs: [createLog(`Quest Failed: ${quest.title} (-1 WIL, -1 FOC, -${xpPenalty} XP)`, 'PENALTY'), ...prev.logs]
-           };
-           
-           syncToCloud(updatedPlayer);
-           return updatedPlayer;
-       });
-       addNotification("Quest Failed. System Penalty Applied.", "DANGER");
-  };
-  
-  const resetQuest = (id: string) => {
       setPlayer(prev => {
+          const quests = [...prev.quests];
+          const qIndex = quests.findIndex(q => q.id === id);
+          if (qIndex === -1) return prev;
+
+          quests[qIndex] = { ...quests[qIndex], failed: true };
+          
+          // Penalty Logic
+          const penaltyAmount = 50; // XP loss
+          let { currentXp } = prev;
+          currentXp = Math.max(0, currentXp - penaltyAmount);
+
           const updated = {
               ...prev,
-              quests: prev.quests.map(q => q.id === id ? { ...q, isCompleted: false, completedAsMini: false, failed: false } : q)
+              quests,
+              currentXp,
+              logs: [createLog(`Failed Quest: ${quests[qIndex].title} (-${penaltyAmount} XP)`, 'PENALTY'), ...prev.logs]
           };
+          syncToCloud(updated);
+          return updated;
+      });
+      playSystemSoundEffect('DANGER');
+      addNotification("Quest Failed. Penalty Applied.", "DANGER");
+  };
+
+  const resetQuest = (id: string) => {
+      setPlayer(prev => {
+          const quests = prev.quests.map(q => q.id === id ? { ...q, isCompleted: false, failed: false, completedAsMini: false } : q);
+          const updated = { ...prev, quests };
           syncToCloud(updated);
           return updated;
       });
@@ -790,38 +276,34 @@ export const useSystem = () => {
 
   const deleteQuest = (id: string) => {
       setPlayer(prev => {
-          const updated = {
-              ...prev,
-              quests: prev.quests.filter(q => q.id !== id)
-          };
+          const updated = { ...prev, quests: prev.quests.filter(q => q.id !== id) };
           syncToCloud(updated);
           return updated;
       });
   };
 
+  // Shop
   const purchaseItem = (item: ShopItem) => {
       setPlayer(prev => {
           if (prev.gold < item.cost) {
-              addNotification("Insufficient Gold", "WARNING");
+              addNotification("Insufficient Funds", "WARNING");
               return prev;
           }
           const updated = {
               ...prev,
               gold: prev.gold - item.cost,
-              logs: [createLog(`Purchased: ${item.title}`, 'PURCHASE'), ...prev.logs]
+              logs: [createLog(`Purchased: ${item.title} (-${item.cost} G)`, 'PURCHASE'), ...prev.logs]
           };
           syncToCloud(updated);
+          addNotification(`Acquired: ${item.title}`, "PURCHASE");
+          playSystemSoundEffect('PURCHASE');
           return updated;
       });
-      addNotification("Item Purchased", "PURCHASE");
   };
 
   const addShopItem = (item: ShopItem) => {
       setPlayer(prev => {
-          const updated = {
-              ...prev,
-              shopItems: [...prev.shopItems, item]
-          };
+          const updated = { ...prev, shopItems: [...prev.shopItems, item] };
           syncToCloud(updated);
           return updated;
       });
@@ -829,235 +311,221 @@ export const useSystem = () => {
 
   const removeShopItem = (id: string) => {
       setPlayer(prev => {
-          const updated = {
-              ...prev,
-              shopItems: prev.shopItems.filter(i => i.id !== id)
-          };
+          const updated = { ...prev, shopItems: prev.shopItems.filter(i => i.id !== id) };
           syncToCloud(updated);
           return updated;
       });
   };
 
+  // Health & Nutrition
   const saveHealthProfile = (profile: HealthProfile, identity: string) => {
       setPlayer(prev => {
-          const updatedPlayer = {
-              ...prev,
-              healthProfile: profile,
-              identity: identity,
-              logs: [createLog(`Health Protocol Updated: ${identity}`, 'SYSTEM'), ...prev.logs]
-          };
-          syncToCloud(updatedPlayer);
-          return updatedPlayer;
+          const updated = { ...prev, healthProfile: profile, identity };
+          syncToCloud(updated);
+          return updated;
       });
-      addNotification("Health Profile Saved", "SUCCESS");
+      addNotification("Biometrics Updated. System Calibrated.", "SUCCESS");
   };
 
   const addProgressPhoto = (photo: ProgressPhoto) => {
       setPlayer(prev => {
-          if (!prev.healthProfile) return prev;
-          
-          const currentPhotos = prev.healthProfile.progressPhotos || [];
-          const updated = {
-              ...prev,
-              healthProfile: {
-                  ...prev.healthProfile,
-                  progressPhotos: [...currentPhotos, photo]
-              },
-              logs: [createLog(`Progress Photo Uploaded`, 'SYSTEM'), ...prev.logs]
-          };
+          const profile = prev.healthProfile;
+          if (!profile) return prev;
+          const photos = [photo, ...(profile.progressPhotos || [])];
+          const updated = { ...prev, healthProfile: { ...profile, progressPhotos: photos } };
           syncToCloud(updated);
           return updated;
       });
-      addNotification("Scan Uploaded. Sync Complete.", "SUCCESS");
   };
 
   const deleteProgressPhoto = (id: string) => {
       setPlayer(prev => {
-          if (!prev.healthProfile || !prev.healthProfile.progressPhotos) return prev;
+          const profile = prev.healthProfile;
+          if (!profile) return prev;
+          const photos = (profile.progressPhotos || []).filter(p => p.id !== id);
+          const updated = { ...prev, healthProfile: { ...profile, progressPhotos: photos } };
+          syncToCloud(updated);
+          return updated;
+      });
+  };
+
+  const logMeal = (meal: MealLog) => {
+      setPlayer(prev => {
+          // Recovery Mechanic: Eating restores a small amount of HP
+          const recoveryAmount = 5;
+          const newHp = Math.min(prev.maxHp, prev.hp + recoveryAmount);
           
           const updated = {
               ...prev,
-              healthProfile: {
-                  ...prev.healthProfile,
-                  progressPhotos: prev.healthProfile.progressPhotos.filter(p => p.id !== id)
-              }
-          };
-          syncToCloud(updated);
-          return updated;
-      });
-      addNotification("Record Deleted.", "SYSTEM");
-  };
-
-  // --- NUTRITION LOGIC ---
-  const logMeal = (meal: MealLog) => {
-      setPlayer(prev => {
-          const updated = {
-              ...prev,
+              hp: newHp,
               nutritionLogs: [...(prev.nutritionLogs || []), meal],
-              logs: [createLog(`Nutrition Logged: ${meal.label} (${meal.totalCalories} kcal)`, 'SYSTEM'), ...prev.logs]
+              logs: [createLog(`Nutrition Logged: ${meal.label} (${meal.totalCalories} kcal) [+${recoveryAmount} HP]`, 'SYSTEM'), ...prev.logs]
           };
           syncToCloud(updated);
           return updated;
       });
-      addNotification(`Meal Logged: ${meal.totalCalories} kcal`, "SUCCESS");
+      addNotification(`Meal Logged: ${meal.totalCalories} kcal. Vitality Restored.`, "SUCCESS");
   };
 
   const deleteMeal = (id: string) => {
       setPlayer(prev => {
-          const updated = {
-              ...prev,
-              nutritionLogs: (prev.nutritionLogs || []).filter(log => log.id !== id)
-          };
+          const updated = { ...prev, nutritionLogs: prev.nutritionLogs.filter(m => m.id !== id) };
           syncToCloud(updated);
           return updated;
       });
-      addNotification("Meal Record Deleted", "SYSTEM");
   };
 
-  const completeWorkoutSession = (completed: number, _total: number, results: Record<string, number>, intensityModifier: boolean) => {
-      const baseXp = 100;
-      const bonus = completed * 10;
-      const intensityBonus = intensityModifier ? 50 : 0;
-      const totalReward = baseXp + bonus + intensityBonus;
-      
-      gainXp(totalReward);
-      
+  const completeWorkoutSession = (exercisesCompleted: number, totalExercises: number, results: Record<string, number>, intensityModifier: boolean) => {
       setPlayer(prev => {
-          const updatedPlayer = {
+          // XP Calculation
+          const baseXp = exercisesCompleted * 50;
+          const bonusXp = intensityModifier ? 100 : 0;
+          const totalReward = baseXp + bonusXp;
+          const goldReward = Math.floor(totalReward / 10);
+
+          // Update Strength & Health Stats
+          const stats = { ...prev.stats };
+          stats.strength += 2;
+          stats.willpower += 1;
+          if (intensityModifier) stats.strength += 1;
+
+          // Merge Personal Bests
+          const newPBs = { ...prev.personalBests };
+          Object.entries(results).forEach(([key, val]) => {
+              // Simplified PB logic: if val > existing, update
+              // Key format: "ExerciseName_SetX" -> simplified to just name check?
+              // For now, let's assume raw results are saved directly to PBs if key doesn't exist or is higher
+              // A real app would parse the exercise name
+              if (!newPBs[key] || val > newPBs[key]) {
+                  newPBs[key] = val;
+              }
+          });
+
+          // Leveling Logic (Reused)
+          let { currentXp, requiredXp, level, totalXp, dailyXp } = prev;
+          currentXp += totalReward;
+          totalXp += totalReward;
+          dailyXp += totalReward;
+          
+          let leveledUp = false;
+          while (currentXp >= requiredXp) {
+              currentXp -= requiredXp;
+              level++;
+              requiredXp = Math.floor(requiredXp * 1.2);
+              leveledUp = true;
+          }
+
+          const updated = {
               ...prev,
-              stats: { ...prev.stats, strength: (prev.stats.strength || 0) + 1 },
-              lastStatUpdate: { ...prev.lastStatUpdate, strength: Date.now() },
-              personalBests: { ...prev.personalBests, ...results },
-              logs: [createLog(`Workout Complete: +${totalReward} XP`, 'WORKOUT'), ...prev.logs]
+              currentXp, requiredXp, level, totalXp, dailyXp,
+              stats,
+              personalBests: newPBs,
+              gold: prev.gold + goldReward,
+              logs: [createLog(`Workout Completed: ${exercisesCompleted}/${totalExercises} Exercises (+${totalReward} XP)`, 'WORKOUT'), ...prev.logs]
           };
-          syncToCloud(updatedPlayer);
-          return updatedPlayer;
+
+          if (leveledUp) {
+              updated.logs.unshift(createLog(`LEVEL UP! REACHED LEVEL ${level}`, 'LEVEL_UP'));
+              playSystemSoundEffect('LEVEL_UP');
+          }
+
+          syncToCloud(updated);
+          return updated;
       });
-      addNotification(`Workout Complete! +${totalReward} XP`, "SUCCESS");
+      addNotification("Dungeon Cleared. Rewards Added.", "SUCCESS");
   };
 
   const failWorkout = () => {
-      addNotification("Workout Aborted. No XP awarded.", "WARNING");
+      addNotification("Workout Aborted. No Rewards.", "WARNING");
   };
 
-  const logout = () => {
-      // Clear persistence token
-      localStorage.removeItem('shadow_system_last_user');
-      // Reset to unconfigured state (which will show AuthView). 
-      setPlayer(getInitialState());
-  };
-
-  const updateExerciseDatabase = (exercises: AdminExercise[]) => {
-      setPlayer(prev => ({
-          ...prev,
-          exerciseDatabase: exercises
-      }));
-  };
-
-  const updateFocusVideos = (videos: Record<string, string>) => {
+  // Tutorial
+  const advanceTutorial = (step: number) => {
       setPlayer(prev => {
-          const updated = { ...prev, focusVideos: videos };
-          // Don't auto-sync heavy video data here as it's often an admin action
-          // But if user updates it locally, we should sync
-          return updated;
-      });
-  };
-
-  // New Dashboard Helper Functions
-  const updateAwakening = (type: 'vision' | 'antiVision', items: string[]) => {
-      setPlayer(prev => {
-          const updated = {
-              ...prev,
-              awakening: {
-                  ...prev.awakening,
-                  [type]: items
-              }
-          };
+          const updated = { ...prev, tutorialStep: step };
           syncToCloud(updated);
           return updated;
       });
   };
 
+  const completeTutorial = () => {
+      setPlayer(prev => {
+          const updated = { ...prev, tutorialComplete: true };
+          syncToCloud(updated);
+          return updated;
+      });
+      addNotification("Tutorial Protocol Complete. System Fully Operational.", "SUCCESS");
+  };
+
+  // Penalty
   const resolvePenalty = () => {
       setPlayer(prev => {
-          const updated = {
-              ...prev,
-              isPenaltyActive: false,
-              penaltyEndTime: undefined,
-              penaltyTask: undefined,
-              logs: [createLog("Penalty Cleared.", "SYSTEM"), ...prev.logs]
-          };
+          const updated = { ...prev, isPenaltyActive: false, penaltyEndTime: undefined, penaltyTask: undefined };
           syncToCloud(updated);
           return updated;
       });
-      addNotification("System Access Restored.", "SUCCESS");
+      addNotification("Penalty Lifted. System Normalized.", "SUCCESS");
   };
 
   const reducePenalty = (ms: number) => {
       setPlayer(prev => {
           if (!prev.penaltyEndTime) return prev;
-          const updated = {
-              ...prev,
-              penaltyEndTime: prev.penaltyEndTime - ms
-          };
-          syncToCloud(updated);
-          return updated;
+          const updated = { ...prev, penaltyEndTime: prev.penaltyEndTime - ms };
+          // If reduced to now, resolve it
+          if (updated.penaltyEndTime <= Date.now()) {
+              updated.isPenaltyActive = false;
+              updated.penaltyEndTime = undefined;
+              updated.penaltyTask = undefined;
+              addNotification("Penalty Lifted.", "SUCCESS");
+          }
+          return updated; // Local update only for performance, sync on resolve
       });
-      addNotification("Penalty Duration Reduced.", "SYSTEM");
   };
 
+  // Tournament
   const claimTournamentReward = () => {
       setPlayer(prev => {
-          if (!prev.tournament.pendingReward) return prev;
-          
-          const reward = prev.tournament.pendingReward;
+          const reward = prev.tournament?.pendingReward;
+          if (!reward) return prev;
+
           const updated = {
               ...prev,
               gold: prev.gold + reward.gold,
-              logs: [createLog(`Tournament Reward: Rank #${reward.rank} (+${reward.gold} G)`, 'TOURNAMENT'), ...prev.logs],
-              tournament: {
-                  pendingReward: null
-              }
+              tournament: { ...prev.tournament, pendingReward: null },
+              logs: [createLog(`Claimed Tournament Reward: #${reward.rank} (+${reward.gold} G)`, 'TOURNAMENT'), ...prev.logs]
           };
           syncToCloud(updated);
           return updated;
       });
-      addNotification("Reward Claimed.", "SUCCESS");
   };
 
   return {
     player,
-    isLoaded,
+    setPlayer,
     notifications,
     registerUser,
-    updateProfile,
-    gainXp,
-    completeDaily,
     addQuest,
     completeQuest,
     failQuest,
-    failWorkout,
     resetQuest,
     deleteQuest,
     purchaseItem,
     addShopItem,
     removeShopItem,
     removeNotification,
-    addNotification,
     saveHealthProfile,
     addProgressPhoto,
     deleteProgressPhoto,
     logMeal,
     deleteMeal,
     completeWorkoutSession,
+    failWorkout,
     logout,
-    updateExerciseDatabase,
-    updateFocusVideos,
     advanceTutorial,
     completeTutorial,
-    updateAwakening,
     resolvePenalty,
     reducePenalty,
-    claimTournamentReward
+    claimTournamentReward,
+    updateFocusVideos
   };
 };
