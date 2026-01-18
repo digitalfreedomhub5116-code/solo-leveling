@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, X, AlertOctagon, Check, Activity, Film, Timer as TimerIcon, ChevronRight } from 'lucide-react';
+import { Play, Pause, X, AlertOctagon, Check, Activity, Film, Timer as TimerIcon, ChevronRight, Zap } from 'lucide-react';
 import { WorkoutDay } from '../types';
 import { SpeechService } from '../utils/speechService';
 import { playSystemSoundEffect } from '../utils/soundEngine';
@@ -16,7 +15,28 @@ interface ActiveWorkoutPlayerProps {
 }
 
 const SET_DURATION = 45; 
-const REST_DURATION = 30;
+const INTRA_SET_REST = 5;      // Rest between sets of same exercise
+const INTER_EXERCISE_REST = 10; // Rest between different exercises
+
+// Helper to parse duration from reps string (e.g., "5 min" -> 300, "30s" -> 30)
+const getExerciseDuration = (reps: string): number => {
+  if (!reps) return SET_DURATION;
+  const lower = reps.toLowerCase();
+  
+  // Minutes (e.g., "5 min", "10 mins")
+  if (lower.includes('min')) {
+    const match = lower.match(/(\d+)\s*min/);
+    if (match) return parseInt(match[1], 10) * 60;
+  }
+  
+  // Seconds (e.g., "30s", "45 sec", "60 seconds")
+  if (lower.includes('sec') || lower.match(/\d+s\b/)) {
+     const match = lower.match(/(\d+)/); // Grab first number
+     if (match) return parseInt(match[1], 10);
+  }
+  
+  return SET_DURATION; 
+};
 
 const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onComplete, onFail }) => {
   const { player } = useSystem();
@@ -24,7 +44,12 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
   // --- STATE ---
   const [currentIdx, setCurrentIdx] = useState(0);
   const [currentSet, setCurrentSet] = useState(1);
-  const [timeLeft, setTimeLeft] = useState(SET_DURATION);
+  
+  // Initialize timer based on first exercise
+  const [timeLeft, setTimeLeft] = useState(() => 
+      plan.exercises.length > 0 ? getExerciseDuration(plan.exercises[0].reps) : SET_DURATION
+  );
+
   const [phase, setPhase] = useState<'WORK' | 'REST'>('WORK');
   const [isPaused, setIsPaused] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
@@ -38,47 +63,73 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
   const liveExerciseData = player.exerciseDatabase.find(e => e.name === exercise.name);
   const videoSource = liveExerciseData?.videoUrl || exercise.videoUrl;
 
+  // Check if we are in the "Up Next" preview window (last 5 seconds of rest)
+  const isUpNextPreview = phase === 'REST' && timeLeft <= 5 && timeLeft > 0;
+
   // --- LOGIC ---
 
+  // Initial Announcement Only
   useEffect(() => {
-    if (exercise) {
-        SpeechService.announceStart(exercise.name, exercise.sets, exercise.reps);
+    if (plan.exercises.length > 0) {
+        const first = plan.exercises[0];
+        SpeechService.announceStart(first.name, first.sets, first.reps);
     }
-  }, [exercise?.name, exercise?.sets, exercise?.reps]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const startNextSet = useCallback(() => {
+      playSystemSoundEffect('SYSTEM');
+      
+      const nextSet = currentSet + 1;
+      
+      setPhase('WORK');
+      setCurrentSet(nextSet);
+      
+      // Dynamic Duration Calculation based on current exercise
+      const currentEx = plan.exercises[currentIdx];
+      const duration = getExerciseDuration(currentEx.reps);
+      setTimeLeft(duration);
+
+      // AI Voice Logic
+      if (nextSet === 1) {
+          // Starting new exercise (Set 1)
+          SpeechService.announceStart(currentEx.name, currentEx.sets, currentEx.reps);
+      } else {
+          // Next set of same exercise
+          SpeechService.announceSetStart(nextSet);
+      }
+  }, [currentSet, currentIdx, plan.exercises]);
 
   const handleExerciseComplete = useCallback(() => {
     if (currentIdx < totalExercises - 1) {
-      const nextEx = plan.exercises[currentIdx + 1];
-      SpeechService.announceNextExercise(nextEx.name);
+      // Transition to Next Exercise
       
-      // Transition to next exercise (start with Rest/Prep)
+      // Announce Rest immediately
+      SpeechService.announceRest(INTER_EXERCISE_REST);
+      
       setPhase('REST');
-      setTimeLeft(REST_DURATION);
+      setTimeLeft(INTER_EXERCISE_REST);
+      
+      // Advance Index immediately so "Up Next" shows correct info
       setCurrentIdx(prev => prev + 1);
-      setCurrentSet(1);
+      // Reset set count to 0 so we know we are between exercises
+      setCurrentSet(0); 
     } else {
       SpeechService.announceVictory();
       playSystemSoundEffect('LEVEL_UP');
       onComplete(totalExercises, totalExercises, results);
     }
-  }, [currentIdx, totalExercises, plan.exercises, onComplete, results]);
-
-  const startNextSet = useCallback(() => {
-      playSystemSoundEffect('SYSTEM');
-      SpeechService.announceSetStart(currentSet + 1);
-      setPhase('WORK');
-      setCurrentSet(prev => prev + 1);
-      setTimeLeft(SET_DURATION);
-  }, [currentSet]);
+  }, [currentIdx, totalExercises, onComplete, results]);
 
   const completeSet = useCallback(() => {
       playSystemSoundEffect('SUCCESS');
       setResults(prev => ({...prev, [`${exercise.name}_set${currentSet}`]: 1 }));
       
       if (currentSet < exercise.sets) {
+        // Transition to Next Set (Same Exercise)
         setPhase('REST');
-        setTimeLeft(REST_DURATION);
-        SpeechService.announceRest(REST_DURATION);
+        setTimeLeft(INTRA_SET_REST);
+        SpeechService.announceRest(INTRA_SET_REST);
       } else {
         handleExerciseComplete();
       }
@@ -98,7 +149,9 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
       interval = setInterval(() => {
         setTimeLeft((prev) => {
           const next = prev - 1;
-          if (phase === 'WORK' && next === Math.floor(SET_DURATION / 2)) SpeechService.announceHalfway();
+          // Calculate max duration for halfway point based on current exercise
+          const maxDuration = phase === 'WORK' ? getExerciseDuration(plan.exercises[currentIdx].reps) : INTER_EXERCISE_REST;
+          if (phase === 'WORK' && next === Math.floor(maxDuration / 2)) SpeechService.announceHalfway();
           if (next <= 3 && next > 0) playSystemSoundEffect('TICK');
           return next;
         });
@@ -107,7 +160,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
       handleTimerComplete();
     }
     return () => clearInterval(interval);
-  }, [timeLeft, isPaused, phase, handleTimerComplete]);
+  }, [timeLeft, isPaused, phase, handleTimerComplete, currentIdx, plan.exercises]);
 
   const confirmQuit = () => { SpeechService.announceFailure(); onFail(); };
 
@@ -142,30 +195,60 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
 
         {/* --- MEDIA AREA (Flexible Top Half) --- */}
         <div className="relative flex-1 bg-gray-900 overflow-hidden">
-            {/* Phase Overlay/Tint */}
+            {/* Phase Overlay/Tint - Modified for Preview Logic */}
             <AnimatePresence>
                 {phase === 'REST' && (
                     <motion.div 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center p-8 text-center"
+                        // Dynamic background opacity: Opaque normally, Transparent when <= 5s to show video
+                        className={`absolute inset-0 z-20 flex flex-col items-center justify-center p-8 text-center transition-colors duration-500 ${isUpNextPreview ? 'bg-black/20 backdrop-blur-sm' : 'bg-black/90'}`}
                     >
-                        <motion.div 
-                            initial={{ scale: 0.8 }}
-                            animate={{ scale: 1 }}
-                            className="bg-black/80 border border-system-success/30 p-6 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.2)]"
-                        >
-                            <h3 className="text-system-success font-mono font-bold tracking-widest text-lg mb-2 flex items-center justify-center gap-2">
-                                <Activity size={20} className="animate-pulse" /> RECOVERY
-                            </h3>
-                            <div className="text-6xl font-black font-mono text-white mb-2 tabular-nums">
-                                {timeLeft}<span className="text-xl text-gray-500">s</span>
-                            </div>
-                            <p className="text-xs text-gray-400 font-mono uppercase">
-                                NEXT: SET {currentSet}
-                            </p>
-                        </motion.div>
+                        {isUpNextPreview ? (
+                            // PREVIEW STATE (LAST 5 SECONDS)
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="flex flex-col items-center"
+                            >
+                                <div className="bg-system-neon/10 border border-system-neon/50 px-4 py-1 rounded-full text-system-neon font-black text-sm tracking-widest mb-4 animate-pulse flex items-center gap-2">
+                                    <Zap size={16} fill="currentColor" /> {currentSet === 0 ? "NEXT EXERCISE" : "NEXT SET"}
+                                </div>
+                                <h2 className="text-3xl md:text-5xl font-black italic text-white uppercase drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] mb-6 text-center">
+                                    {exercise.name}
+                                </h2>
+                                <div className="text-[100px] font-black text-white/80 leading-none drop-shadow-2xl font-mono">
+                                    {timeLeft}
+                                </div>
+                            </motion.div>
+                        ) : (
+                            // STANDARD RECOVERY STATE
+                            <motion.div 
+                                initial={{ scale: 0.8 }}
+                                animate={{ scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.5 }}
+                                className="bg-gray-900/50 border border-system-success/30 p-8 rounded-2xl shadow-[0_0_50px_rgba(16,185,129,0.1)] backdrop-blur-md"
+                            >
+                                <h3 className="text-system-success font-mono font-bold tracking-widest text-lg mb-4 flex items-center justify-center gap-2">
+                                    <Activity size={20} className="animate-pulse" /> RECOVERY
+                                </h3>
+                                <div className="text-8xl font-black font-mono text-white mb-4 tabular-nums">
+                                    {timeLeft}<span className="text-2xl text-gray-500 ml-2">s</span>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs text-gray-400 font-mono uppercase tracking-wider">
+                                        UP NEXT
+                                    </p>
+                                    <p className="text-sm font-bold text-white uppercase max-w-[200px] truncate mx-auto">
+                                        {exercise.name}
+                                    </p>
+                                    <p className="text-xs text-gray-500 font-mono">
+                                        SET {currentSet + 1}
+                                    </p>
+                                </div>
+                            </motion.div>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -243,7 +326,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
                     {phase === 'WORK' && (
                         <div className="flex flex-col items-center justify-center bg-gray-900/50 border border-gray-800 rounded-lg p-2 min-w-[70px]">
                             <TimerIcon size={14} className="text-system-neon mb-1" />
-                            <span className="text-xl font-bold font-mono text-white leading-none">{timeLeft}s</span>
+                            <span className="text-xl font-bold font-mono text-white leading-none">{Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</span>
                         </div>
                     )}
                 </div>

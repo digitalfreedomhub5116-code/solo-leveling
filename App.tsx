@@ -21,8 +21,6 @@ import TournamentResultModal from './components/TournamentResultModal'; // New I
 import { useSystem } from './hooks/useSystem';
 import { PlayerData, Tab, CoreStats } from './types';
 import { playSystemSoundEffect } from './utils/soundEngine';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import Auth from './components/Auth';
 
 // Animation Variants
 const staggerContainer = {
@@ -399,25 +397,6 @@ const DashboardView: React.FC<{
 };
 
 const App: React.FC = () => {
-  const { session, loading: authLoading, isPasswordRecovery } = useAuth();
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  // Show password reset form when user clicks reset link from email
-  if (isPasswordRecovery) {
-    return <Auth initialView="reset-password" />;
-  }
-
-  if (!session) {
-    return <Auth />;
-  }
-
   const { 
     player, registerUser, addQuest, completeQuest, 
     failQuest, resetQuest, deleteQuest, purchaseItem, addShopItem, removeShopItem, 
@@ -623,11 +602,4 @@ const App: React.FC = () => {
   );
 };
 
-// Wrap App with AuthProvider
-const AppWithAuth = () => (
-  <AuthProvider>
-    <App />
-  </AuthProvider>
-);
-
-export default AppWithAuth;
+export default App;

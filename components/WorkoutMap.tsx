@@ -2,7 +2,7 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Lock, Swords, Skull, Crown, Flag, Zap, X, Play } from 'lucide-react';
+import { Check, Lock, Swords, Skull, Crown, Flag, Zap, X, Play, Activity } from 'lucide-react';
 import { WorkoutDay } from '../types';
 
 interface WorkoutMapProps {
@@ -155,17 +155,20 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                         const isCompleted = index < completedDays;
                         const isCurrent = index === completedDays;
                         const isLocked = index > completedDays;
+                        const isSelected = selectedPreview === index;
+                        const isDimmed = selectedPreview !== null && !isSelected;
                         
                         // Map generic day index to the 7-day workout plan cycle
                         const planDay = workoutPlan[index % 7] || { day: `DAY ${index + 1}`, focus: 'UNKNOWN', exercises: [] };
 
-                        const zIndexClass = isCurrent ? 'z-50' : point.isBoss ? 'z-40' : 'z-10';
+                        // Dynamic Z-Index: Selected always on top
+                        const zIndexClass = isSelected ? 'z-[60]' : isCurrent ? 'z-50' : point.isBoss ? 'z-40' : 'z-10';
                         
                         return (
                             <motion.div
                                 key={point.id}
                                 ref={isCurrent ? currentDayRef : null}
-                                className={`absolute flex items-center justify-center cursor-pointer ${zIndexClass}`}
+                                className={`absolute flex items-center justify-center cursor-pointer transition-all duration-300 ${zIndexClass} ${isDimmed ? 'opacity-30 blur-[1px]' : 'opacity-100'}`}
                                 style={{ 
                                     left: `calc(50% + ${point.x}px)`, 
                                     top: point.y,
@@ -173,7 +176,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                     y: '-50%' 
                                 }}
                                 initial={false} // Disable initial animation for performance on scroll
-                                animate={{ scale: 1, opacity: 1 }}
+                                animate={{ scale: isSelected ? 1.3 : 1 }}
                                 onClick={() => setSelectedPreview(index)}
                             >
                                 {/* Visual Representation */}
@@ -183,6 +186,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                     ${isCompleted ? 'bg-system-neon text-black shadow-[0_0_15px_rgba(0,210,255,0.5)]' : ''}
                                     ${isCurrent ? 'bg-black border-2 border-system-neon text-system-neon animate-pulse shadow-[0_0_20px_rgba(0,210,255,0.6)]' : ''}
                                     ${isLocked ? 'bg-gray-900 border border-gray-700 text-gray-600' : ''}
+                                    ${isSelected ? 'ring-4 ring-white/50 shadow-[0_0_30px_white]' : ''}
                                 `}>
                                     {/* Icons */}
                                     {point.isFinal ? (
@@ -195,55 +199,16 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                         <Lock size={14} className="md:w-4 md:h-4" />
                                     )}
 
-                                    {/* Label for Current/Boss */}
-                                    {(isCurrent || point.isBoss) && (
-                                        <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 w-[180px] pointer-events-none flex justify-center">
-                                            {/* Enhanced Tooltip */}
-                                            <div className="bg-[#0a0a0a] border border-gray-800 rounded-lg p-3 shadow-xl flex flex-col items-center gap-1.5 relative pointer-events-auto z-50 w-full">
-                                                 <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#0a0a0a] border-t border-l border-gray-800 rotate-45" />
-                                                 
-                                                 {point.isFinal ? (
-                                                     <span className="text-system-neon font-bold text-[10px] tracking-widest text-center">TARGET REACHED</span>
-                                                 ) : (
-                                                     <>
-                                                        <div className="flex items-center gap-2 border-b border-gray-800 pb-1 w-full justify-center">
-                                                            <span className={`text-[9px] font-bold tracking-widest ${point.isBoss ? 'text-red-500' : 'text-gray-400'}`}>
-                                                                {point.isBoss ? 'BOSS BATTLE' : planDay.day}
-                                                            </span>
-                                                            {isCurrent && <span className="w-1.5 h-1.5 bg-system-neon rounded-full animate-pulse shadow-[0_0_5px_#00d2ff]" />}
-                                                        </div>
-                                                        
-                                                        <div className="text-sm font-black text-white italic tracking-tighter uppercase text-center px-1 leading-tight">
-                                                            {planDay.focus}
-                                                        </div>
-                                                        
-                                                        <div className="text-[9px] text-system-neon font-mono font-bold bg-system-neon/10 px-2 py-0.5 rounded border border-system-neon/20 uppercase tracking-wider">
-                                                            READY
-                                                        </div>
-
-                                                        {isCurrent && (
-                                                            <motion.button
-                                                                whileHover={{ scale: 1.05 }}
-                                                                whileTap={{ scale: 0.95 }}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    onStartDay(index);
-                                                                }}
-                                                                className="mt-2 w-full bg-system-neon text-black text-[10px] font-bold py-2 px-4 rounded flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,210,255,0.4)] hover:bg-white transition-colors"
-                                                            >
-                                                                <Play size={10} fill="black" /> 
-                                                                <span className="tracking-wider">START</span>
-                                                            </motion.button>
-                                                        )}
-                                                     </>
-                                                 )}
-                                            </div>
+                                    {/* Small Label for Current if no selection */}
+                                    {isCurrent && !selectedPreview && (
+                                        <div className="absolute top-full mt-2 bg-system-neon text-black text-[9px] font-bold px-2 py-0.5 rounded pointer-events-none">
+                                            CURRENT
                                         </div>
                                     )}
                                 </div>
 
                                 {/* Connecting Pulse for Current */}
-                                {isCurrent && (
+                                {isCurrent && !isSelected && (
                                     <div className="absolute inset-0 rounded-full border-2 border-system-neon opacity-50 animate-ping" />
                                 )}
                             </motion.div>
@@ -287,14 +252,14 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="relative z-10 w-full max-w-[320px] bg-[#0a0a0a] border border-gray-700 rounded-xl p-6 shadow-2xl flex flex-col max-h-[80vh]"
+                        className="relative z-10 w-full max-w-[340px] bg-[#0a0a0a] border border-gray-700 rounded-xl p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[85vh]"
                     >
                          {/* Decorative Header Line */}
                          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-system-neon to-transparent opacity-50" />
 
                         <button 
                           onClick={() => setSelectedPreview(null)}
-                          className="absolute top-3 right-3 text-gray-500 hover:text-white transition-colors"
+                          className="absolute top-3 right-3 text-gray-500 hover:text-white transition-colors p-1"
                         >
                           <X size={20} />
                         </button>
@@ -304,12 +269,12 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                             {selectedPreview > completedDays && <Lock size={14} className="text-gray-500" />}
                         </h4>
                         
-                        <div className="overflow-y-auto scrollbar-hide">
-                            <div className="text-white text-2xl font-black italic tracking-tighter mb-4 uppercase text-center">
+                        <div className="overflow-y-auto scrollbar-hide flex-1">
+                            <div className="text-white text-2xl font-black italic tracking-tighter mb-4 uppercase text-center drop-shadow-md">
                                 {workoutPlan[selectedPreview % 7]?.focus || "UNKNOWN"}
                             </div>
                             
-                            <div className="space-y-3 mb-6 bg-gray-900/30 p-4 rounded-lg border border-gray-800/50">
+                            <div className="space-y-4 mb-2 bg-gray-900/30 p-4 rounded-lg border border-gray-800/50">
                                 <div className="flex justify-between text-xs font-mono text-gray-400">
                                     <span>REWARD</span>
                                     <span className="text-system-neon font-bold">{selectedPreview % 7 === 6 ? '0 XP' : '350 XP'}</span>
@@ -325,46 +290,48 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                     </span>
                                 </div>
 
-                                {/* Exercise List Preview */}
-                                <div className="mt-4 pt-3 border-t border-gray-800/50">
-                                     <div className="text-[10px] text-gray-500 mb-2 uppercase tracking-wider">PROTOCOL:</div>
-                                     <div className="space-y-1">
-                                         {workoutPlan[selectedPreview % 7]?.exercises.slice(0, 3).map((ex, i) => (
-                                             <div key={i} className="text-xs text-gray-300 flex justify-between">
-                                                 <span className="truncate pr-2">{ex.name}</span>
-                                                 <span className="text-gray-600 whitespace-nowrap">{ex.sets}x{ex.reps}</span>
+                                {/* Full Exercise List */}
+                                <div className="pt-3 border-t border-gray-800/50">
+                                     <div className="text-[10px] text-gray-500 mb-3 uppercase tracking-wider flex items-center gap-1.5 font-bold">
+                                        <Activity size={12} className="text-system-neon" /> FULL PROTOCOL:
+                                     </div>
+                                     <div className="space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar pr-1">
+                                         {workoutPlan[selectedPreview % 7]?.exercises.map((ex, i) => (
+                                             <div key={i} className="text-xs text-gray-300 flex justify-between items-center p-2 rounded bg-black/40 border border-gray-800 hover:border-gray-700 transition-colors">
+                                                 <div className="flex flex-col min-w-0 pr-2">
+                                                    <span className="truncate font-bold text-white">{ex.name}</span>
+                                                    <span className="text-[9px] text-gray-500 uppercase tracking-wider">{ex.type}</span>
+                                                 </div>
+                                                 <span className="text-system-neon font-mono font-bold whitespace-nowrap bg-system-neon/10 px-1.5 py-0.5 rounded border border-system-neon/20 text-[10px] shrink-0">
+                                                    {ex.sets} x {ex.reps}
+                                                 </span>
                                              </div>
                                          ))}
-                                         {(workoutPlan[selectedPreview % 7]?.exercises.length || 0) > 3 && (
-                                             <div className="text-[10px] text-gray-600 italic mt-1 text-center">
-                                                 + {(workoutPlan[selectedPreview % 7]?.exercises.length || 0) - 3} MORE
-                                             </div>
-                                         )}
                                      </div>
                                 </div>
                             </div>
                         </div>
                         
                         {/* Footer Action */}
-                        <div className="shrink-0 mt-2">
+                        <div className="shrink-0 mt-4">
                              {selectedPreview === completedDays ? (
                                  <button 
                                     onClick={() => {
                                         onStartDay(selectedPreview);
                                         setSelectedPreview(null);
                                     }}
-                                    className="w-full bg-system-neon text-black font-bold py-3 rounded shadow-[0_0_20px_rgba(0,210,255,0.4)] hover:bg-white transition-all flex items-center justify-center gap-2 group"
+                                    className="w-full bg-system-neon text-black font-bold py-3.5 rounded-lg shadow-[0_0_20px_rgba(0,210,255,0.4)] hover:bg-white transition-all flex items-center justify-center gap-2 group text-xs uppercase tracking-widest"
                                  >
-                                    <Play size={18} fill="black" className="group-hover:scale-110 transition-transform" /> 
+                                    <Play size={16} fill="black" className="group-hover:scale-110 transition-transform" /> 
                                     START MISSION
                                  </button>
                              ) : selectedPreview < completedDays ? (
-                                 <div className="text-[10px] text-system-success font-mono text-center border-t border-gray-800 pt-3 flex items-center justify-center gap-2">
-                                    <Check size={12} /> MISSION ACCOMPLISHED
+                                 <div className="text-[10px] text-system-success font-mono text-center border-t border-gray-800 pt-3 flex items-center justify-center gap-2 font-bold tracking-widest">
+                                    <Check size={14} /> MISSION ACCOMPLISHED
                                  </div>
                              ) : (
-                                 <div className="text-[10px] text-gray-600 font-mono text-center border-t border-gray-800 pt-3 flex items-center justify-center gap-2">
-                                    <Lock size={12} /> LOCKED
+                                 <div className="text-[10px] text-gray-600 font-mono text-center border-t border-gray-800 pt-3 flex items-center justify-center gap-2 font-bold tracking-widest">
+                                    <Lock size={14} /> LOCKED CONTENT
                                  </div>
                              )}
                         </div>

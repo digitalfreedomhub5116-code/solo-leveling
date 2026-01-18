@@ -1,7 +1,6 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, ArrowUp, ArrowDown, Activity, Sword, Shield, Zap, Skull } from 'lucide-react';
+import { Trophy, Crown, ArrowUp, ArrowDown, Minus, Target as TargetIcon, Activity, Sparkles } from 'lucide-react';
 import { PlayerData } from '../types';
 
 interface RankingViewProps {
@@ -17,12 +16,11 @@ interface LeaderboardEntry {
   isPlayer: boolean;
   xp: number;
   avatarColor: string;
-  grindPower: number; 
+  grindPower: number; // Used as base potential multiplier
   lastRank: number; 
   trend: Trend; 
   status: 'GRINDING' | 'RESTING' | 'OVERDRIVE';
-  tier: number; 
-  classType: 'ASSASSIN' | 'TANK' | 'MAGE' | 'FIGHTER' | 'HEALER'; // RPG Flavor
+  tier: number; // 1-15, determines XP Band cap
 }
 
 const ROSTER_SIZE = 15;
@@ -47,20 +45,10 @@ const getBandMax = (tier: number) => {
 };
 
 const getHunterClass = (rank: number) => {
-    if (rank === 1) return "NATIONAL LEVEL";
-    if (rank <= 3) return "S-RANK";
-    if (rank <= 7) return "A-RANK";
-    return "B-RANK";
-};
-
-const getClassIcon = (type: string) => {
-    switch(type) {
-        case 'ASSASSIN': return <Sword size={12} />;
-        case 'TANK': return <Shield size={12} />;
-        case 'MAGE': return <Zap size={12} />;
-        case 'HEALER': return <Activity size={12} />;
-        default: return <Skull size={12} />;
-    }
+    if (rank === 1) return "S-RANK MONARCH";
+    if (rank <= 3) return "NATIONAL LEVEL";
+    if (rank <= 7) return "A-RANK ELITE";
+    return "RANK-B HUNTER";
 };
 
 const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
@@ -68,8 +56,8 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
   const todayStr = new Date().toISOString().split('T')[0];
   
   // Storage Keys
-  const CONFIG_KEY = `shadow_arena_config_${username}`; 
-  const DAILY_KEY = `shadow_arena_daily_${username}_${todayStr}`; 
+  const CONFIG_KEY = `shadow_arena_config_${username}`; // Persists identities & long-term stats
+  const DAILY_KEY = `shadow_arena_daily_${username}_${todayStr}`; // Persists today's XP
 
   const [roster, setRoster] = useState<LeaderboardEntry[]>([]);
   const [isReady, setIsReady] = useState(false);
@@ -79,7 +67,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
   useEffect(() => {
     const now = Date.now();
     
-    // 1. Load Long-term Config
+    // 1. Load Long-term Config (Identities, Motivation Stats)
     let config = {
         bots: [] as Partial<LeaderboardEntry>[],
         lastTop3Timestamp: 0,
@@ -111,7 +99,6 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
     // If no bots in config, generate them
     if (!config.bots || config.bots.length === 0) {
         const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
-        const classes = ['ASSASSIN', 'TANK', 'MAGE', 'FIGHTER', 'HEALER'];
         const shuffledNames = [...BOT_NAMES].sort(() => 0.5 - Math.random());
         
         config.bots = shuffledNames.slice(0, ROSTER_SIZE - 1).map((name, i) => ({
@@ -121,13 +108,14 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
             avatarColor: colors[i % colors.length],
             grindPower: 1, 
             tier: i + 1, 
-            classType: classes[i % classes.length] as any
         }));
         localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
     }
 
     // Merge Config with Daily XP
     currentRoster = config.bots.map((bot) => {
+        // Base XP: Random between 300 and 400 (multiples of 10)
+        // 300 + (0..10 * 10)
         const randomStart = 300 + (Math.floor(Math.random() * 11) * 10);
         const startXp = dailyData ? (dailyData.xpMap[bot.id!] || randomStart) : randomStart;
         const tier = bot.tier ?? 15;
@@ -140,7 +128,6 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
             avatarColor: bot.avatarColor!,
             grindPower: tier === 1 ? 1.5 : tier <= 3 ? 1.3 : 1.1,
             tier: tier,
-            classType: bot.classType || 'FIGHTER',
             lastRank: 0,
             trend: 'SAME',
             status: 'GRINDING'
@@ -155,25 +142,25 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
         xp: currentPlayer.dailyXp || 0,
         avatarColor: '#00d2ff',
         grindPower: 0,
-        tier: 0,
-        classType: 'ASSASSIN', // Player default
+        tier: 0, 
         lastRank: ROSTER_SIZE,
         trend: 'SAME',
         status: 'GRINDING'
     });
 
-    // 5. Offline Catch-up
+    // 5. Offline Catch-up (Simulate missed time)
     if (dailyData) {
         const secondsPassed = (now - dailyData.lastUpdated) / 1000;
         if (secondsPassed > 60) {
-            const catchUpTicks = Math.floor(secondsPassed / 30);
-            const cappedTicks = Math.min(catchUpTicks, 120); 
+            const catchUpTicks = Math.floor(secondsPassed / 30); // 30s virtual ticks
+            const cappedTicks = Math.min(catchUpTicks, 120); // Max 1 hour catchup
             
             currentRoster.forEach(bot => {
                 if (!bot.isPlayer) {
+                    // Simulating integer gains
                     let gain = 0;
                     for(let i=0; i<cappedTicks; i++) {
-                        if(Math.random() > 0.4) gain += 10; 
+                        if(Math.random() > 0.4) gain += 10; // Simple catchup logic
                     }
                     const max = getBandMax(bot.tier);
                     bot.xp = Math.min(max, bot.xp + gain);
@@ -182,6 +169,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
         }
     }
 
+    // Initial Sort
     const sorted = sortAndLabel(currentRoster);
     setRoster(sorted);
     setIsReady(true);
@@ -190,6 +178,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
   // --- AUTO SCROLL ---
   useEffect(() => {
       if (isReady) {
+          // Delay slightly to ensure render cycle finishes
           setTimeout(() => {
               const playerEl = document.getElementById('current-player-card');
               if (playerEl) {
@@ -199,6 +188,7 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
       }
   }, [isReady]);
 
+  // --- SAVE STATE ---
   const saveDaily = (data: LeaderboardEntry[]) => {
       const xpMap: Record<string, number> = {};
       data.forEach(d => { if(!d.isPlayer) xpMap[d.id] = d.xp; });
@@ -227,156 +217,249 @@ const RankingView: React.FC<RankingViewProps> = ({ currentPlayer }) => {
     });
   };
 
-  // --- SIMULATION ENGINE ---
+  // --- SIMULATION ENGINE (Every 10s) ---
   useEffect(() => {
     if (!isReady) return;
 
     simInterval.current = setInterval(() => {
       setRoster(prev => {
+        // Player XP Sync
         const playerXp = currentPlayer.dailyXp || 0; 
+
+        // 1. Analyze Current State for Rubber Banding Logic
+        // We create a temporary sorted list to understand ranks *before* applying updates
         const tempSorted = [...prev].map(p => p.isPlayer ? { ...p, xp: playerXp } : p).sort((a, b) => b.xp - a.xp);
         const playerRank = tempSorted.findIndex(p => p.isPlayer) + 1;
+        
+        // Find the highest ranked bot (Rival)
         const topBot = tempSorted.find(p => !p.isPlayer);
         
         let rubberBandMode = false;
+        
+        // TRIGGER: If Player is #1 and has > 600 XP lead on the top bot
         if (playerRank === 1 && topBot) {
             const gap = playerXp - topBot.xp;
-            if (gap > 600) rubberBandMode = true;
+            if (gap > 600) {
+                rubberBandMode = true;
+            }
         }
 
         const next = prev.map(bot => {
-          if (bot.isPlayer) return { ...bot, xp: playerXp };
+          if (bot.isPlayer) {
+              return { ...bot, xp: playerXp };
+          }
 
           let change = 0;
-          if (bot.status === 'GRINDING' || bot.status === 'OVERDRIVE') {
-              if (Math.random() > 0.4) {
-                  const baseGain = 15;
-                  const multiplier = bot.status === 'OVERDRIVE' ? 2.5 : (bot.grindPower || 1);
-                  change = Math.floor(Math.random() * baseGain * multiplier);
-                  
-                  if (rubberBandMode && bot.id === topBot?.id) {
-                      change = Math.floor(change * 0.5); // Slow down top bot if too far ahead
-                  }
+          const roll = Math.random();
+          let currentStatus = bot.status;
+
+          // --- DYNAMIC LOGIC ---
+          // If Rubber Band is active AND bot is high tier (Top 5 capability), they go into overdrive
+          if (rubberBandMode && bot.tier <= 5) {
+              currentStatus = 'OVERDRIVE';
+              // Massive boost to catch up: 50 to 250 XP per tick
+              const surge = 50 + Math.floor(Math.random() * 200); 
+              change = surge;
+          } 
+          // Standard Logic
+          else {
+              // Reset status if they were in overdrive but player is no longer #1 with huge lead
+              if (currentStatus === 'OVERDRIVE') currentStatus = 'GRINDING';
+
+              // 50% Chance to GAIN XP
+              if (roll < 0.50) {
+                  // Gain: 10, 20, 30
+                  const base = (Math.floor(Math.random() * 3) + 1) * 10;
+                  change = Math.round((base * bot.grindPower) / 10) * 10;
+              } 
+              // 30% Chance to LOSE XP (Minus Logic)
+              else if (roll < 0.80) {
+                  change = -(Math.floor(Math.random() * 2) + 1) * 10;
+              }
+              // 20% No Change
+
+              // Gravity System: If very close to player, slightly biased to create competition
+              const distToPlayer = Math.abs(bot.xp - playerXp);
+              if (distToPlayer <= 20) {
+                  if (Math.random() > 0.5) change += 10;
+                  else change -= 10;
               }
           }
 
-          // Cap at band max
-          const bandMax = getBandMax(bot.tier);
-          const newXp = Math.min(bandMax, bot.xp + change);
+          // XP Band Clamping
+          let max = getBandMax(bot.tier);
           
-          // Status Rotation
-          let newStatus = bot.status;
-          if (Math.random() > 0.98) {
-             newStatus = bot.status === 'RESTING' ? 'GRINDING' : 'RESTING';
-             if (Math.random() > 0.9 && newStatus === 'GRINDING') newStatus = 'OVERDRIVE';
+          // CRITICAL: If in Overdrive, ignore the band cap so they can actually chase the player
+          if (rubberBandMode && bot.tier <= 5) {
+              max = playerXp + 500; // Allow them to potentially pass the player
           }
 
-          return { ...bot, xp: newXp, status: newStatus };
+          let newXp = bot.xp + change;
+          
+          if (newXp > max) newXp = max;
+          if (newXp < 0) newXp = 0;
+
+          return {
+              ...bot,
+              xp: newXp,
+              status: currentStatus
+          };
         });
 
-        // Sort and re-rank
-        const sortedNext = sortAndLabel(next);
-        
-        // Save Daily State
-        if (Math.random() > 0.9) saveDaily(sortedNext);
-
-        return sortedNext;
+        const newSorted = sortAndLabel(next);
+        saveDaily(newSorted);
+        return newSorted;
       });
-    }, 3000); 
+    }, 10000); // 10s Tick
 
-    return () => {
-        if (simInterval.current) clearInterval(simInterval.current);
-    };
+    return () => { if (simInterval.current) clearInterval(simInterval.current); };
   }, [isReady, currentPlayer.dailyXp]);
 
+  // --- RENDER HELPERS ---
+  const playerRank = roster.findIndex(u => u.isPlayer) + 1;
+  const rival = playerRank > 1 ? roster[playerRank - 2] : null;
+
   return (
-    <div className="w-full max-w-2xl mx-auto pb-20">
-       {/* Header */}
-       <div className="mb-6 flex items-end justify-between px-4">
-           <div>
-               <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase">Global Rankings</h1>
-               <div className="text-[10px] font-mono text-gray-500 tracking-widest flex items-center gap-2">
-                   <Activity size={12} className="text-system-neon animate-pulse" /> LIVE FEED
-               </div>
-           </div>
-           <div className="text-right">
-                <div className="text-[10px] text-gray-500 font-bold uppercase">Your Rank</div>
-                <div className="text-4xl font-black text-system-neon leading-none">
-                    #{roster.find(p => p.isPlayer)?.lastRank || '-'}
-                </div>
-           </div>
+    <div className="h-full flex flex-col max-w-4xl mx-auto w-full px-2 font-mono selection:bg-system-neon">
+       
+       {/* HEADER */}
+       <div className="bg-system-card border border-system-border p-4 md:p-6 mb-4 md:mb-8 rounded-2xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
+          <div className="absolute inset-0 bg-gradient-to-br from-system-neon/5 to-transparent pointer-events-none" />
+          <div className="flex items-center gap-3 md:gap-4 relative z-10">
+              <div className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center">
+                  <Trophy className="text-yellow-500 w-full h-full" />
+              </div>
+              <div>
+                  <h1 className="text-xl md:text-3xl font-black text-white tracking-tighter uppercase">SHADOW ARENA</h1>
+                  <p className="text-[8px] md:text-[10px] text-gray-500 tracking-[0.3em] uppercase">Global Ranking Engine // Live Sync</p>
+              </div>
+          </div>
+
+          {rival && (
+              <div className="bg-red-950/20 border border-red-900/40 p-2 md:p-3 rounded-xl flex items-center gap-3 md:gap-4 relative z-10 w-full md:w-auto">
+                  <div className="flex flex-col items-center shrink-0">
+                      <TargetIcon className="text-red-600 animate-pulse w-4 h-4 md:w-5 md:h-5" />
+                      <span className="text-[8px] text-red-700 font-bold uppercase mt-1">Target</span>
+                  </div>
+                  <div className="min-w-0">
+                      <div className="text-[8px] md:text-[9px] text-red-400 uppercase font-bold truncate">RIVAL: {rival.name}</div>
+                      <div className="text-sm md:text-lg font-black text-white leading-none">
+                        -{rival.xp - (currentPlayer.dailyXp || 0)} <span className="text-[8px] md:text-[10px] text-gray-600">XP</span>
+                      </div>
+                  </div>
+              </div>
+          )}
        </div>
 
-       {/* List */}
-       <div className="space-y-2 px-2">
-           <AnimatePresence mode="popLayout">
-               {roster.map((entry) => (
-                   <motion.div
-                       layout
-                       key={entry.id}
-                       id={entry.isPlayer ? 'current-player-card' : undefined}
-                       initial={{ opacity: 0, y: 20 }}
-                       animate={{ opacity: 1, y: 0 }}
-                       transition={{ duration: 0.3 }}
-                       className={`
-                           relative flex items-center p-3 rounded-xl border transition-all
-                           ${entry.isPlayer 
-                               ? 'bg-system-neon/10 border-system-neon/50 shadow-[0_0_20px_rgba(0,210,255,0.2)] z-10' 
-                               : 'bg-gray-900/40 border-gray-800'
-                           }
-                       `}
-                   >
-                       <div className="w-12 text-center shrink-0 flex flex-col items-center justify-center">
-                           {entry.lastRank <= 3 ? (
-                               <Crown size={20} className={
-                                   entry.lastRank === 1 ? 'text-yellow-500' :
-                                   entry.lastRank === 2 ? 'text-gray-300' : 'text-orange-700'
-                               } />
-                           ) : (
-                               <span className="text-sm font-bold text-gray-500 font-mono">#{entry.lastRank}</span>
-                           )}
-                       </div>
+       {/* ARENA LIST */}
+       <div className="flex-1 space-y-3 md:space-y-4 relative pb-20">
+          <AnimatePresence mode="popLayout">
+            {roster.map((user, idx) => {
+                const rank = idx + 1;
+                const isMe = user.isPlayer;
+                const isAscending = user.trend === 'UP';
 
-                       <div className="w-10 h-10 rounded-lg flex items-center justify-center mr-4 shrink-0 relative overflow-hidden bg-gray-800">
-                           <div className="absolute inset-0 opacity-20" style={{ backgroundColor: entry.avatarColor }} />
-                           <div className="relative z-10 text-white/80">
-                               {getClassIcon(entry.classType)}
-                           </div>
-                       </div>
+                return (
+                    <motion.div
+                      key={user.id}
+                      id={isMe ? "current-player-card" : undefined}
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ 
+                        opacity: 1, 
+                        scale: isAscending ? 1.05 : 1,
+                        zIndex: isAscending ? 100 : 10,
+                        y: 0 
+                      }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ 
+                        layout: { 
+                            type: "spring", 
+                            stiffness: 40, 
+                            damping: 15, 
+                            mass: 3 
+                        },
+                        scale: { duration: 0.6 },
+                        opacity: { duration: 0.4 }
+                      }}
+                      className={`relative flex items-center justify-between p-3 md:p-5 rounded-2xl border transition-colors duration-700 ${
+                          isMe ? 'border-system-neon bg-system-neon/10 ring-1 ring-system-neon/30 shadow-[0_0_30px_rgba(0,210,255,0.1)]' : 
+                          'border-gray-800 bg-gray-900/40 hover:border-gray-700'
+                      }`}
+                    >
+                        {/* ASCENSION GLOW EFFECT */}
+                        {isAscending && (
+                             <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: [0, 0.4, 0] }}
+                                transition={{ duration: 2, repeat: Infinity }}
+                                className="absolute inset-0 bg-system-success/10 rounded-2xl pointer-events-none" 
+                             />
+                        )}
 
-                       <div className="flex-1 min-w-0">
-                           <div className="flex items-center gap-2">
-                               <span className={`font-bold text-sm truncate ${entry.isPlayer ? 'text-white' : 'text-gray-300'}`}>
-                                   {entry.name}
-                               </span>
-                               {entry.isPlayer && (
-                                   <span className="text-[8px] bg-system-neon text-black px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">YOU</span>
-                               )}
-                               {entry.status === 'OVERDRIVE' && (
-                                   <Zap size={12} className="text-yellow-500 animate-pulse" fill="currentColor" />
-                               )}
-                           </div>
-                           <div className="flex items-center gap-3 text-[10px] text-gray-500 font-mono">
-                               <span>{getHunterClass(entry.lastRank)}</span>
-                               <span>•</span>
-                               <span>{entry.classType}</span>
-                           </div>
-                       </div>
+                        <div className="flex items-center gap-3 md:gap-6 z-10 overflow-hidden">
+                            <div className="flex flex-col items-center w-6 md:w-8 shrink-0">
+                                <motion.span 
+                                    layout="position"
+                                    className={`text-lg md:text-2xl font-black ${isMe ? 'text-system-neon' : 'text-gray-700'}`}
+                                >
+                                    {rank}
+                                </motion.span>
+                                {isAscending && <ArrowUp size={12} className="text-system-success mt-1" />}
+                                {user.trend === 'DOWN' && <ArrowDown size={12} className="text-red-700 mt-1" />}
+                                {user.trend === 'SAME' && <Minus size={12} className="text-gray-800 mt-1" />}
+                            </div>
 
-                       <div className="text-right shrink-0 min-w-[80px]">
-                           <div className="font-mono font-bold text-white text-sm">{entry.xp.toLocaleString()} XP</div>
-                           <div className={`text-[10px] font-bold flex items-center justify-end gap-1 ${
-                               entry.trend === 'UP' ? 'text-system-success' : 
-                               entry.trend === 'DOWN' ? 'text-red-500' : 'text-gray-600'
-                           }`}>
-                               {entry.trend === 'UP' && <ArrowUp size={10} />}
-                               {entry.trend === 'DOWN' && <ArrowDown size={10} />}
-                               {entry.trend === 'SAME' && '-'}
-                           </div>
-                       </div>
-                   </motion.div>
-               ))}
-           </AnimatePresence>
+                            <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                                <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center font-bold text-black text-lg md:text-xl shrink-0" style={{ backgroundColor: user.avatarColor }}>
+                                    {user.name.charAt(0)}
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-xs md:text-sm font-bold truncate ${isMe ? 'text-system-neon' : 'text-white'}`}>{user.name.toUpperCase()}</span>
+                                        {isMe && <span className="text-[8px] bg-system-neon text-black px-1.5 rounded font-black shrink-0">YOU</span>}
+                                    </div>
+                                    <div className="text-[8px] md:text-[9px] text-gray-500 font-bold uppercase tracking-widest truncate">{getHunterClass(rank)}</div>
+                                    {isAscending && (
+                                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1 text-system-success text-[8px] font-black mt-1">
+                                            <Sparkles size={10} /> ASCENDING
+                                        </motion.div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="text-right z-10 shrink-0 ml-2">
+                            <div className="flex items-center gap-2 md:gap-3 justify-end">
+                                {rank <= 3 && <Crown className={rank === 1 ? "text-yellow-500" : "text-purple-500"} size={window.innerWidth < 768 ? 14 : 18} />}
+                                <span className="text-base md:text-xl font-black text-white tabular-nums">{user.xp.toLocaleString()}</span>
+                            </div>
+                            <div className="text-[8px] text-gray-600 font-bold uppercase tracking-widest flex items-center gap-1 md:gap-2 justify-end">
+                                <Activity size={10} className={user.status === 'OVERDRIVE' ? 'text-red-500 animate-bounce' : user.status === 'GRINDING' ? 'text-system-neon animate-pulse' : ''} />
+                                {user.status}
+                            </div>
+                        </div>
+                    </motion.div>
+                );
+            })}
+          </AnimatePresence>
+       </div>
+
+       {/* FOOTER MARQUEE */}
+       <div className="fixed bottom-0 left-0 w-full bg-black/95 border-t border-gray-800 h-10 overflow-hidden z-30">
+            <div className="flex whitespace-nowrap animate-[marquee_20s_linear_infinite] font-mono text-[9px] text-gray-600 items-center h-full gap-10 md:gap-20">
+                <span>SYSTEM STATUS: STABLE</span>
+                <span>ARENA SYNC: LIVE</span>
+                <span>CATCH-UP ENGINE: ACTIVE</span>
+                <span>LIMIT BREAKER DETECTED</span>
+                <span>SYSTEM STATUS: STABLE</span>
+            </div>
+            <style>{`
+                @keyframes marquee {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-50%); }
+                }
+            `}</style>
        </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Clock, Flame, Dumbbell, Zap, Activity, HeartPulse, ChevronRight, Fingerprint, ScanLine, Video, AlertTriangle } from 'lucide-react';
 import { WorkoutDay, Exercise } from '../types';
@@ -184,16 +185,18 @@ const WorkoutOverview: React.FC<WorkoutOverviewProps> = ({ plan, focusVideos, on
       onStart(modifiedPlan, isCardio);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4">
+  // Render via Portal to break out of any transform stacking contexts from parent layouts
+  // This ensures the modal is always full screen and above navbars
+  return createPortal(
+    <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(0,210,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
 
         <motion.div 
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="w-full max-w-4xl bg-[#050505] border border-system-border rounded-xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[90vh]"
+            className="w-full max-w-4xl bg-[#050505] border border-system-border rounded-xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[90vh] relative z-10"
         >
-            <div className="p-6 border-b border-gray-800 bg-gray-900/20 flex justify-between items-start">
+            <div className="p-6 border-b border-gray-800 bg-gray-900/20 flex justify-between items-start shrink-0">
                 <div>
                     <div className="text-[10px] text-system-neon font-mono tracking-[0.3em] uppercase mb-1">Dungeon Gate</div>
                     <h2 className="text-2xl md:text-3xl font-black italic text-white tracking-tighter uppercase">{plan.focus} INSTANCE</h2>
@@ -268,7 +271,7 @@ const WorkoutOverview: React.FC<WorkoutOverviewProps> = ({ plan, focusVideos, on
                 </div>
             </div>
 
-            <div className="p-6 bg-gray-900/50 border-t border-gray-800">
+            <div className="p-6 bg-gray-900/50 border-t border-gray-800 shrink-0 mb-safe">
                 <button 
                     onClick={handleStart}
                     className="w-full h-14 bg-system-neon text-black text-lg font-black italic tracking-tighter rounded clip-path-slant hover:bg-white transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(0,210,255,0.4)] group"
@@ -279,7 +282,8 @@ const WorkoutOverview: React.FC<WorkoutOverviewProps> = ({ plan, focusVideos, on
                 </button>
             </div>
         </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
