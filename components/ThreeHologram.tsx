@@ -15,18 +15,6 @@ declare global {
   }
 }
 
-// Also augment React's JSX namespace directly for compatibility with newer React types
-declare module 'react' {
-  namespace JSX {
-    interface IntrinsicElements {
-      mesh: any;
-      group: any;
-      ambientLight: any;
-      pointLight: any;
-    }
-  }
-}
-
 const HologramMaterial = {
   uniforms: {
     uTime: { value: 0 },

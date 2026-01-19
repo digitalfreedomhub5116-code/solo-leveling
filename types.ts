@@ -270,6 +270,9 @@ export interface PlayerData {
   exerciseDatabase: AdminExercise[];
   focusVideos: Record<string, string>; // Configuration for region videos
   
+  // Custom Protocols (Admin Edits)
+  customProtocols?: Record<string, WorkoutDay[]>;
+
   // Tournament
   tournament: {
       pendingReward: TournamentReward | null;

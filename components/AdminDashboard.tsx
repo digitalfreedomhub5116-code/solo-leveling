@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, Database, Save, RefreshCw, Video, Link, Search, ChevronRight, ShieldAlert, Activity } from 'lucide-react';
@@ -28,7 +29,7 @@ const CATEGORIES: { id: ProtocolCategory; label: string }[] = [
 ];
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
-  const { updateFocusVideos, player } = useSystem();
+  const { updateFocusVideos, updateCustomProtocols, player } = useSystem();
   
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<'PROTOCOLS' | 'REGIONS' | 'USERS'>('PROTOCOLS');
@@ -37,7 +38,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [selectedDayIdx, setSelectedDayIdx] = useState<number>(0);
   
   // Local cache for editing protocol data (e.g. video URLs)
-  const [localRegistry, setLocalRegistry] = useState<Record<string, WorkoutDay[]>>(MASTER_PROTOCOL_REGISTRY);
+  // Initialize with player's saved protocols if they exist, otherwise master defaults
+  const [localRegistry, setLocalRegistry] = useState<Record<string, WorkoutDay[]>>(() => {
+      return player.customProtocols && Object.keys(player.customProtocols).length > 0 
+        ? player.customProtocols 
+        : MASTER_PROTOCOL_REGISTRY;
+  });
 
   // User Data State
   const [users, setUsers] = useState<any[]>([]);
@@ -69,28 +75,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       const targetDayIdx = weekStartIdx + selectedDayIdx;
       
       if (updated[selectedCategory][targetDayIdx]) {
-          updated[selectedCategory][targetDayIdx].exercises[exIdx].videoUrl = url;
+          // Deep copy to avoid mutation issues
+          const days = [...updated[selectedCategory]];
+          const day = { ...days[targetDayIdx] };
+          const exercises = [...day.exercises];
+          exercises[exIdx] = { ...exercises[exIdx], videoUrl: url };
+          
+          day.exercises = exercises;
+          days[targetDayIdx] = day;
+          updated[selectedCategory] = days;
+          
           setLocalRegistry(updated);
       }
   };
 
   const handleSaveProtocol = async () => {
       setIsSaving(true);
-      // In a real app, we'd persist this registry to a 'master_configs' table
-      // For now, we simulate persistence via system logs
-      setTimeout(() => {
+      try {
+          // Save to player profile (Cloud Sync)
+          updateCustomProtocols(localRegistry);
+          alert("Protocol Configuration Saved to Cloud Core.");
+      } catch (err) {
+          alert("Save Failed.");
+      } finally {
           setIsSaving(false);
-          alert("Protocol deployed to System Core.");
-      }, 1000);
+      }
   };
 
   const handleSaveRegions = async () => {
       setIsSaving(true);
       try {
           updateFocusVideos(regionVideos);
-          if (player.userId && !player.userId.startsWith('local-')) {
-              await supabase.from('profiles').update({ focus_videos: regionVideos }).eq('id', player.userId);
-          }
+          alert("Neural Visuals Synced to Cloud.");
       } catch (err) {
           alert(`Sync Failed`);
       } finally {

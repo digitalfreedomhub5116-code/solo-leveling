@@ -217,8 +217,13 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                 .eq('id', user.id)
                 .single();
               
-              if (profile) onLogin(profile);
-              else onLogin({ name: handle, username: handle, userId: user.id });
+              if (profile) {
+                  // Critical Fix: Unwrap raw_data if it exists (JSON field) to restore full player state
+                  const playerData = profile.raw_data || {};
+                  onLogin({ ...playerData, userId: profile.id, name: profile.name || playerData.name });
+              } else {
+                  onLogin({ name: handle, username: handle, userId: user.id });
+              }
           }
       } catch (err: any) {
           setError(err.message || "ACCESS DENIED");

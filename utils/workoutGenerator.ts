@@ -1,3 +1,4 @@
+
 import { Exercise, HealthProfile, WorkoutDay } from '../types';
 
 // --- TYPES ---
@@ -203,7 +204,7 @@ const generateGymClassic = (): WorkoutDay[] => {
     const plan: WorkoutDay[] = [];
     const weeks = [
         { label: 'WEEK 1: VOLUME PHASE', reps: '12, 10, 8' },
-        { label: 'WEEK 2: PROGRESSIVE OVERLOAD', reps: '12, 10, 8' },
+        { label: 'WEEK 2: PROGRESSION', reps: '12, 10, 8' },
         { label: 'WEEK 3: PEAK VOLUME', reps: '12, 10, 8' },
         { label: 'WEEK 4: STRENGTH & DENSITY', reps: '3 x 8' }
     ];
@@ -385,7 +386,7 @@ export const MASTER_PROTOCOL_REGISTRY: Record<string, WorkoutDay[]> = {
     DB_REGULAR: generateGymPpl()
 };
 
-export const generateSystemProtocol = (profile: HealthProfile): WorkoutDay[] => {
+export const generateSystemProtocol = (profile: HealthProfile, customRegistry?: Record<string, WorkoutDay[]>): WorkoutDay[] => {
     const equipment = profile.equipment as Equipment; 
     const split = profile.workoutSplit as Split; 
     
@@ -399,7 +400,9 @@ export const generateSystemProtocol = (profile: HealthProfile): WorkoutDay[] => 
         protocolKey = split === 'PPL' ? 'DB_PPL' : 'DB_REGULAR';
     }
 
-    const plan = MASTER_PROTOCOL_REGISTRY[protocolKey] || generateGymPpl();
+    // Use Custom Registry from User Profile if provided, otherwise default master
+    const registry = customRegistry || MASTER_PROTOCOL_REGISTRY;
+    const plan = registry[protocolKey] || MASTER_PROTOCOL_REGISTRY[protocolKey];
 
     if (!plan || plan.length === 0) {
         return [

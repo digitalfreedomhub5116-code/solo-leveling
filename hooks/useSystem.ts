@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   PlayerData, Quest, ShopItem, SystemNotification, NotificationType, 
-  ActivityLog, HealthProfile, ProgressPhoto, MealLog
+  ActivityLog, HealthProfile, ProgressPhoto, MealLog, WorkoutDay
 } from '../types';
 import { supabase } from '../lib/supabase';
 import { playSystemSoundEffect } from '../utils/soundEngine';
@@ -51,6 +51,7 @@ const DEFAULT_PLAYER: PlayerData = {
   nutritionLogs: [],
   exerciseDatabase: [],
   focusVideos: {},
+  customProtocols: {},
   tournament: { pendingReward: null }
 };
 
@@ -104,10 +105,27 @@ export const useSystem = () => {
 
   // --- ACTIONS ---
 
-  const registerUser = (profile: Partial<PlayerData>) => {
+  const registerUser = (profile: any) => {
       setPlayer(prev => {
-          const updated = { ...prev, ...profile, isConfigured: true };
-          syncToCloud(updated);
+          // IMPORTANT: Handle data structure from Supabase (which puts the entire state in 'raw_data')
+          // If profile comes from DB, it has { id, raw_data: {...}, ... }
+          // If profile comes from registration, it's just Partial<PlayerData>
+          
+          const playerData = profile.raw_data ? profile.raw_data : profile;
+          
+          const updated = { 
+              ...prev, 
+              ...playerData, 
+              // Ensure we capture the top-level ID if present in the raw row
+              userId: profile.id || prev.userId,
+              isConfigured: true 
+          };
+          
+          // Only sync back if it's a new registration (not having raw_data implies new)
+          if (!profile.raw_data) {
+              syncToCloud(updated);
+          }
+          
           return updated;
       });
       playSystemSoundEffect('SYSTEM');
@@ -116,6 +134,14 @@ export const useSystem = () => {
   const updateFocusVideos = (videos: Record<string, string>) => {
       setPlayer(prev => {
           const updated = { ...prev, focusVideos: videos };
+          syncToCloud(updated);
+          return updated;
+      });
+  };
+
+  const updateCustomProtocols = (protocols: Record<string, WorkoutDay[]>) => {
+      setPlayer(prev => {
+          const updated = { ...prev, customProtocols: protocols };
           syncToCloud(updated);
           return updated;
       });
@@ -528,6 +554,7 @@ export const useSystem = () => {
     reducePenalty,
     claimTournamentReward,
     updateFocusVideos,
+    updateCustomProtocols,
     addXp
   };
 };
