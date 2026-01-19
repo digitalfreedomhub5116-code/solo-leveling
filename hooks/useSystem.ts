@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   PlayerData, Quest, ShopItem, SystemNotification, NotificationType, 
@@ -68,6 +69,38 @@ export const useSystem = () => {
     localStorage.setItem('biosync_player_v2', JSON.stringify(player));
   }, [player]);
 
+  // --- GLOBAL VIDEO SYNC ---
+  // Fetch global videos on mount
+  useEffect(() => {
+    const fetchGlobalVideos = async () => {
+      try {
+        const { data, error } = await supabase.from('global_videos').select('*');
+        if (error) {
+          console.warn("Failed to fetch global videos:", error.message);
+          return;
+        }
+        
+        if (data && data.length > 0) {
+          const videoMap: Record<string, string> = {};
+          data.forEach((row: any) => {
+            if (row.key && row.url) {
+              videoMap[row.key] = row.url;
+            }
+          });
+
+          setPlayer(prev => ({
+            ...prev,
+            focusVideos: { ...prev.focusVideos, ...videoMap }
+          }));
+        }
+      } catch (err) {
+        console.error("Global Video Sync Error", err);
+      }
+    };
+
+    fetchGlobalVideos();
+  }, []);
+
   // Sync to Cloud (Debounced or immediate)
   const syncToCloud = async (data: PlayerData) => {
     if (data.userId && !data.userId.startsWith('local-')) {
@@ -131,12 +164,28 @@ export const useSystem = () => {
       playSystemSoundEffect('SYSTEM');
   };
 
-  const updateFocusVideos = (videos: Record<string, string>) => {
+  const updateFocusVideos = async (videos: Record<string, string>) => {
+      // 1. Optimistic Update (Local)
       setPlayer(prev => {
           const updated = { ...prev, focusVideos: videos };
-          syncToCloud(updated);
           return updated;
       });
+
+      // 2. Persist to Global Table
+      try {
+          const upsertData = Object.entries(videos).map(([key, url]) => ({
+              key,
+              url,
+              updated_at: new Date().toISOString()
+          }));
+          
+          const { error } = await supabase.from('global_videos').upsert(upsertData);
+          if (error) throw error;
+      } catch (err: any) {
+          console.error("Failed to sync videos to global table:", err.message || err);
+          addNotification(`Cloud Sync Failed: ${err.message || "Unknown Error"}`, "WARNING");
+          throw err; // Re-throw to allow component to handle failure UI
+      }
   };
 
   const updateCustomProtocols = (protocols: Record<string, WorkoutDay[]>) => {

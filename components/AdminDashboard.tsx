@@ -53,6 +53,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [regionVideos, setRegionVideos] = useState<Record<string, string>>(player.focusVideos || {});
   const [isSaving, setIsSaving] = useState(false);
 
+  // Sync state when player data loads from global fetching
+  useEffect(() => {
+      if (player.focusVideos) {
+          setRegionVideos(player.focusVideos);
+      }
+  }, [player.focusVideos]);
+
   // --- DATA LOADING ---
   const fetchUsers = async () => {
       try {
@@ -105,7 +112,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const handleSaveRegions = async () => {
       setIsSaving(true);
       try {
-          updateFocusVideos(regionVideos);
+          // Now updates Global Table via useSystem hook
+          await updateFocusVideos(regionVideos);
           alert("Neural Visuals Synced to Cloud.");
       } catch (err) {
           alert(`Sync Failed`);
@@ -280,7 +288,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                    <div className="bg-gray-900/30 border border-gray-800 p-6 rounded-xl flex justify-between items-center">
                        <div>
                            <h2 className="text-white font-bold flex items-center gap-2"><Activity size={18} className="text-system-accent" /> NEURAL VISUALIZER MAPPING</h2>
-                           <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest">Global exercise video pointers</p>
+                           <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest">Global exercise video pointers (Synced across all users)</p>
                        </div>
                        <button onClick={handleSaveRegions} disabled={isSaving} className="px-6 py-2 bg-system-accent text-white font-bold rounded flex items-center gap-2 hover:bg-white hover:text-black transition-all disabled:opacity-50 text-xs shadow-[0_0_15px_rgba(139,92,246,0.3)]">
                            {isSaving ? <RefreshCw className="animate-spin" size={14} /> : <Save size={14} />}

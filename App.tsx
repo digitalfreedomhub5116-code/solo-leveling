@@ -426,11 +426,9 @@ const App: React.FC = () => {
   };
 
   // Determine active welcome quest ID for tutorial highlighting
-  // Finds the first incomplete quest from the welcome set
   const activeWelcomeQuest = player.quests.find(q => 
       ['wq_1', 'wq_2', 'wq_3', 'wq_4', 'wq_5'].includes(q.id) && !q.isCompleted
   );
-  // Note: QuestsView sorts quests, but the ID we pass needs to match the element ID
   const activeWelcomeQuestId = activeWelcomeQuest ? `quest-card-${activeWelcomeQuest.id}` : null;
 
   // Tutorial Tab Synchronization
@@ -450,18 +448,20 @@ const App: React.FC = () => {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
 
-  // 1. AUTH CHECK
+  // 1. ADMIN LOGIN OVERRIDE (Should take precedence)
+  if (showAdminLogin) {
+      return <AdminLogin onLoginSuccess={() => { setShowAdminLogin(false); setShowAdmin(true); }} onBack={() => setShowAdminLogin(false)} />;
+  }
+
+  // 2. AUTH CHECK
   if (!player.isConfigured) {
-    if (showAdminLogin) {
-        return <AdminLogin onLoginSuccess={() => { setShowAdminLogin(false); setShowAdmin(true); }} onBack={() => setShowAdminLogin(false)} />;
-    }
     if (showAdmin) {
         return <AdminDashboard onLogout={() => setShowAdmin(false)} />;
     }
     return <AuthView onLogin={registerUser} onAdminAccess={() => setShowAdminLogin(true)} />;
   }
 
-  // 2. PENALTY ZONE
+  // 3. PENALTY ZONE
   if (player.isPenaltyActive && player.penaltyEndTime && Date.now() < player.penaltyEndTime) {
       return (
           <PenaltyZone 
@@ -480,12 +480,12 @@ const App: React.FC = () => {
       );
   }
 
-  // 3. ADMIN DASHBOARD (Authenticated)
+  // 4. ADMIN DASHBOARD (Authenticated)
   if (showAdmin) {
       return <AdminDashboard onLogout={() => setShowAdmin(false)} />;
   }
 
-  // 4. MAIN APP
+  // 5. MAIN APP
   return (
     <Layout 
       // Conditionally render navigation based on state
