@@ -1,7 +1,8 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { Clock, Flame, Dumbbell, Zap, Activity, HeartPulse, ChevronRight, Fingerprint, ScanLine, Video, AlertTriangle } from 'lucide-react';
+import { Clock, Flame, Dumbbell, Activity, HeartPulse, Fingerprint, ScanLine, Video, AlertTriangle, ChevronRight } from 'lucide-react';
 import { WorkoutDay, Exercise } from '../types';
 import { isEmbed } from '../hooks/useSystem';
 import { calculateExerciseCalories } from '../utils/workoutGenerator';
@@ -20,15 +21,34 @@ const HolographicBody: React.FC<{ focus: string; isCardio: boolean; videos: Reco
   
   const videoKey = useMemo(() => {
       const f = focus.toUpperCase();
-      if (f.includes('CHEST')) return 'CHEST';
-      if (f.includes('BACK') || f.includes('PULL')) return 'BACK';
+      
+      // Exact Matches
+      if (videos[f]) return f;
+
+      // PPL / Split Mapping Logic
+      if (f.includes('REST')) return 'REST';
+      if (isCardio || f.includes('CARDIO')) return 'CARDIO';
+      
+      // Map PUSH to Chest (Default) or Shoulders if specified
+      if (f.includes('PUSH')) {
+          return f.includes('SHOULDER') ? 'SHOULDERS' : 'CHEST';
+      }
+      
+      // Map PULL to Back
+      if (f.includes('PULL')) return 'BACK';
+      
+      // Map LEGS/LOWER
+      if (f.includes('LEG') || f.includes('SQUAT') || f.includes('LOWER')) return 'LEGS';
+      
+      // Bro Split Specifics
+      if (f.includes('CHEST') || f.includes('UPPER')) return 'CHEST';
+      if (f.includes('BACK')) return 'BACK';
       if (f.includes('SHOULDER')) return 'SHOULDERS'; 
       if (f.includes('ARM') || f.includes('BICEP') || f.includes('TRICEP')) return 'ARMS';
-      if (f.includes('LEG') || f.includes('SQUAT')) return 'LEGS';
       if (f.includes('CORE') || f.includes('ABS')) return 'CORE';
-      if (isCardio || f.includes('CARDIO')) return 'CARDIO';
+      
       return 'REST';
-  }, [focus, isCardio]);
+  }, [focus, isCardio, videos]);
 
   const videoUrl = videos[videoKey];
 
@@ -108,6 +128,9 @@ const HolographicBody: React.FC<{ focus: string; isCardio: boolean; videos: Reco
               <div className="text-[8px] text-gray-400 font-mono tracking-widest uppercase">PRIMARY TARGET</div>
               <div className="text-sm font-bold text-white font-mono tracking-wider drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">
                   {focus}
+              </div>
+              <div className="text-[8px] text-system-accent font-mono tracking-widest uppercase mt-1">
+                  REGION: {videoKey}
               </div>
           </div>
       </motion.div>
@@ -215,42 +238,44 @@ const WorkoutOverview: React.FC<WorkoutOverviewProps> = ({ plan, focusVideos, on
                                 <div className="text-[8px] text-gray-500 font-mono uppercase">KCAL EST.</div>
                             </div>
                             <div className="bg-gray-900/50 border border-gray-800 p-3 rounded text-center">
-                                <Clock className={`w-5 h-5 mx-auto mb-1 ${isCardio ? 'text-system-accent' : 'text-gray-400'}`} />
+                                <Clock className={`w-5 h-5 mx-auto mb-1 ${isCardio ? 'text-system-accent animate-pulse' : 'text-gray-400'}`} />
                                 <div className="text-lg font-bold text-white">{activeStats.time}</div>
                                 <div className="text-[8px] text-gray-500 font-mono uppercase">MINUTES</div>
                             </div>
                             <div className="bg-gray-900/50 border border-gray-800 p-3 rounded text-center">
-                                <Activity className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                                <Dumbbell className={`w-5 h-5 mx-auto mb-1 ${isCardio ? 'text-system-accent animate-pulse' : 'text-gray-400'}`} />
                                 <div className="text-lg font-bold text-white">{activeStats.sets}</div>
-                                <div className="text-[8px] text-gray-500 font-mono uppercase">SETS</div>
+                                <div className="text-[8px] text-gray-500 font-mono uppercase">TOTAL SETS</div>
                             </div>
                         </div>
 
-                        <div className="bg-black border border-gray-800 rounded-xl relative overflow-hidden flex flex-col items-center">
-                            <HolographicBody focus={plan.focus} isCardio={isCardio} videos={focusVideos} />
-                            
-                            <div className="w-full bg-gray-900/80 backdrop-blur p-4 border-t border-gray-800 flex justify-between items-center">
-                                <div>
-                                    <div className={`text-xs font-bold font-mono ${isCardio ? 'text-system-accent' : 'text-gray-400'}`}>CARDIO PROTOCOL</div>
-                                    <div className="text-[9px] text-gray-500">+30% BURN // +15 MIN</div>
+                        <HolographicBody focus={plan.focus} isCardio={isCardio} videos={focusVideos} />
+
+                        <div 
+                            onClick={() => setIsCardio(!isCardio)}
+                            className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${isCardio ? 'bg-system-accent/10 border-system-accent text-white' : 'bg-gray-900/30 border-gray-800 text-gray-500'}`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isCardio ? 'bg-system-accent border-system-accent' : 'border-gray-600'}`}>
+                                    {isCardio && <Activity size={12} className="text-black" />}
                                 </div>
-                                <button 
-                                    onClick={() => setIsCardio(!isCardio)}
-                                    className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${isCardio ? 'bg-system-accent shadow-[0_0_10px_#8b5cf6]' : 'bg-gray-700'}`}
-                                >
-                                    <motion.div animate={{ x: isCardio ? 24 : 0 }} className="w-4 h-4 bg-white rounded-full shadow-md" />
-                                </button>
+                                <div>
+                                    <div className="text-xs font-bold font-mono tracking-widest uppercase">Emergency Quest</div>
+                                    <div className="text-[10px]">Add 15m HIIT Finisher (+30% XP)</div>
+                                </div>
                             </div>
+                            <Activity size={20} className={isCardio ? 'animate-pulse' : ''} />
                         </div>
                     </div>
 
-                    {/* RIGHT: ROSTER */}
-                    <div className="flex-1 flex flex-col">
-                        <h3 className="text-xs text-gray-500 font-mono mb-4 uppercase tracking-widest border-b border-gray-800 pb-2 flex items-center justify-between">
-                            <span>Instance Enemies</span>
-                            <span className="text-white font-bold">{plan.exercises.length} DETECTED</span>
-                        </h3>
-                        <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar max-h-[350px]">
+                    {/* RIGHT: EXERCISE LIST */}
+                    <div className="flex-1 space-y-4">
+                        <div className="flex justify-between items-end border-b border-gray-800 pb-2">
+                            <h3 className="text-xs text-gray-400 font-mono uppercase tracking-widest">Protocol Sequence</h3>
+                            <span className="text-[10px] text-system-neon font-mono">{plan.exercises.length} EXERCISES</span>
+                        </div>
+                        
+                        <div className="space-y-2 h-[350px] overflow-y-auto custom-scrollbar pr-2">
                             {plan.exercises.map((ex, i) => (
                                 <ExerciseRow 
                                     key={i} 
@@ -258,28 +283,16 @@ const WorkoutOverview: React.FC<WorkoutOverviewProps> = ({ plan, focusVideos, on
                                     calories={calculateExerciseCalories(ex, userWeight)} 
                                 />
                             ))}
-                            {isCardio && (
-                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                                    <ExerciseRow 
-                                        exercise={{ name: "Shadow Sprint (HIIT)", sets: 3, reps: "45s Intervals", duration: 15, completed: false, type: "CARDIO" }} 
-                                        calories={calculateExerciseCalories({ name: "HIIT", sets: 3, reps: "45s", duration: 15, completed: false, type: "CARDIO" }, userWeight)}
-                                    />
-                                </motion.div>
-                            )}
                         </div>
+
+                        <button 
+                            onClick={handleStart}
+                            className="w-full py-4 bg-white text-black font-black text-lg uppercase tracking-widest rounded-lg hover:bg-system-neon transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_#00d2ff]"
+                        >
+                            ENTER DUNGEON <ChevronRight size={20} strokeWidth={3} />
+                        </button>
                     </div>
                 </div>
-            </div>
-
-            <div className="p-6 bg-gray-900/50 border-t border-gray-800 shrink-0 mb-safe">
-                <button 
-                    onClick={handleStart}
-                    className="w-full h-14 bg-system-neon text-black text-lg font-black italic tracking-tighter rounded clip-path-slant hover:bg-white transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(0,210,255,0.4)] group"
-                >
-                    <Zap size={24} className="group-hover:rotate-12 transition-transform" />
-                    ENTER DUNGEON
-                    <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
-                </button>
             </div>
         </motion.div>
     </div>,

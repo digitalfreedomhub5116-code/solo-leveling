@@ -323,7 +323,16 @@ const HealthView: React.FC<HealthViewProps> = ({
       return () => { if (interval) clearInterval(interval); };
   }, [scanState]);
 
-  const calculatedPlan = useMemo(() => healthProfile?.workoutPlan || generateSystemProtocol(formData as HealthProfile, playerData.customProtocols), [healthProfile, formData, playerData.customProtocols]);
+  // --- WORKOUT PLAN CALCULATION ---
+  // Fix: Regenerate plan using the *live* customProtocols from playerData
+  // instead of relying on the static saved plan in healthProfile.
+  // This ensures Admin updates are reflected immediately.
+  const calculatedPlan = useMemo(() => {
+      const profileToUse = healthProfile || formData;
+      // We pass the live protocols from player data to ensure updates show up
+      return generateSystemProtocol(profileToUse as HealthProfile, playerData.customProtocols);
+  }, [healthProfile, formData, playerData.customProtocols]);
+
   const nutritionInfo = useMemo(() => calculateNutritionPlan(healthProfile || formData), [healthProfile, formData]);
   
   const rawBMI = useMemo(() => (formData.weight && formData.height) ? (formData.weight / ((formData.height/100) ** 2)) : 0, [formData.weight, formData.height]);

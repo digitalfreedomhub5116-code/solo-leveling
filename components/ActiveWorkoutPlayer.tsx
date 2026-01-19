@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -59,9 +60,28 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
   const exercise = plan.exercises[currentIdx] || plan.exercises[0]; // Fallback to avoid undefined crash
   const totalExercises = plan.exercises.length;
   
-  // Resolve Video Source (DB priority -> Local fallback)
-  const liveExerciseData = player.exerciseDatabase.find(e => e.name === exercise.name);
-  const videoSource = liveExerciseData?.videoUrl || exercise.videoUrl;
+  // Robust Video Lookup Strategy
+  // 1. Check exercise object itself (Custom Protocol)
+  // 2. Check global map (Exact Match)
+  // 3. Check global map (Case Insensitive Match)
+  // 4. Check exercise DB array
+  const videoSource = React.useMemo(() => {
+      if (!exercise) return null;
+      
+      if (exercise.videoUrl && exercise.videoUrl.trim() !== '') return exercise.videoUrl;
+      
+      const name = exercise.name;
+      if (player.focusVideos[name]) return player.focusVideos[name];
+      
+      const lowerName = name.toLowerCase();
+      const looseKey = Object.keys(player.focusVideos).find(k => k.toLowerCase() === lowerName);
+      if (looseKey) return player.focusVideos[looseKey];
+
+      const dbEntry = player.exerciseDatabase.find(e => e.name === name || e.name.toLowerCase() === lowerName);
+      if (dbEntry?.videoUrl) return dbEntry.videoUrl;
+
+      return null;
+  }, [exercise, player.focusVideos, player.exerciseDatabase]);
 
   // Check if we are in the "Up Next" preview window (last 5 seconds of rest)
   const isUpNextPreview = phase === 'REST' && timeLeft <= 5 && timeLeft > 0;
@@ -278,6 +298,7 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
                     <div className="flex flex-col items-center justify-center text-gray-600 opacity-50">
                         <Film size={48} className="mb-4" />
                         <span className="font-mono text-xs tracking-widest">NO VISUAL FEED</span>
+                        <span className="text-[8px] mt-2 text-gray-700">TARGET: {exercise.name}</span>
                     </div>
                 )}
             </div>

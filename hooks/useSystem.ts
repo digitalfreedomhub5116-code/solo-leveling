@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { 
   PlayerData, Quest, ShopItem, SystemNotification, NotificationType, 
-  ActivityLog, HealthProfile, ProgressPhoto, MealLog, WorkoutDay
+  ActivityLog, HealthProfile, ProgressPhoto, MealLog, WorkoutDay, AdminExercise
 } from '../types';
 import { supabase } from '../lib/supabase';
 import { playSystemSoundEffect } from '../utils/soundEngine';
@@ -82,15 +82,28 @@ export const useSystem = () => {
         
         if (data && data.length > 0) {
           const videoMap: Record<string, string> = {};
+          const exerciseDB: AdminExercise[] = [];
+
           data.forEach((row: any) => {
             if (row.key && row.url) {
               videoMap[row.key] = row.url;
+              // Map to Exercise DB format for individual exercise lookups
+              exerciseDB.push({
+                  id: row.id?.toString() || row.key,
+                  name: row.key,
+                  videoUrl: row.url,
+                  imageUrl: '',
+                  muscleGroup: 'General',
+                  difficulty: 'Intermediate',
+                  caloriesBurn: 0
+              });
             }
           });
 
           setPlayer(prev => ({
             ...prev,
-            focusVideos: { ...prev.focusVideos, ...videoMap }
+            focusVideos: { ...prev.focusVideos, ...videoMap },
+            exerciseDatabase: exerciseDB
           }));
         }
       } catch (err) {
@@ -165,9 +178,9 @@ export const useSystem = () => {
   };
 
   const updateFocusVideos = async (videos: Record<string, string>) => {
-      // 1. Optimistic Update (Local)
+      // 1. Optimistic Update (Local) - MERGE with existing
       setPlayer(prev => {
-          const updated = { ...prev, focusVideos: videos };
+          const updated = { ...prev, focusVideos: { ...prev.focusVideos, ...videos } };
           return updated;
       });
 

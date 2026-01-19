@@ -99,9 +99,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const handleSaveProtocol = async () => {
       setIsSaving(true);
       try {
-          // Save to player profile (Cloud Sync)
+          // 1. Save Structure to Profile (Existing)
           updateCustomProtocols(localRegistry);
-          alert("Protocol Configuration Saved to Cloud Core.");
+
+          // 2. Extract Videos for Global Sync (New)
+          const videoMap: Record<string, string> = {};
+          // Iterate through all categories and days to find video links
+          (Object.values(localRegistry) as WorkoutDay[][]).forEach(days => {
+              days.forEach(day => {
+                  day.exercises.forEach(ex => {
+                      if (ex.videoUrl && ex.videoUrl.trim() !== '') {
+                          videoMap[ex.name] = ex.videoUrl.trim();
+                      }
+                  });
+              });
+          });
+          
+          // 3. Upsert to Global Table
+          if (Object.keys(videoMap).length > 0) {
+              await updateFocusVideos(videoMap);
+          }
+
+          alert("Protocol & Video Links Saved to Cloud Core.");
       } catch (err) {
           alert("Save Failed.");
       } finally {
