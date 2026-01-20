@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp, Trash2, Utensils, Camera, Loader2, Save, Droplets, Wheat, Beef, SkipForward } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp, Trash2, Utensils, Camera, Loader2, Save, Droplets, Wheat, Beef, SkipForward, Lock, Key } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog, FoodItem } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
@@ -23,6 +23,7 @@ interface HealthViewProps {
   onTutorialAction?: (step: number) => void;
   tutorialStep?: number;
   onToggleNav?: (visible: boolean) => void;
+  onConsumeKey: () => Promise<boolean>;
 }
 
 // ... (Micro Visualizations & TechRadar code omitted for brevity as it remains unchanged) ...
@@ -242,8 +243,8 @@ const lerpColor = (a: string, b: string, amount: number) => {
 const setupContainerVariants: Variants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } }, exit: { opacity: 0, x: -20, transition: { duration: 0.2 } } };
 const setupItemVariants: Variants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } } };
 
-const HealthView: React.FC<HealthViewProps> = ({ 
-  healthProfile, onSaveProfile, onCompleteWorkout, onFailWorkout, onLogMeal, onDeleteMeal, playerData, onToggleNav
+export const HealthView: React.FC<HealthViewProps> = ({ 
+  healthProfile, onSaveProfile, onCompleteWorkout, onFailWorkout, onLogMeal, onDeleteMeal, playerData, onToggleNav, onConsumeKey
 }) => {
   const [viewMode, setViewMode] = useState<'MAP' | 'OVERVIEW' | 'ACTIVE' | 'SETUP' | 'PROCESSING' | 'DIAGNOSIS' | 'PROJECTION' | 'FINALIZING'>('MAP');
   const [activeTab, setActiveTab] = useState<'WORKOUT' | 'NUTRITION' | 'BODY'>('WORKOUT');
@@ -273,6 +274,9 @@ const HealthView: React.FC<HealthViewProps> = ({
   const [scanItems, setScanItems] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loadingMessage, setLoadingMessage] = useState("ANALYSING IMAGE...");
+  
+  // Keys Alert State
+  const [showKeyAlert, setShowKeyAlert] = useState(false);
 
   const projectedIncrease = useMemo(() => {
       if (playerData.username) {
@@ -324,12 +328,8 @@ const HealthView: React.FC<HealthViewProps> = ({
   }, [scanState]);
 
   // --- WORKOUT PLAN CALCULATION ---
-  // Fix: Regenerate plan using the *live* customProtocols from playerData
-  // instead of relying on the static saved plan in healthProfile.
-  // This ensures Admin updates are reflected immediately.
   const calculatedPlan = useMemo(() => {
       const profileToUse = healthProfile || formData;
-      // We pass the live protocols from player data to ensure updates show up
       return generateSystemProtocol(profileToUse as HealthProfile, playerData.customProtocols);
   }, [healthProfile, formData, playerData.customProtocols]);
 
@@ -387,12 +387,29 @@ const HealthView: React.FC<HealthViewProps> = ({
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      // 1. CHECK KEYS
+      if (playerData.keys <= 0) {
+          setShowKeyAlert(true);
+          e.target.value = ''; // Reset input
+          return;
+      }
+
       const file = e.target.files?.[0];
       if (!file) return;
+
+      // 2. CONSUME KEY
+      const keyConsumed = await onConsumeKey();
+      if (!keyConsumed) {
+          setShowKeyAlert(true);
+          e.target.value = '';
+          return;
+      }
+
       const reader = new FileReader();
       reader.onload = (event) => { setScannedImage(event.target?.result as string); };
       reader.readAsDataURL(file);
       setScanState('SCANNING');
+      
       try {
           const formData = new FormData();
           formData.append('image', file);
@@ -621,7 +638,6 @@ const HealthView: React.FC<HealthViewProps> = ({
                             </motion.div>
                         </motion.div>
                       )}
-                      {/* ... Steps 3-9 retained ... */}
                       {step === 3 && (
                         <motion.div key="s3" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
                             <motion.div variants={setupItemVariants} className="flex items-center gap-3 mb-4">
@@ -779,318 +795,300 @@ const HealthView: React.FC<HealthViewProps> = ({
   if (viewMode === 'ACTIVE' && activePlan) return <ActiveWorkoutPlayer plan={activePlan} onComplete={(c, t, r) => { onCompleteWorkout(c, t, r, false); setViewMode('MAP'); }} onFail={() => { onFailWorkout(); setViewMode('MAP'); }} streak={playerData.streak} />;
 
   return (
-    <div className="h-full flex flex-col gap-6 font-mono">
-        <div className="flex border-b border-gray-800 bg-black/50 backdrop-blur sticky top-0 z-30">
-            {['WORKOUT', 'NUTRITION', 'BODY'].map(t => <button key={t} onClick={() => setActiveTab(t as any)} className={`flex-1 py-4 text-xs font-bold tracking-widest ${activeTab === t ? 'text-system-neon border-b-2 border-system-neon' : 'text-gray-600'}`}>{t}</button>)}
-        </div>
-        <div className="flex-1 pb-20">
-            <AnimatePresence mode="wait">
-                {activeTab === 'WORKOUT' && (
-                    <motion.div key="wo" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 text-center shadow-lg"><Flame className="text-orange-500 mx-auto mb-2 animate-pulse" size={24} /><div className="text-2xl font-black text-white">{playerData.streak}</div><div className="text-[10px] text-gray-500 uppercase tracking-widest">STREAK</div></div>
-                            <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 text-center shadow-lg"><Target className="text-system-neon mx-auto mb-2" size={24} /><div className="text-xl font-bold text-white uppercase tracking-tight">{calculateTimeEstimate(healthProfile || formData)}</div><div className="text-[10px] text-gray-500 uppercase tracking-widest">TARGET</div></div>
-                        </div>
+    <>
+        <AnimatePresence>
+            {showKeyAlert && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
+                    <motion.div 
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.8, opacity: 0 }}
+                        className="bg-[#0a0a0a] border border-purple-500/50 w-full max-w-sm rounded-2xl p-8 text-center shadow-[0_0_50px_rgba(168,85,247,0.3)] relative overflow-hidden"
+                    >
+                        {/* Background Effect */}
+                        <div className="absolute inset-0 bg-purple-900/10 pointer-events-none" />
                         
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                            <WorkoutMap currentWeight={healthProfile?.weight || 0} targetWeight={healthProfile?.targetWeight || 0} workoutPlan={calculatedPlan} completedDays={playerData.logs.filter(l => l.type === 'WORKOUT').length} onStartDay={(idx) => { setActivePlan(calculatedPlan[idx % calculatedPlan.length]); setViewMode('OVERVIEW'); }} />
-                            <ProtocolMonthView plan={calculatedPlan} />
+                        <div className="relative z-10 flex flex-col items-center">
+                            <div className="w-16 h-16 rounded-full bg-black border border-purple-500 flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(168,85,247,0.5)]">
+                                <Lock size={32} className="text-purple-500" />
+                            </div>
+                            
+                            <h2 className="text-xl font-black text-white font-mono uppercase tracking-tighter mb-2">ACCESS DENIED</h2>
+                            <p className="text-xs text-purple-300 font-mono mb-6 leading-relaxed">
+                                INSUFFICIENT KEYS.<br/>Obtain Keys from the Demon Castle to perform Deep Scans.
+                            </p>
+                            
+                            <button 
+                                onClick={() => setShowKeyAlert(false)}
+                                className="w-full py-4 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-500 transition-colors uppercase tracking-widest text-xs font-mono shadow-lg"
+                            >
+                                ACKNOWLEDGE
+                            </button>
                         </div>
                     </motion.div>
-                )}
-                {/* ... (Existing NUTRITION and BODY Tabs unchanged) ... */}
-                {activeTab === 'NUTRITION' && (
-                    <motion.div 
-                        key="nut" 
-                        initial={{ opacity: 0, y: 10 }} 
-                        animate={{ opacity: 1, y: 0 }} 
-                        exit={{ opacity: 0, y: -10 }} 
-                        className="flex flex-col items-center gap-6 px-4"
-                    >
-                        {/* ... (Nutrition Content) ... */}
-                        <motion.div 
-                            className="w-full max-w-sm bg-gray-900/50 border border-gray-800 rounded-2xl p-6 shadow-lg"
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                        >
-                            <h3 className="text-xs font-bold text-gray-400 mb-4 tracking-widest flex items-center gap-2 uppercase">
-                                <Clock size={14} className="text-system-neon" /> Daily Fuel Status
-                            </h3>
-                            
-                            {/* Calories Comparison */}
-                            <div className="flex justify-between items-end mb-2">
-                                <div>
-                                    <div className="text-[10px] text-gray-500 uppercase font-bold">Consumed</div>
-                                    <div className="text-2xl font-black text-white">{dailyIntake.calories}</div>
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-[10px] text-gray-500 uppercase font-bold">Target</div>
-                                    <div className="text-2xl font-black text-gray-400">{nutritionInfo.macros.calories}</div>
-                                </div>
+                </div>
+            )}
+        </AnimatePresence>
+
+        <div className="h-full flex flex-col gap-6 font-mono">
+            <div className="flex border-b border-gray-800 bg-black/50 backdrop-blur sticky top-20 z-30">
+                {['WORKOUT', 'NUTRITION', 'BODY'].map(t => <button key={t} onClick={() => setActiveTab(t as any)} className={`flex-1 py-4 text-xs font-bold tracking-widest ${activeTab === t ? 'text-system-neon border-b-2 border-system-neon' : 'text-gray-600'}`}>{t}</button>)}
+            </div>
+            <div className="flex-1 pb-20">
+                <AnimatePresence mode="wait">
+                    {activeTab === 'WORKOUT' && (
+                        <motion.div key="wo" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 text-center shadow-lg"><Flame className="text-orange-500 mx-auto mb-2 animate-pulse" size={24} /><div className="text-2xl font-black text-white">{playerData.streak}</div><div className="text-[10px] text-gray-500 uppercase tracking-widest">STREAK</div></div>
+                                <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 text-center shadow-lg"><Target className="text-system-neon mx-auto mb-2" size={24} /><div className="text-xl font-bold text-white uppercase tracking-tight">{calculateTimeEstimate(healthProfile || formData)}</div><div className="text-[10px] text-gray-500 uppercase tracking-widest">TARGET</div></div>
                             </div>
                             
-                            {/* Calorie Progress Bar */}
-                            <div className="h-2 bg-gray-800 rounded-full overflow-hidden mb-6">
-                                <motion.div 
-                                    className={`h-full ${dailyIntake.calories > nutritionInfo.macros.calories ? 'bg-red-500' : 'bg-system-neon'}`}
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${Math.min((dailyIntake.calories / nutritionInfo.macros.calories) * 100, 100)}%` }}
-                                />
-                            </div>
-
-                            {/* Remaining Budget Display */}
-                            <div className="bg-black/40 border border-gray-800 rounded-xl p-4 text-center mb-6">
-                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Remaining Calories Budget</div>
-                                <div className={`text-3xl font-black ${nutritionInfo.macros.calories - dailyIntake.calories < 0 ? 'text-red-500' : 'text-system-success'}`}>
-                                    {Math.max(0, nutritionInfo.macros.calories - dailyIntake.calories)} <span className="text-xs font-normal text-gray-600">KCAL</span>
-                                </div>
-                            </div>
-
-                            {/* Macro Breakdown */}
-                            <div className="grid grid-cols-3 gap-2">
-                                <div className="text-center">
-                                    <div className="text-[9px] text-gray-500 uppercase font-bold mb-1 flex justify-center items-center gap-1"><Beef size={10} /> PRO</div>
-                                    <div className="text-xs font-bold text-blue-400">{dailyIntake.protein} / {nutritionInfo.macros.protein}g</div>
-                                    <div className="h-1 bg-gray-800 mt-1 rounded-full"><div style={{ width: `${Math.min((dailyIntake.protein / nutritionInfo.macros.protein)*100, 100)}%` }} className="h-full bg-blue-500" /></div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-[9px] text-gray-500 uppercase font-bold mb-1 flex justify-center items-center gap-1"><Wheat size={10} /> CARB</div>
-                                    <div className="text-xs font-bold text-green-400">{dailyIntake.carbs} / {nutritionInfo.macros.carbs}g</div>
-                                    <div className="h-1 bg-gray-800 mt-1 rounded-full"><div style={{ width: `${Math.min((dailyIntake.carbs / nutritionInfo.macros.carbs)*100, 100)}%` }} className="h-full bg-green-500" /></div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-[9px] text-gray-500 uppercase font-bold mb-1 flex justify-center items-center gap-1"><Droplets size={10} /> FAT</div>
-                                    <div className="text-xs font-bold text-yellow-400">{dailyIntake.fats} / {nutritionInfo.macros.fats}g</div>
-                                    <div className="h-1 bg-gray-800 mt-1 rounded-full"><div style={{ width: `${Math.min((dailyIntake.fats / nutritionInfo.macros.fats)*100, 100)}%` }} className="h-full bg-yellow-500" /></div>
-                                </div>
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                <WorkoutMap currentWeight={healthProfile?.weight || 0} targetWeight={healthProfile?.targetWeight || 0} workoutPlan={calculatedPlan} completedDays={playerData.logs.filter(l => l.type === 'WORKOUT').length} onStartDay={(idx) => { setActivePlan(calculatedPlan[idx % calculatedPlan.length]); setViewMode('OVERVIEW'); }} />
+                                <ProtocolMonthView plan={calculatedPlan} />
                             </div>
                         </motion.div>
-
-                        {/* STATE: IDLE - UPLOAD AREA */}
-                        {scanState === 'IDLE' && (
+                    )}
+                    {/* ... (Existing NUTRITION and BODY Tabs unchanged) ... */}
+                    {activeTab === 'NUTRITION' && (
+                        <motion.div 
+                            key="nut" 
+                            initial={{ opacity: 0, y: 10 }} 
+                            animate={{ opacity: 1, y: 0 }} 
+                            exit={{ opacity: 0, y: -10 }} 
+                            className="flex flex-col items-center gap-6 px-4"
+                        >
+                            {/* ... (Nutrition Content) ... */}
                             <motion.div 
-                                initial={{ scale: 0.9, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                className="w-full max-w-sm"
+                                className="w-full max-w-sm bg-gray-900/50 border border-gray-800 rounded-2xl p-6 shadow-lg"
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
                             >
-                                <div className="bg-gray-900/40 border-2 border-dashed border-gray-800 rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-4 hover:border-system-neon/50 hover:bg-gray-900/60 transition-all cursor-pointer relative overflow-hidden group h-[200px]">
-                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-system-neon/5 to-transparent translate-y-[-100%] group-hover:translate-y-[100%] transition-transform duration-1000 ease-in-out pointer-events-none" />
-                                    
-                                    <div className="w-16 h-16 rounded-full bg-black border border-system-neon/30 flex items-center justify-center relative shadow-[0_0_30px_rgba(0,210,255,0.1)] group-hover:shadow-[0_0_50px_rgba(0,210,255,0.2)] transition-shadow">
-                                        <Camera size={24} className="text-system-neon relative z-10" />
-                                        <div className="absolute inset-0 rounded-full border border-system-neon opacity-20 animate-ping" />
-                                    </div>
-                                    
+                                <h3 className="text-xs font-bold text-gray-400 mb-4 tracking-widest flex items-center gap-2 uppercase">
+                                    <Clock size={14} className="text-system-neon" /> Daily Fuel Status
+                                </h3>
+                                
+                                {/* Calories Comparison */}
+                                <div className="flex justify-between items-end mb-2">
                                     <div>
-                                        <h3 className="text-lg font-bold text-white font-mono tracking-tight">LOG MEAL</h3>
-                                        <p className="text-[9px] text-gray-500 font-mono tracking-widest uppercase mt-1">
-                                            UPLOAD & ANALYZE
-                                        </p>
+                                        <div className="text-[10px] text-gray-500 uppercase font-bold">Consumed</div>
+                                        <div className="text-2xl font-black text-white">{dailyIntake.calories}</div>
                                     </div>
-
-                                    <input 
-                                        type="file" 
-                                        accept="image/*" 
-                                        capture="environment" 
-                                        ref={fileInputRef}
-                                        onChange={handleFileUpload}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                                    />
+                                    <div className="text-right">
+                                        <div className="text-[10px] text-gray-500 uppercase font-bold">Target</div>
+                                        <div className="text-2xl font-black text-gray-400">{nutritionInfo.macros.calories}</div>
+                                    </div>
                                 </div>
-                            </motion.div>
-                        )}
-
-                        {/* STATE: SCANNING */}
-                        {scanState === 'SCANNING' && scannedImage && (
-                            <motion.div 
-                                className="w-full max-w-sm bg-black border border-system-neon/50 rounded-2xl overflow-hidden relative shadow-[0_0_50px_rgba(0,210,255,0.2)]"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                            >
-                                <div className="aspect-[4/5] relative">
-                                    <img src={scannedImage} alt="Scanning" className="w-full h-full object-cover opacity-60" />
-                                    
-                                    {/* Scanning Beam */}
+                                
+                                {/* Calorie Progress Bar */}
+                                <div className="h-2 bg-gray-800 rounded-full overflow-hidden mb-6">
                                     <motion.div 
-                                        className="absolute left-0 w-full h-1 bg-system-neon shadow-[0_0_20px_#00d2ff,0_0_10px_white] z-10"
-                                        animate={{ top: ['0%', '100%', '0%'] }}
-                                        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                                        className={`h-full ${dailyIntake.calories > nutritionInfo.macros.calories ? 'bg-red-500' : 'bg-system-neon'}`}
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${Math.min((dailyIntake.calories / nutritionInfo.macros.calories) * 100, 100)}%` }}
                                     />
-                                    
-                                    {/* Grid Overlay */}
-                                    <div className="absolute inset-0 bg-[linear-gradient(rgba(0,210,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,255,0.1)_1px,transparent_1px)] bg-[size:40px_40px] z-0 pointer-events-none" />
-                                    
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
-                                        <div className="bg-black/80 backdrop-blur-md px-6 py-3 rounded-lg border border-system-neon/30 flex items-center gap-3">
-                                            <Loader2 size={18} className="text-system-neon animate-spin" />
-                                            <span className="text-xs font-mono text-white tracking-widest font-bold">{loadingMessage}</span>
-                                        </div>
+                                </div>
+
+                                {/* Remaining Budget Display */}
+                                <div className="bg-black/40 border border-gray-800 rounded-xl p-4 text-center mb-6">
+                                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Remaining Calories Budget</div>
+                                    <div className={`text-3xl font-black ${nutritionInfo.macros.calories - dailyIntake.calories < 0 ? 'text-red-500' : 'text-system-success'}`}>
+                                        {Math.max(0, nutritionInfo.macros.calories - dailyIntake.calories)} <span className="text-xs font-normal text-gray-600">KCAL</span>
+                                    </div>
+                                </div>
+
+                                {/* Macro Breakdown */}
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="text-center">
+                                        <div className="text-[9px] text-gray-500 uppercase font-bold mb-1 flex justify-center items-center gap-1"><Beef size={10} /> PRO</div>
+                                        <div className="text-xs font-bold text-blue-400">{dailyIntake.protein} / {nutritionInfo.macros.protein}g</div>
+                                        <div className="h-1 bg-gray-800 mt-1 rounded-full"><div style={{ width: `${Math.min((dailyIntake.protein / nutritionInfo.macros.protein)*100, 100)}%` }} className="h-full bg-blue-500" /></div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-[9px] text-gray-500 uppercase font-bold mb-1 flex justify-center items-center gap-1"><Wheat size={10} /> CARB</div>
+                                        <div className="text-xs font-bold text-green-400">{dailyIntake.carbs} / {nutritionInfo.macros.carbs}g</div>
+                                        <div className="h-1 bg-gray-800 mt-1 rounded-full"><div style={{ width: `${Math.min((dailyIntake.carbs / nutritionInfo.macros.carbs)*100, 100)}%` }} className="h-full bg-green-500" /></div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-[9px] text-gray-500 uppercase font-bold mb-1 flex justify-center items-center gap-1"><Droplets size={10} /> FAT</div>
+                                        <div className="text-xs font-bold text-yellow-400">{dailyIntake.fats} / {nutritionInfo.macros.fats}g</div>
+                                        <div className="h-1 bg-gray-800 mt-1 rounded-full"><div style={{ width: `${Math.min((dailyIntake.fats / nutritionInfo.macros.fats)*100, 100)}%` }} className="h-full bg-yellow-500" /></div>
                                     </div>
                                 </div>
                             </motion.div>
-                        )}
 
-                        {/* STATE: RESULT */}
-                        {scanState === 'RESULT' && scanResult && scannedImage && (
-                            <motion.div 
-                                className="w-full max-w-sm bg-[#0a0a0a] border border-system-border rounded-2xl overflow-hidden shadow-2xl relative"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                            >
-                                <div className="relative h-48">
-                                    <img src={scannedImage} alt="Result" className="w-full h-full object-cover" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
-                                    <div className="absolute bottom-4 left-4">
-                                        <div className="text-[10px] text-system-neon font-bold tracking-widest bg-system-neon/10 px-2 py-0.5 rounded border border-system-neon/30 inline-block mb-1">
-                                            SCAN COMPLETE
+                            {/* STATE: IDLE - UPLOAD AREA */}
+                            {scanState === 'IDLE' && (
+                                <motion.div 
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    className="w-full max-w-sm"
+                                >
+                                    <div className="bg-gray-900/40 border-2 border-dashed border-gray-800 rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-4 hover:border-system-neon/50 hover:bg-gray-900/60 transition-all cursor-pointer relative overflow-hidden group h-[200px]">
+                                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-system-neon/5 to-transparent translate-y-[-100%] group-hover:translate-y-[100%] transition-transform duration-1000 ease-in-out pointer-events-none" />
+                                        
+                                        <div className="w-16 h-16 rounded-full bg-black border border-system-neon/30 flex items-center justify-center relative shadow-[0_0_30px_rgba(0,210,255,0.1)] group-hover:shadow-[0_0_50px_rgba(0,210,255,0.2)] transition-shadow">
+                                            <Camera size={24} className="text-system-neon relative z-10" />
+                                            <div className="absolute inset-0 rounded-full border border-system-neon opacity-20 animate-ping" />
                                         </div>
-                                        <h3 className="text-2xl font-black text-white italic">{scanResult.name}</h3>
+                                        
+                                        <div>
+                                            <h3 className="text-lg font-bold text-white font-mono tracking-tight">LOG MEAL</h3>
+                                            <p className="text-[9px] text-gray-500 font-mono tracking-widest uppercase mt-1 flex items-center justify-center gap-1">
+                                                <Key size={10} className="text-purple-500" /> 1 KEY REQUIRED
+                                            </p>
+                                        </div>
+
+                                        <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            capture="environment" 
+                                            ref={fileInputRef}
+                                            onChange={handleFileUpload}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                                        />
                                     </div>
-                                </div>
+                                </motion.div>
+                            )}
 
-                                <div className="p-6 space-y-6">
-                                    {/* Macros Grid */}
-                                    <div className="grid grid-cols-3 gap-4">
-                                        <div className="text-center p-3 bg-gray-900/50 rounded-xl border border-gray-800">
-                                            <div className="text-xs text-gray-500 font-bold mb-1">PROTEIN</div>
-                                            <div className="text-lg font-black text-white">{scanResult.protein}g</div>
-                                            <div className="h-1 bg-gray-800 mt-2 rounded-full overflow-hidden">
-                                                <div className="h-full bg-blue-500 w-[60%]" />
-                                            </div>
-                                        </div>
-                                        <div className="text-center p-3 bg-gray-900/50 rounded-xl border border-gray-800">
-                                            <div className="text-xs text-gray-500 font-bold mb-1">CARBS</div>
-                                            <div className="text-lg font-black text-white">{scanResult.carbs}g</div>
-                                            <div className="h-1 bg-gray-800 mt-2 rounded-full overflow-hidden">
-                                                <div className="h-full bg-green-500 w-[40%]" />
-                                            </div>
-                                        </div>
-                                        <div className="text-center p-3 bg-gray-900/50 rounded-xl border border-gray-800">
-                                            <div className="text-xs text-gray-500 font-bold mb-1">FATS</div>
-                                            <div className="text-lg font-black text-white">{scanResult.fats}g</div>
-                                            <div className="h-1 bg-gray-800 mt-2 rounded-full overflow-hidden">
-                                                <div className="h-full bg-yellow-500 w-[30%]" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Total Calories */}
-                                    <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10">
-                                        <div className="flex items-center gap-2">
-                                            <Flame size={20} className="text-orange-500" />
-                                            <span className="text-sm font-bold text-gray-300">TOTAL ENERGY</span>
-                                        </div>
-                                        <div className="text-3xl font-black text-white tracking-tighter">
-                                            {scanResult.calories} <span className="text-sm font-normal text-gray-500">KCAL</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Breakdown List */}
-                                    <div className="bg-gray-900/30 rounded-xl border border-gray-800 p-4 max-h-40 overflow-y-auto custom-scrollbar">
-                                        <div className="text-[10px] text-gray-500 font-bold uppercase mb-2 tracking-widest">Detected Ingredients</div>
-                                        <div className="space-y-2">
-                                            {scanItems.map((item, idx) => (
-                                                <div key={idx} className="flex justify-between items-center text-xs border-b border-gray-800/50 pb-1 last:border-0">
-                                                    <span className="text-gray-300">{item.name} <span className="text-gray-600">({item.quantity})</span></span>
-                                                    <span className="font-mono text-system-neon">{item.calories}</span>
-                                                </div>
-                                            ))}
-                                            {scanItems.length === 0 && (
-                                                <div className="text-[10px] text-gray-600 italic text-center py-2">No detailed breakdown available.</div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Actions */}
-                                    <div className="grid grid-cols-2 gap-3 pt-2">
-                                        <button 
-                                            onClick={resetScanner}
-                                            className="py-4 rounded-xl border border-gray-700 text-gray-400 font-bold text-xs hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            <Trash2 size={16} /> DISCARD
-                                        </button>
-                                        <button 
-                                            onClick={confirmLog}
-                                            className="py-4 rounded-xl bg-system-success text-black font-black text-xs hover:bg-white transition-colors shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2"
-                                        >
-                                            <Save size={16} /> LOG INTAKE
-                                        </button>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {/* --- MEAL HISTORY LOG --- */}
-                        <div className="w-full max-w-sm space-y-4">
-                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-2">Consumed Logs</h3>
-                            <div className="space-y-2">
-                                {todaysLogs.length > 0 ? (
-                                    todaysLogs.map(log => (
+                            {/* STATE: SCANNING */}
+                            {scanState === 'SCANNING' && scannedImage && (
+                                <motion.div 
+                                    className="w-full max-w-sm bg-black border border-system-neon/50 rounded-2xl overflow-hidden relative shadow-[0_0_50px_rgba(0,210,255,0.2)]"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                >
+                                    <div className="aspect-[4/5] relative">
+                                        <img src={scannedImage} alt="Scanning" className="w-full h-full object-cover opacity-60" />
+                                        
+                                        {/* Scanning Beam */}
                                         <motion.div 
-                                            key={log.id} 
-                                            initial={{ opacity: 0, x: -10 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            className="bg-gray-900/30 border border-gray-800 p-3 rounded-xl flex justify-between items-center group hover:bg-gray-900/50 transition-colors"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                {log.imageUrl ? (
-                                                    <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-700 shrink-0">
-                                                        <img src={log.imageUrl} alt="Meal" className="w-full h-full object-cover" />
-                                                    </div>
-                                                ) : (
-                                                    <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center text-gray-500 shrink-0">
-                                                        <Utensils size={16} />
-                                                    </div>
-                                                )}
-                                                <div>
-                                                    <div className="text-xs font-bold text-white truncate max-w-[120px]">{log.label}</div>
-                                                    <div className="text-[10px] text-gray-500 font-mono">
-                                                        {new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {log.totalCalories} kcal
-                                                    </div>
-                                                </div>
+                                            className="absolute left-0 w-full h-1 bg-system-neon shadow-[0_0_20px_#00d2ff,0_0_10px_white] z-10"
+                                            animate={{ top: ['0%', '100%', '0%'] }}
+                                            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                                        />
+                                        
+                                        {/* Grid Overlay */}
+                                        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,210,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,255,0.1)_1px,transparent_1px)] bg-[size:40px_40px] z-0 pointer-events-none" />
+                                        
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+                                            <div className="bg-black/80 backdrop-blur-md px-6 py-3 rounded-lg border border-system-neon/30 flex items-center gap-3">
+                                                <Loader2 size={18} className="text-system-neon animate-spin" />
+                                                <span className="text-xs font-mono text-white tracking-widest font-bold">{loadingMessage}</span>
                                             </div>
-                                            
-                                            <div className="flex items-center gap-3">
-                                                <div className="text-right hidden sm:block">
-                                                    <div className="text-[8px] text-blue-400 font-bold">P: {log.totalProtein}g</div>
-                                                    <div className="text-[8px] text-green-400 font-bold">C: {log.totalCarbs}g</div>
-                                                </div>
-                                                {onDeleteMeal && (
-                                                    <button 
-                                                        onClick={() => onDeleteMeal(log.id)}
-                                                        className="p-2 text-gray-600 hover:text-red-500 transition-colors"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </motion.div>
-                                    ))
-                                ) : (
-                                    <div className="text-center py-8 border-2 border-dashed border-gray-800 rounded-xl">
-                                        <p className="text-[10px] text-gray-600 font-mono">NO INTAKE RECORDED TODAY</p>
+                                        </div>
                                     </div>
-                                )}
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-                {activeTab === 'BODY' && (
-                    <motion.div key="bd" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                        <div className="bg-gray-900/50 p-8 rounded-2xl border border-gray-800 shadow-xl">
-                            <h3 className="text-sm text-white font-black mb-6 flex items-center gap-2 tracking-widest"><Fingerprint size={16} /> BIOMETRIC_REPORT</h3>
-                            <div className="space-y-4">
-                                <div className="flex justify-between border-b border-gray-800 pb-4"><span className="text-gray-500 uppercase text-xs">Body Mass Index</span><span className="text-white font-bold">{healthProfile?.bmi}</span></div>
-                                <div className="flex justify-between border-b border-gray-800 pb-4"><span className="text-gray-500 uppercase text-xs">Basal Metabolic Rate</span><span className="text-white font-bold">{healthProfile?.bmr} kcal</span></div>
-                                <div className="flex justify-between border-b border-gray-800 pb-4"><span className="text-gray-500 uppercase text-xs">Status</span><span className="text-system-neon font-black tracking-widest">STABLE</span></div>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                                </motion.div>
+                            )}
+
+                            {/* STATE: RESULT */}
+                            {scanState === 'RESULT' && scanResult && scannedImage && (
+                                <motion.div 
+                                    className="w-full max-w-sm bg-[#0a0a0a] border border-system-border rounded-2xl overflow-hidden shadow-2xl relative"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                >
+                                    <div className="relative h-48">
+                                        <img src={scannedImage} alt="Result" className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
+                                        <div className="absolute bottom-4 left-4">
+                                            <div className="text-[10px] text-system-neon font-bold tracking-widest bg-system-neon/10 px-2 py-0.5 rounded border border-system-neon/30 inline-block mb-1">
+                                                SCAN COMPLETE
+                                            </div>
+                                            <h3 className="text-2xl font-black text-white italic">{scanResult.name}</h3>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-6 space-y-6">
+                                        {/* Macros Grid */}
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="text-center p-3 bg-gray-900/50 rounded-xl border border-gray-800">
+                                                <div className="text-xs text-gray-500 font-bold mb-1">PROTEIN</div>
+                                                <div className="text-lg font-black text-white">{scanResult.protein}g</div>
+                                                <div className="h-1 bg-gray-800 mt-2 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-blue-500 w-[60%]" />
+                                                </div>
+                                            </div>
+                                            <div className="text-center p-3 bg-gray-900/50 rounded-xl border border-gray-800">
+                                                <div className="text-xs text-gray-500 font-bold mb-1">CARBS</div>
+                                                <div className="text-lg font-black text-white">{scanResult.carbs}g</div>
+                                                <div className="h-1 bg-gray-800 mt-2 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-green-500 w-[40%]" />
+                                                </div>
+                                            </div>
+                                            <div className="text-center p-3 bg-gray-900/50 rounded-xl border border-gray-800">
+                                                <div className="text-xs text-gray-500 font-bold mb-1">FATS</div>
+                                                <div className="text-lg font-black text-white">{scanResult.fats}g</div>
+                                                <div className="h-1 bg-gray-800 mt-2 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-yellow-500 w-[30%]" />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Total Calories */}
+                                        <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10">
+                                            <div className="flex items-center gap-2">
+                                                <Flame size={20} className="text-orange-500" />
+                                                <span className="text-sm font-bold text-gray-300">TOTAL ENERGY</span>
+                                            </div>
+                                            <div className="text-3xl font-black text-white tracking-tighter">
+                                                {scanResult.calories} <span className="text-sm font-normal text-gray-500">KCAL</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Breakdown List */}
+                                        <div className="bg-gray-900/30 rounded-xl border border-gray-800 p-4 max-h-40 overflow-y-auto custom-scrollbar">
+                                            <div className="text-[10px] text-gray-500 font-bold uppercase mb-2 tracking-widest">Detected Ingredients</div>
+                                            <div className="space-y-2">
+                                                {scanItems.map((item, idx) => (
+                                                    <div key={idx} className="flex justify-between items-center text-xs border-b border-gray-800/50 pb-1 last:border-0">
+                                                        <span className="text-gray-300">{item.name} <span className="text-gray-600">({item.quantity})</span></span>
+                                                        <span className="font-mono text-system-neon">{item.calories}</span>
+                                                    </div>
+                                                ))}
+                                                {scanItems.length === 0 && (
+                                                    <div className="text-[10px] text-gray-600 italic text-center py-2">No detailed breakdown available.</div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="grid grid-cols-2 gap-3 pt-2">
+                                            <button 
+                                                onClick={resetScanner}
+                                                className="py-3 rounded-xl border border-gray-800 text-gray-400 font-mono font-bold text-xs hover:text-white hover:border-gray-600 transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                <Trash2 size={16} /> DISCARD
+                                            </button>
+                                            <button 
+                                                onClick={confirmLog}
+                                                className="py-3 rounded-xl bg-system-neon text-black font-mono font-black text-xs hover:bg-white transition-colors flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,210,255,0.4)]"
+                                            >
+                                                <Save size={16} /> CONFIRM LOG
+                                            </button>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </motion.div>
+                    )}
+                    
+                    {activeTab === 'BODY' && (
+                        <motion.div 
+                            key="body" 
+                            initial={{ opacity: 0 }} 
+                            animate={{ opacity: 1 }} 
+                            exit={{ opacity: 0 }} 
+                            className="flex flex-col items-center justify-center text-gray-600 pt-20"
+                        >
+                            <Utensils size={48} className="mb-4 opacity-50" />
+                            <div className="text-xs font-mono tracking-widest uppercase">Biometric Gallery Offline</div>
+                            <div className="text-[10px] mt-2">Feature pending next system update.</div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
         </div>
-    </div>
+    </>
   );
 };
-
-export default HealthView;

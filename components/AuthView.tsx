@@ -181,7 +181,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
           );
           if (recoveryError) console.warn("Recovery Save Error:", recoveryError);
 
-          onLogin({ name: realName, username: handle, pin, userId: user.id });
+          onLogin({ name: realName, username: handle, pin, userId: user.id, keys: 0 });
 
       } catch (err: any) {
           console.error("Registration Error:", err);
@@ -218,11 +218,16 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                 .single();
               
               if (profile) {
-                  // Critical Fix: Unwrap raw_data if it exists (JSON field) to restore full player state
                   const playerData = profile.raw_data || {};
-                  onLogin({ ...playerData, userId: profile.id, name: profile.name || playerData.name });
+                  // Ensure keys from the DB column are passed to the initial state
+                  onLogin({ 
+                      ...playerData, 
+                      userId: profile.id, 
+                      name: profile.name || playerData.name,
+                      keys: profile.keys !== undefined ? profile.keys : (playerData.keys || 0)
+                  });
               } else {
-                  onLogin({ name: handle, username: handle, userId: user.id });
+                  onLogin({ name: handle, username: handle, userId: user.id, keys: 0 });
               }
           }
       } catch (err: any) {

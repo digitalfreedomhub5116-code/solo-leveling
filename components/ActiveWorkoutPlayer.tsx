@@ -61,10 +61,6 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
   const totalExercises = plan.exercises.length;
   
   // Robust Video Lookup Strategy
-  // 1. Check exercise object itself (Custom Protocol)
-  // 2. Check global map (Exact Match)
-  // 3. Check global map (Case Insensitive Match)
-  // 4. Check exercise DB array
   const videoSource = React.useMemo(() => {
       if (!exercise) return null;
       
@@ -187,10 +183,14 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
   // --- UI CONSTANTS ---
   const progressPercent = totalExercises > 0 ? (currentIdx / totalExercises) * 100 : 0;
   
-  // Safe set count for array generation (prevents RangeError if sets is invalid/float/negative)
-  const rawSets = Number(exercise?.sets || 0);
-  // Enforce integer range 1-20
-  const safeSetCount = Math.min(20, Math.max(1, Number.isFinite(rawSets) ? Math.floor(rawSets) : 1));
+  // FIXED: Ultra-Strict safe calculation for array generation to prevent RangeError
+  // 1. Ensure it is a number
+  let setVal = parseInt(String(exercise?.sets), 10);
+  // 2. Validate bounds
+  if (isNaN(setVal) || setVal < 1) setVal = 3; // Default to 3 sets if invalid
+  if (setVal > 30) setVal = 30; // Hard cap at 30 to prevent massive arrays
+  
+  const safeSetCount = setVal;
 
   if (!exercise) return null; // Safety render
 

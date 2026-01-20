@@ -68,7 +68,15 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           requireInput: true,
           forcePosition: 'bottom'
       },
-      4: { 
+      4: {
+          title: "Attribute Mapping",
+          body: "Everything you do builds your character.\nSelect which stat this quest improves.",
+          buttonText: "Next",
+          targetId: 'tut-quest-category',
+          allowInteraction: true,
+          forcePosition: 'bottom'
+      },
+      5: { 
           title: "Mini Quests",
           body: "Too hard? Break it down.\n'Mini Quests' are small wins that build momentum.",
           buttonText: "Next",
@@ -76,7 +84,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           allowInteraction: true,
           forcePosition: 'top'
       },
-      5: { 
+      6: { 
           title: "Triggers",
           body: "Don't rely on memory.\nSet a 'Trigger' (e.g. After coffee) to anchor this habit.",
           buttonText: "Next",
@@ -84,7 +92,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           allowInteraction: true,
           forcePosition: 'top'
       },
-      6: { 
+      7: { 
           title: "Alignment",
           body: "Categorize your goal.\nBalance is key to a high-level hunter.",
           buttonText: "Tap 'Confirm'",
@@ -93,7 +101,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           allowInteraction: true,
           forcePosition: 'top'
       },
-      7: { 
+      8: { 
           title: "Calibration Required",
           body: "The System has issued 5 Welcome Quests.\n\nYou must complete ALL of them to proceed.\n\nWatch how each completion impacts your Daily, Weekly, and Monthly attributes.",
           buttonText: "Complete Task",
@@ -102,7 +110,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           allowInteraction: true, 
           forcePosition: 'bottom'
       },
-      8: { 
+      9: { 
           title: "The Reward Shop",
           body: "Earn Gold by showing up.\nUse it to buy real-life rewards you define.",
           buttonText: "Setup Health",
@@ -114,8 +122,8 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
 
   const stepData = { ...SCRIPT[currentStep] };
 
-  // Dynamic override for Step 7 (Sequential Highlighting)
-  if (currentStep === 7 && dynamicTargetId) {
+  // Dynamic override for Step 8 (Sequential Highlighting)
+  if (currentStep === 8 && dynamicTargetId) {
       stepData.targetId = dynamicTargetId;
       stepData.body = "Focus on this specific task.\nComplete it to calibrate your stats.\n\nThe System requires full compliance.";
       // Remove forced position to allow smart positioning to avoid overlap
@@ -124,39 +132,41 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
 
   // --- SCROLL LOCK & AUTO-NAV ---
   useEffect(() => {
-    // Strict Scroll Locking Logic
-    if (targetElement && !stepData.hideOverlay) {
-        // 1. Force layout recalculation before locking
-        const rect = targetElement.getBoundingClientRect();
-        
-        // 2. Center element vertically, accounting for sticky headers (approx 100px offset)
-        const bodyRect = document.body.getBoundingClientRect().top;
-        const elementRect = rect.top;
-        const elementPosition = elementRect - bodyRect;
-        const offsetPosition = elementPosition - (window.innerHeight / 2) + (rect.height / 2);
+    let lockTimer: ReturnType<typeof setTimeout>;
 
-        // Smooth scroll to target
-        window.scrollTo({
-            top: offsetPosition,
-            behavior: 'smooth'
-        });
+    const lockScroll = () => {
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.touchAction = 'none'; // Disable touch scroll
+    };
 
-        // 3. Lock Scroll after small delay to allow smooth scroll to finish
-        const lockTimer = setTimeout(() => {
-            document.body.style.overflow = 'hidden';
-            document.body.style.touchAction = 'none'; // Disable touch scroll on mobile
-        }, 600);
-
-        return () => {
-            clearTimeout(lockTimer);
-            document.body.style.overflow = '';
-            document.body.style.touchAction = '';
-        };
-    } else {
+    const unlockScroll = () => {
         document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
         document.body.style.touchAction = '';
+    };
+
+    if (stepData.hideOverlay) {
+        unlockScroll();
+        return;
     }
-  }, [targetElement, stepData.hideOverlay]);
+
+    if (targetElement) {
+        // Scroll to target
+        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+        // Lock after animation duration (approx 600ms for smooth scroll)
+        lockTimer = setTimeout(lockScroll, 600);
+    } else {
+        // If no target (e.g. text modal), lock immediately to focus user
+        lockScroll();
+    }
+
+    return () => {
+        clearTimeout(lockTimer);
+        unlockScroll();
+    };
+  }, [targetElement, stepData.hideOverlay, currentStep]);
 
   // --- SPOTLIGHT TRACKING ---
   useEffect(() => {
@@ -263,12 +273,15 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
     window.addEventListener('mousedown', handleInteraction, true);
     window.addEventListener('touchstart', handleInteraction, { capture: true, passive: false });
     window.addEventListener('keydown', handleInteraction, true);
+    // Also block wheel to prevent fighting auto-scroll during lock
+    window.addEventListener('wheel', handleInteraction, { capture: true, passive: false });
 
     return () => {
         window.removeEventListener('click', handleInteraction, true);
         window.removeEventListener('mousedown', handleInteraction, true);
         window.removeEventListener('touchstart', handleInteraction, true);
         window.removeEventListener('keydown', handleInteraction, true);
+        window.removeEventListener('wheel', handleInteraction, true);
     };
   }, [stepData, targetElement, currentStep]);
 
@@ -469,7 +482,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
 
                             <div className="flex justify-end gap-2">
                                 <AnimatePresence mode="wait">
-                                    {currentStep === 8 ? ( 
+                                    {currentStep === 9 ? ( 
                                         <motion.button 
                                             key="btn-complete"
                                             initial={{ opacity: 0, scale: 0.8 }}
@@ -507,7 +520,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                     
                     {/* Progress Dots */}
                     <div className="bg-black/50 py-1.5 px-4 flex gap-1 justify-center shrink-0">
-                        {Array.from({ length: 9 }).map((_, i) => (
+                        {Array.from({ length: 10 }).map((_, i) => (
                             <motion.div 
                                 key={i}
                                 layout 

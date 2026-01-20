@@ -162,15 +162,16 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
     setError(null);
 
     // Tutorial Action
-    if (tutorialStep === 6 && onTutorialAction) {
-        onTutorialAction(7);
+    // Updated step 7 (Confirm) -> 8 (Calibration List)
+    if (tutorialStep === 7 && onTutorialAction) {
+        onTutorialAction(8);
     }
   };
 
   return (
     <div className="space-y-6">
        {/* Header & Controls */}
-       <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 border-b border-system-border pb-4 sticky top-0 bg-system-bg z-20 pt-2">
+       <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 border-b border-system-border pb-4 sticky top-20 bg-system-bg z-20 pt-2 backdrop-blur-sm bg-black/80 md:bg-system-bg">
           <div>
             <h2 className="text-2xl font-bold text-white font-mono tracking-tighter flex items-center gap-2">
                 <Calendar size={24} className="text-system-neon" />
@@ -291,6 +292,7 @@ const QuestsView: React.FC<QuestsViewProps> = ({ quests, addQuest, completeQuest
                        <div>
                           <label className="block text-xs text-gray-500 mb-1 font-mono uppercase">Category</label>
                           <select 
+                            id="tut-quest-category"
                             value={category}
                             onChange={e => setCategory(e.target.value as keyof CoreStats)}
                             className="w-full bg-system-bg border border-system-border rounded p-2 text-white text-sm focus:border-system-neon focus:outline-none appearance-none"

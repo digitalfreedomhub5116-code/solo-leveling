@@ -24,6 +24,7 @@ const DEFAULT_PLAYER: PlayerData = {
   dailyXp: 0,
   rank: 'E',
   gold: 0,
+  keys: 0,
   streak: 0,
   stats: { strength: 10, intelligence: 10, focus: 10, social: 10, willpower: 10 },
   dailyStats: { strength: 0, intelligence: 0, focus: 0, social: 0, willpower: 0 },
@@ -41,9 +42,10 @@ const DEFAULT_PLAYER: PlayerData = {
   fatigue: 0,
   job: 'Civilian',
   title: 'None',
-  lastLoginDate: new Date().toISOString().split('T')[0],
+  lastLoginDate: '', // Empty initially
   dailyQuestComplete: false,
   isPenaltyActive: false,
+  lastDungeonEntry: 0,
   logs: [],
   quests: [],
   shopItems: [],
@@ -70,15 +72,11 @@ export const useSystem = () => {
   }, [player]);
 
   // --- GLOBAL VIDEO SYNC ---
-  // Fetch global videos on mount
   useEffect(() => {
     const fetchGlobalVideos = async () => {
       try {
         const { data, error } = await supabase.from('global_videos').select('*');
-        if (error) {
-          console.warn("Failed to fetch global videos:", error.message);
-          return;
-        }
+        if (error) return;
         
         if (data && data.length > 0) {
           const videoMap: Record<string, string> = {};
@@ -87,7 +85,6 @@ export const useSystem = () => {
           data.forEach((row: any) => {
             if (row.key && row.url) {
               videoMap[row.key] = row.url;
-              // Map to Exercise DB format for individual exercise lookups
               exerciseDB.push({
                   id: row.id?.toString() || row.key,
                   name: row.key,
@@ -114,12 +111,13 @@ export const useSystem = () => {
     fetchGlobalVideos();
   }, []);
 
-  // Sync to Cloud (Debounced or immediate)
+  // Sync to Cloud
   const syncToCloud = async (data: PlayerData) => {
     if (data.userId && !data.userId.startsWith('local-')) {
         try {
             await supabase.from('profiles').update({
                 raw_data: data,
+                keys: data.keys,
                 updated_at: new Date().toISOString()
             }).eq('id', data.userId);
         } catch (e) {
@@ -131,8 +129,6 @@ export const useSystem = () => {
   const addNotification = (message: string, type: NotificationType) => {
     const id = Date.now().toString();
     setNotifications(prev => [...prev, { id, message, type }]);
-    
-    // Auto remove after 5s
     setTimeout(() => {
         setNotifications(prev => prev.filter(n => n.id !== id));
     }, 5000);
@@ -153,51 +149,152 @@ export const useSystem = () => {
 
   const registerUser = (profile: any) => {
       setPlayer(prev => {
-          // IMPORTANT: Handle data structure from Supabase (which puts the entire state in 'raw_data')
-          // If profile comes from DB, it has { id, raw_data: {...}, ... }
-          // If profile comes from registration, it's just Partial<PlayerData>
-          
           const playerData = profile.raw_data ? profile.raw_data : profile;
-          
           const updated = { 
               ...prev, 
               ...playerData, 
-              // Ensure we capture the top-level ID if present in the raw row
               userId: profile.id || prev.userId,
+              keys: profile.keys !== undefined ? profile.keys : (playerData.keys || prev.keys),
               isConfigured: true 
           };
           
-          // Only sync back if it's a new registration (not having raw_data implies new)
           if (!profile.raw_data) {
               syncToCloud(updated);
           }
-          
           return updated;
       });
       playSystemSoundEffect('SYSTEM');
   };
 
+  // Used for traps/revives (consumes 1 key)
+  const consumeKey = async (): Promise<boolean> => {
+      if (player.keys > 0) {
+          const newKeys = player.keys - 1;
+          const updated = { ...player, keys: newKeys };
+          setPlayer(updated); // Instant UI update
+          await syncToCloud(updated);
+          return true;
+      }
+      return false;
+  };
+
+  // Used for Dungeon Entry (Logic for Free vs Paid)
+  const enterDungeon = async (isFree: boolean): Promise<boolean> => {
+      if (isFree) {
+          // Update the last entry time to start 24h cooldown
+          const updated = { ...player, lastDungeonEntry: Date.now() };
+          setPlayer(updated);
+          syncToCloud(updated);
+          return true;
+      } else {
+          // Paid entry: Costs 5 keys, does NOT reset the free timer
+          if (player.keys >= 5) {
+              const newKeys = player.keys - 5;
+              const updated = { 
+                  ...player, 
+                  keys: newKeys,
+                  logs: [createLog(`Dungeon Access Purchased (-5 Keys)`, 'PURCHASE'), ...player.logs]
+              };
+              setPlayer(updated); // Instant UI update
+              await syncToCloud(updated);
+              return true;
+          }
+          return false;
+      }
+  };
+
+  const checkDailyLogin = (): boolean => {
+      const today = new Date().toISOString().split('T')[0];
+      // Check if logged in previously on a different day
+      if (player.lastLoginDate !== today) {
+          setPlayer(prev => {
+              const updated = {
+                  ...prev,
+                  lastLoginDate: today,
+                  gold: prev.gold + 50,
+                  keys: prev.keys + 1,
+                  logs: [createLog('Daily Supply Drop Received: +50 Gold, +1 Key', 'SYSTEM'), ...prev.logs]
+              };
+              syncToCloud(updated);
+              return updated;
+          });
+          return true; // Return true to trigger Modal
+      }
+      return false;
+  };
+
+  const deductGold = (amount: number): boolean => {
+      if (player.gold >= amount) {
+          setPlayer(prev => {
+              const updated = { 
+                  ...prev, 
+                  gold: prev.gold - amount 
+              };
+              syncToCloud(updated);
+              return updated;
+          });
+          return true;
+      }
+      return false;
+  };
+
+  const addRewards = (gold: number, xp: number, keys: number = 0) => {
+      setPlayer(prev => {
+          let { currentXp, requiredXp, level, totalXp, dailyXp } = prev;
+          
+          currentXp += xp;
+          totalXp += xp;
+          dailyXp += xp;
+
+          let leveledUp = false;
+          while (currentXp >= requiredXp) {
+              currentXp -= requiredXp;
+              level++;
+              requiredXp = Math.floor(requiredXp * 1.2);
+              leveledUp = true;
+          }
+
+          const newLogs = [...prev.logs];
+          if (gold > 0 || keys > 0) newLogs.unshift(createLog(`Loot Acquired: ${gold} G, ${keys} Keys, ${xp} XP`, 'LOOT'));
+          if (leveledUp) {
+              newLogs.unshift(createLog(`LEVEL UP! REACHED LEVEL ${level}`, 'LEVEL_UP'));
+              addNotification(`LEVEL UP! You are now Level ${level}`, 'LEVEL_UP');
+              playSystemSoundEffect('LEVEL_UP');
+          }
+
+          const updated = {
+              ...prev,
+              gold: prev.gold + gold,
+              keys: prev.keys + keys,
+              currentXp, requiredXp, level, totalXp, dailyXp,
+              logs: newLogs
+          };
+          
+          if (leveledUp) {
+              updated.hp = updated.maxHp;
+              updated.mp = updated.maxMp;
+          }
+
+          syncToCloud(updated);
+          return updated;
+      });
+  };
+
   const updateFocusVideos = async (videos: Record<string, string>) => {
-      // 1. Optimistic Update (Local) - MERGE with existing
       setPlayer(prev => {
           const updated = { ...prev, focusVideos: { ...prev.focusVideos, ...videos } };
           return updated;
       });
 
-      // 2. Persist to Global Table
       try {
           const upsertData = Object.entries(videos).map(([key, url]) => ({
               key,
               url,
               updated_at: new Date().toISOString()
           }));
-          
-          const { error } = await supabase.from('global_videos').upsert(upsertData);
-          if (error) throw error;
+          await supabase.from('global_videos').upsert(upsertData);
       } catch (err: any) {
-          console.error("Failed to sync videos to global table:", err.message || err);
-          addNotification(`Cloud Sync Failed: ${err.message || "Unknown Error"}`, "WARNING");
-          throw err; // Re-throw to allow component to handle failure UI
+          console.error("Failed to sync videos:", err.message);
       }
   };
 
@@ -214,8 +311,6 @@ export const useSystem = () => {
       window.location.reload();
   };
 
-  // XP & Leveling Logic
-  // This function is kept for internal logic reuse or external trigger if needed
   const addXp = (amount: number, source: string) => {
       setPlayer(prev => {
           let { currentXp, requiredXp, level, totalXp, dailyXp } = prev;
@@ -239,13 +334,10 @@ export const useSystem = () => {
           }
 
           const updated = { ...prev, currentXp, requiredXp, level, totalXp, dailyXp, logs: newLogs };
-          
           if (leveledUp) {
-              // Restore HP/MP on level up
               updated.hp = updated.maxHp;
               updated.mp = updated.maxMp;
           }
-
           syncToCloud(updated);
           return updated;
       });
@@ -275,7 +367,6 @@ export const useSystem = () => {
 
           quests[qIndex] = { ...quest, isCompleted: true, completedAsMini: asMini };
 
-          // Update stats
           const stats = { ...prev.stats };
           const dailyStats = { ...prev.dailyStats };
           
@@ -293,7 +384,6 @@ export const useSystem = () => {
               logs: [createLog(`Completed Quest: ${quest.title} (+${reward} XP)`, 'XP'), ...prev.logs]
           };
           
-          // Trigger XP add logic
           let { currentXp, requiredXp, level, totalXp, dailyXp } = updated;
           currentXp += reward;
           totalXp += reward;
@@ -333,8 +423,7 @@ export const useSystem = () => {
 
           quests[qIndex] = { ...quests[qIndex], failed: true };
           
-          // Penalty Logic
-          const penaltyAmount = 50; // XP loss
+          const penaltyAmount = 50; 
           let { currentXp } = prev;
           currentXp = Math.max(0, currentXp - penaltyAmount);
 
@@ -368,7 +457,6 @@ export const useSystem = () => {
       });
   };
 
-  // Shop
   const purchaseItem = (item: ShopItem) => {
       setPlayer(prev => {
           if (prev.gold < item.cost) {
@@ -403,7 +491,6 @@ export const useSystem = () => {
       });
   };
 
-  // Health & Nutrition
   const saveHealthProfile = (profile: HealthProfile, identity: string) => {
       setPlayer(prev => {
           const updated = { ...prev, healthProfile: profile, identity };
@@ -437,7 +524,6 @@ export const useSystem = () => {
 
   const logMeal = (meal: MealLog) => {
       setPlayer(prev => {
-          // Recovery Mechanic: Eating restores a small amount of HP
           const recoveryAmount = 5;
           const newHp = Math.min(prev.maxHp, prev.hp + recoveryAmount);
           
@@ -463,19 +549,16 @@ export const useSystem = () => {
 
   const completeWorkoutSession = (exercisesCompleted: number, totalExercises: number, results: Record<string, number>, intensityModifier: boolean) => {
       setPlayer(prev => {
-          // XP Calculation
           const baseXp = exercisesCompleted * 50;
           const bonusXp = intensityModifier ? 100 : 0;
           const totalReward = baseXp + bonusXp;
           const goldReward = Math.floor(totalReward / 10);
 
-          // Update Strength & Health Stats
           const stats = { ...prev.stats };
           stats.strength += 2;
           stats.willpower += 1;
           if (intensityModifier) stats.strength += 1;
 
-          // Merge Personal Bests
           const newPBs = { ...prev.personalBests };
           Object.entries(results).forEach(([key, val]) => {
               if (!newPBs[key] || val > newPBs[key]) {
@@ -483,7 +566,6 @@ export const useSystem = () => {
               }
           });
 
-          // Leveling Logic (Reused)
           let { currentXp, requiredXp, level, totalXp, dailyXp } = prev;
           currentXp += totalReward;
           totalXp += totalReward;
@@ -521,7 +603,6 @@ export const useSystem = () => {
       addNotification("Workout Aborted. No Rewards.", "WARNING");
   };
 
-  // Tutorial
   const advanceTutorial = (step: number) => {
       setPlayer(prev => {
           const updated = { ...prev, tutorialStep: step };
@@ -539,7 +620,6 @@ export const useSystem = () => {
       addNotification("Tutorial Protocol Complete. System Fully Operational.", "SUCCESS");
   };
 
-  // Penalty
   const resolvePenalty = () => {
       setPlayer(prev => {
           const updated = { ...prev, isPenaltyActive: false, penaltyEndTime: undefined, penaltyTask: undefined };
@@ -554,7 +634,6 @@ export const useSystem = () => {
           if (!prev.penaltyEndTime) return prev;
           const newEndTime = prev.penaltyEndTime - ms;
           
-          // If reduced to now or earlier, resolve it
           if (newEndTime <= Date.now()) {
               const updated = { 
                   ...prev, 
@@ -567,11 +646,10 @@ export const useSystem = () => {
           }
           
           const updated = { ...prev, penaltyEndTime: newEndTime };
-          return updated; // Local update only for performance, sync on resolve
+          return updated; 
       });
   };
 
-  // Tournament
   const claimTournamentReward = () => {
       setPlayer(prev => {
           const reward = prev.tournament?.pendingReward;
@@ -617,6 +695,11 @@ export const useSystem = () => {
     claimTournamentReward,
     updateFocusVideos,
     updateCustomProtocols,
-    addXp
+    addXp,
+    consumeKey,
+    checkDailyLogin,
+    deductGold,
+    addRewards,
+    enterDungeon // Exported
   };
 };

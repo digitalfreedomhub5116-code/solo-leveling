@@ -1,3 +1,4 @@
+
 import React, { useCallback } from 'react';
 
 // SVG string for the coin to keep it lightweight and zero-dependency
@@ -10,9 +11,17 @@ const COIN_SVG = `
 `;
 
 export const useCoinReward = () => {
-  const triggerCoinReward = useCallback((e: React.MouseEvent<HTMLElement>) => {
-    const originRect = e.currentTarget.getBoundingClientRect();
-    const targetEl = document.getElementById('user-wallet-balance');
+  const triggerCoinReward = useCallback((origin: React.MouseEvent<HTMLElement> | DOMRect, targetId: string = 'user-wallet-balance') => {
+    let originRect: DOMRect;
+
+    // Determine if origin is an Event or a Rect
+    if ((origin as React.MouseEvent).currentTarget) {
+        originRect = (origin as React.MouseEvent).currentTarget.getBoundingClientRect();
+    } else {
+        originRect = origin as DOMRect;
+    }
+
+    const targetEl = document.getElementById(targetId);
     
     if (!targetEl) return;
     const targetRect = targetEl.getBoundingClientRect();
@@ -30,7 +39,7 @@ export const useCoinReward = () => {
       coin.classList.add('coin-particle');
       coin.innerHTML = COIN_SVG;
       
-      // Initial Position (Center of Button)
+      // Initial Position (Center of Button/Rect)
       coin.style.position = 'fixed';
       coin.style.left = `${startX}px`;
       coin.style.top = `${startY}px`;
@@ -53,7 +62,7 @@ export const useCoinReward = () => {
       // Control point is higher than both start and end to create an arc (gravity effect)
       const midY = Math.min(startY, endY) - 150 - Math.random() * 100; 
 
-      // Slower Duration: 1.5s to 2.3s (Previously 0.8s - 1.2s)
+      // Slower Duration: 1.5s to 2.3s
       const duration = 1500 + Math.random() * 800; 
       const delay = Math.random() * 300; // Slightly increased stagger delay
 

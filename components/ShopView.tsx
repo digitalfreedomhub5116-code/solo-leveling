@@ -40,10 +40,10 @@ const ShopView: React.FC<ShopViewProps> = ({ gold, items, purchaseItem, addItem,
   return (
     <div className="space-y-6">
       {/* Header with Gold Balance */}
-      <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 border-b border-system-border pb-4 sticky top-0 bg-system-bg/95 backdrop-blur z-20 pt-2">
+      <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 border-b border-system-border pb-4 sticky top-20 bg-system-bg/95 backdrop-blur z-20 pt-2 bg-black/80 md:bg-system-bg">
          <div>
            <h2 className="text-2xl font-bold text-white font-mono tracking-tighter flex items-center gap-2">
-             SYSTEM SHOP
+             SYSTEM REWARDS
            </h2>
            <p className="text-xs text-gray-500 font-mono">EXCHANGE CURRENCY FOR REWARDS</p>
          </div>

@@ -8,7 +8,7 @@ export enum SystemState {
   LOCKED = 'LOCKED'
 }
 
-export type Tab = 'DASHBOARD' | 'QUESTS' | 'SHOP' | 'GROWTH' | 'HEALTH' | 'RANKING';
+export type Tab = 'DASHBOARD' | 'QUESTS' | 'REWARDS' | 'GROWTH' | 'HEALTH' | 'RANKING' | 'CASTLE';
 
 export interface NavItem {
   label: string;
@@ -40,7 +40,7 @@ export interface ActivityLog {
   id: string;
   message: string;
   timestamp: number;
-  type: 'XP' | 'LEVEL_UP' | 'PENALTY' | 'SYSTEM' | 'PURCHASE' | 'STREAK' | 'WORKOUT' | 'TOURNAMENT';
+  type: 'XP' | 'LEVEL_UP' | 'PENALTY' | 'SYSTEM' | 'PURCHASE' | 'STREAK' | 'WORKOUT' | 'TOURNAMENT' | 'LOOT';
 }
 
 export interface Quest {
@@ -224,6 +224,7 @@ export interface PlayerData {
   dailyXp: number;       // XP gained today (for daily graph)
   rank: Rank;
   gold: number;
+  keys: number;          // Dungeon Keys for AI Features
   streak: number;        // Consecutive days logged in
   
   // Attributes
@@ -256,6 +257,7 @@ export interface PlayerData {
   isPenaltyActive: boolean;
   penaltyEndTime?: number; // Timestamp when penalty expires
   penaltyTask?: PenaltyTask; // Specific penalty assignment
+  lastDungeonEntry?: number; // Timestamp of last FREE dungeon entry
   logs: ActivityLog[];
   quests: Quest[];
   shopItems: ShopItem[];
