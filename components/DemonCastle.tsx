@@ -406,7 +406,6 @@ const FlyingLoot: React.FC<{ lootType: 'GOLD' | 'KEY'; startRect: DOMRect | null
     // Gold goes to "loot-bag-balance" (top right, upper)
     // Key goes to "loot-bag-keys" (top right, lower)
     const endTop = lootType === 'GOLD' ? 40 : 65; 
-    const endRight = 20; // Approximate padding
 
     return (
         <motion.div
@@ -437,10 +436,8 @@ const FlyingLoot: React.FC<{ lootType: 'GOLD' | 'KEY'; startRect: DOMRect | null
 // --- MAIN COMPONENT ---
 
 const DemonCastle: React.FC<DemonCastleProps> = ({ 
-    gold, 
     keys, 
     lastDungeonEntry, 
-    onDeductGold, 
     onConsumeKey, 
     onAddRewards, 
     onEnterDungeon,

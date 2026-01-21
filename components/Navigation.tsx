@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { LayoutDashboard, Sword, Gift, TrendingUp, Activity, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Tab, NavItem } from '../types';

@@ -39,45 +39,46 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
   const [otp, setOtp] = useState('');
   
   const [loading, setLoading] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true); // Start true to check immediately
+  const [checkingSession, setCheckingSession] = useState(true); 
   const [error, setError] = useState<string | null>(null);
 
   // Check for existing session on mount
   useEffect(() => {
     let mounted = true;
 
-    const initSession = async () => {
-        // CRITICAL: Check if we are returning from a Google/MagicLink redirect
-        // If hash exists with access_token, we MUST wait for the onAuthStateChange listener to fire.
-        // If we set checkingSession(false) here, the login form will flash before auth completes.
-        const isCallback = window.location.hash && (
-            window.location.hash.includes('access_token') || 
-            window.location.hash.includes('type=recovery') ||
-            window.location.hash.includes('error_description')
-        );
-
-        if (isCallback) {
-            console.log("Processing Auth Callback...");
-            // Do NOT turn off loading. Wait for event listener.
-            return;
-        }
-
+    const checkAuth = async () => {
         try {
+            // 1. Check direct session from storage/memory
             const { data: { session } } = await supabase.auth.getSession();
-            if (mounted) {
-                if (session?.user) {
-                    await handleSessionUser(session.user);
-                } else {
-                    setCheckingSession(false);
-                }
+            
+            if (session?.user) {
+                if (mounted) await handleSessionUser(session.user);
+                return; 
             }
+
+            // 2. If no session, check if we are in a redirect flow (OAuth/MagicLink)
+            // The hash might be stripped by Supabase client already, but if it exists, wait.
+            const hasAuthParams = window.location.hash && (
+                window.location.hash.includes('access_token') || 
+                window.location.hash.includes('type=recovery') ||
+                window.location.hash.includes('error_description')
+            );
+
+            if (hasAuthParams) {
+                console.log("Auth params detected, waiting for auth state change...");
+                // Keep loading true, let onAuthStateChange handle it
+            } else {
+                // No session and no auth params -> Ready to show Login
+                if (mounted) setCheckingSession(false);
+            }
+
         } catch (e) {
             console.error("Session Check Error", e);
             if (mounted) setCheckingSession(false);
         }
     };
 
-    initSession();
+    checkAuth();
 
     // Listen for auth changes (Google Redirects, Link clicks)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -104,7 +105,8 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
       setLoading(true);
       setError(null);
       try {
-          const { data: profile, error } = await supabase
+          // Check for existing profile
+          const { data: profile } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', user.id)
@@ -236,7 +238,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
           const { error } = await supabase.auth.signInWithOAuth({
               provider: 'google',
               options: {
-                  // Explicitly redirect to origin to avoid subdomain issues
+                  // Explicitly redirect to origin
                   redirectTo: window.location.origin
               }
           });

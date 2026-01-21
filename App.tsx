@@ -37,7 +37,7 @@ const STAT_CONFIG: Record<keyof CoreStats, { icon: any, color: string, bar: stri
 
 const App: React.FC = () => {
   const { 
-    player, setPlayer, notifications, 
+    player, notifications, 
     registerUser, addQuest, completeQuest, failQuest, resetQuest, deleteQuest, 
     purchaseItem, addShopItem, removeShopItem, 
     removeNotification, saveHealthProfile, 
