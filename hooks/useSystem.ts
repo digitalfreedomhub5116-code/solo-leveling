@@ -436,9 +436,27 @@ export const useSystem = () => {
       });
   };
 
-  const logout = () => {
-      localStorage.removeItem('biosync_player_v2');
-      window.location.reload();
+  const logout = async () => {
+      try {
+          // 1. Ensure latest state is pushed to cloud
+          if (player.userId && !player.userId.startsWith('local-')) {
+              await syncToCloud(player);
+          }
+          
+          // 2. Sign out of Supabase to clear session cookies
+          await supabase.auth.signOut();
+          
+          // 3. Clear local storage app state
+          localStorage.removeItem('biosync_player_v2');
+          
+          // 4. Reload page to return to AuthView
+          window.location.reload();
+      } catch (err) {
+          console.error("Logout Error:", err);
+          // Force reload anyway as fallback
+          localStorage.removeItem('biosync_player_v2');
+          window.location.reload();
+      }
   };
 
   const addXp = (amount: number, source: string) => {
