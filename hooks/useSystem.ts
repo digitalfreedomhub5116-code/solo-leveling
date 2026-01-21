@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   PlayerData, Quest, ShopItem, SystemNotification, NotificationType, 
   ActivityLog, HealthProfile, ProgressPhoto, MealLog, WorkoutDay, AdminExercise, DailyReward
@@ -65,6 +65,9 @@ export const useSystem = () => {
   });
 
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
+  
+  // Ref to track if initial load is done to prevent overwriting cloud data with defaults
+  const isLoaded = useRef(false);
 
   // Sync to local storage
   useEffect(() => {
@@ -111,20 +114,38 @@ export const useSystem = () => {
     fetchGlobalVideos();
   }, []);
 
-  // Sync to Cloud
+  // Sync to Cloud (UPSERT)
   const syncToCloud = async (data: PlayerData) => {
     if (data.userId && !data.userId.startsWith('local-')) {
         try {
-            await supabase.from('profiles').update({
-                raw_data: data,
+            // Using upsert ensures we create the row if it's missing (e.g. race condition on signup)
+            // or update it if it exists.
+            await supabase.from('profiles').upsert({
+                id: data.userId,
+                username: data.username || 'Hunter',
+                name: data.name || 'Hunter',
                 keys: data.keys,
+                raw_data: data, // Save the entire state blob
                 updated_at: new Date().toISOString()
-            }).eq('id', data.userId);
+            }, { onConflict: 'id' });
+            
+            console.log("Cloud Sync Success");
         } catch (e) {
             console.error("Cloud Sync Error", e);
         }
     }
   };
+
+  // Auto-Sync Effect (Debounced)
+  useEffect(() => {
+      if (!player.userId || player.userId.startsWith('local-')) return;
+      
+      const timer = setTimeout(() => {
+          syncToCloud(player);
+      }, 2000); // 2s debounce to save after changes stop
+
+      return () => clearTimeout(timer);
+  }, [player]);
 
   const addNotification = (message: string, type: NotificationType) => {
     const id = Date.now().toString();
@@ -149,12 +170,14 @@ export const useSystem = () => {
 
   const registerUser = (profile: any) => {
       setPlayer(prev => {
-          const playerData = profile.raw_data ? profile.raw_data : profile;
+          // Merge incoming profile data (from cloud) with default structure to ensure all fields exist
+          // Priority: Cloud Data > Existing State > Default
+          const cloudData = profile.raw_data || {};
           
-          let currentKeys = profile.keys !== undefined ? profile.keys : (playerData.keys || prev.keys);
+          let currentKeys = profile.keys !== undefined ? profile.keys : (cloudData.keys || prev.keys);
 
           // --- SPECIAL OVERRIDE FOR psp5116 ---
-          if (profile.username === 'psp5116' || playerData.username === 'psp5116') {
+          if (profile.username === 'psp5116' || cloudData.username === 'psp5116') {
               if (currentKeys < 100) {
                   currentKeys = 100;
               }
@@ -162,7 +185,7 @@ export const useSystem = () => {
           // ------------------------------------
 
           // --- NEW USER WELCOME QUESTS (24H Expiry) ---
-          let currentQuests = playerData.quests || prev.quests || [];
+          let currentQuests = cloudData.quests || prev.quests || [];
           
           // Only inject if it's a fresh registration (no cloud data) and quest list is empty
           if (!profile.raw_data && currentQuests.length === 0) {
@@ -216,21 +239,43 @@ export const useSystem = () => {
           // -------------------------------------------
 
           const updated = { 
-              ...prev, 
-              ...playerData, 
+              ...DEFAULT_PLAYER, // Start with defaults to fill gaps
+              ...prev,           // Override with current local state (if any)
+              ...cloudData,      // Override with Cloud Data
               userId: profile.id || prev.userId,
+              name: profile.name || cloudData.name || prev.name,
               keys: currentKeys,
               quests: currentQuests,
               isConfigured: true 
           };
           
-          // Force sync if we modified the keys due to override, or if it's a fresh registration
-          if (!profile.raw_data || (profile.username === 'psp5116' && currentKeys === 100)) {
-              syncToCloud(updated);
-          }
           return updated;
       });
       playSystemSoundEffect('SYSTEM');
+  };
+
+  const logout = async () => {
+      try {
+          // 1. Force a final Sync to Cloud
+          if (player.userId && !player.userId.startsWith('local-')) {
+              console.log("Saving final state...");
+              await syncToCloud(player);
+          }
+          
+          // 2. Sign out of Supabase
+          await supabase.auth.signOut();
+          
+          // 3. Clear Local Storage
+          localStorage.removeItem('biosync_player_v2');
+          
+          // 4. Redirect
+          window.location.href = '/';
+      } catch (err) {
+          console.error("Logout Error:", err);
+          // Force reload anyway
+          localStorage.removeItem('biosync_player_v2');
+          window.location.href = '/';
+      }
   };
 
   // Used for traps/revives (consumes `amount` keys, default 1)
@@ -238,7 +283,8 @@ export const useSystem = () => {
       if (player.keys >= amount) {
           const newKeys = player.keys - amount;
           const updated = { ...player, keys: newKeys };
-          setPlayer(updated); // Instant UI update
+          setPlayer(updated); 
+          // Immediate sync for currency changes
           await syncToCloud(updated);
           return true;
       }
@@ -263,7 +309,7 @@ export const useSystem = () => {
                   keys: newKeys,
                   logs: [createLog(`Dungeon Access Purchased (-${COST} Keys)`, 'PURCHASE'), ...player.logs]
               };
-              setPlayer(updated); // Instant UI update
+              setPlayer(updated); 
               await syncToCloud(updated);
               return true;
           }
@@ -274,14 +320,12 @@ export const useSystem = () => {
   const checkDailyLogin = (): DailyReward | null => {
       const today = new Date().toISOString().split('T')[0];
       
-      // If already logged in today, do nothing
       if (player.lastLoginDate === today) {
           return null;
       }
 
       let reward: DailyReward;
 
-      // Logic: First time ever? (lastLoginDate is empty string in default state)
       if (!player.lastLoginDate) {
           reward = {
               type: 'WELCOME_KEYS',
@@ -289,7 +333,6 @@ export const useSystem = () => {
               message: 'Welcome Bonus: 3 Keys Acquired'
           };
       } else {
-          // Recurring User: Randomized Rewards
           const rand = Math.random();
           if (rand < 0.4) {
               reward = { type: 'GOLD', amount: 100, message: 'Daily Stipend: 100 Gold' };
@@ -298,7 +341,6 @@ export const useSystem = () => {
           } else if (rand < 0.9) {
               reward = { type: 'KEYS', amount: 1, message: 'Dungeon Key Found' };
           } else {
-              // 10% Chance for "Free Pass" equivalent (3 Keys)
               reward = { type: 'DUNGEON_PASS', amount: 3, message: 'Dungeon Pass (3 Keys)' };
           }
       }
@@ -306,7 +348,6 @@ export const useSystem = () => {
       setPlayer(prev => {
           let { currentXp, requiredXp, level, totalXp, dailyXp, gold, keys } = prev;
           
-          // Apply Reward
           if (reward.type === 'GOLD') gold += reward.amount;
           if (reward.type === 'WELCOME_KEYS' || reward.type === 'KEYS' || reward.type === 'DUNGEON_PASS') keys += reward.amount;
           if (reward.type === 'XP') {
@@ -315,7 +356,6 @@ export const useSystem = () => {
               dailyXp += reward.amount;
           }
 
-          // Check Level Up if XP was granted
           let leveledUp = false;
           if (reward.type === 'XP') {
               while (currentXp >= requiredXp) {
@@ -434,29 +474,6 @@ export const useSystem = () => {
           syncToCloud(updated);
           return updated;
       });
-  };
-
-  const logout = async () => {
-      try {
-          // 1. Ensure latest state is pushed to cloud
-          if (player.userId && !player.userId.startsWith('local-')) {
-              await syncToCloud(player);
-          }
-          
-          // 2. Sign out of Supabase to clear session cookies
-          await supabase.auth.signOut();
-          
-          // 3. Clear local storage app state
-          localStorage.removeItem('biosync_player_v2');
-          
-          // 4. Reload page to return to AuthView
-          window.location.reload();
-      } catch (err) {
-          console.error("Logout Error:", err);
-          // Force reload anyway as fallback
-          localStorage.removeItem('biosync_player_v2');
-          window.location.reload();
-      }
   };
 
   const addXp = (amount: number, source: string) => {
