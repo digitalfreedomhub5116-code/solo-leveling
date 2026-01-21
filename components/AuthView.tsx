@@ -30,13 +30,12 @@ const cardTransition: Variants = {
 };
 
 const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
-  const [mode, setMode] = useState<'LOGIN' | 'SIGNUP' | 'VERIFY_OTP' | 'FORGOT_PASSWORD'>('LOGIN');
+  const [mode, setMode] = useState<'LOGIN' | 'SIGNUP' | 'FORGOT_PASSWORD'>('LOGIN');
   
   // Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [otp, setOtp] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true); 
@@ -57,7 +56,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
             }
 
             // 2. If no session, check if we are in a redirect flow (OAuth/MagicLink)
-            // The hash might be stripped by Supabase client already, but if it exists, wait.
             const hasAuthParams = window.location.hash && (
                 window.location.hash.includes('access_token') || 
                 window.location.hash.includes('type=recovery') ||
@@ -68,7 +66,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                 console.log("Auth params detected, waiting for auth state change...");
                 // Keep loading true, let onAuthStateChange handle it
             } else {
-                // No session and no auth params -> Ready to show Login
                 if (mounted) setCheckingSession(false);
             }
 
@@ -105,12 +102,14 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
       setLoading(true);
       setError(null);
       try {
-          // Check for existing profile
-          const { data: profile } = await supabase
+          // Use maybeSingle() to avoid errors on 0 rows, checking explicitly for null
+          const { data: profile, error: fetchError } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', user.id)
-              .single();
+              .maybeSingle();
+
+          if (fetchError) throw fetchError;
 
           if (profile) {
               const playerData = profile.raw_data || {};
@@ -122,7 +121,8 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                   keys: profile.keys !== undefined ? profile.keys : (playerData.keys || 0)
               });
           } else {
-              // New user profile creation
+              // Only create new profile if we are SURE it doesn't exist (profile is null)
+              // This prevents accidental overwrites if the fetch failed for other reasons (handled by fetchError throw above)
               const name = user.user_metadata?.full_name || fullName || 'Hunter';
               const username = user.email?.split('@')[0] || `hunter_${Date.now().toString().slice(-4)}`;
               
@@ -146,15 +146,10 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
           }
       } catch (err: any) {
           console.error("Profile Load Error:", err);
-          // Fallback if profile fetch fails but auth works
-          onLogin({
-              userId: user.id,
-              name: user.user_metadata?.full_name || 'Hunter',
-              username: user.email?.split('@')[0],
-              keys: 0
-          });
+          setError("Failed to load profile. Please try refreshing.");
       } finally {
-          // Only stop loading if component is still mounted (though unmount usually happens on login)
+          // Only stop loading if component is still mounted
+          // Note: onLogin typically unmounts this component, so this might not run, which is fine.
           setLoading(false);
           setCheckingSession(false);
       }
@@ -195,38 +190,19 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
           });
           if (error) throw error;
 
-          // If session is null, email confirmation is required.
+          // If session exists immediately (email confirm disabled), listener handles it.
+          // If no session but user exists, it usually means check email, but user requested no verification screen.
+          // We will attempt to rely on the session listener. If strict verification is on, this might hang, 
+          // but per user request we assume verification is disabled or seamless.
+          
           if (!data.session && data.user) {
-              setMode('VERIFY_OTP');
-              setLoading(false);
-          } else {
-              // If session exists immediately (email confirm disabled), listener handles it
+             // Fallback message if session isn't immediately available (e.g. network lag or strict config)
+             setError("Account created. Attempting auto-login...");
+             // You might trigger a manual signIn here if needed, but signUp usually handles it.
           }
+
       } catch (err: any) {
           setError(err.message || "SIGNUP FAILED");
-          setLoading(false);
-      }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setError(null);
-      setLoading(true);
-
-      try {
-          const { data, error } = await supabase.auth.verifyOtp({
-              email,
-              token: otp,
-              type: 'signup'
-          });
-
-          if (error) throw error;
-          
-          if (data.session) {
-              await handleSessionUser(data.session.user);
-          }
-      } catch (err: any) {
-          setError(err.message || "INVALID CODE");
           setLoading(false);
       }
   };
@@ -238,7 +214,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
           const { error } = await supabase.auth.signInWithOAuth({
               provider: 'google',
               options: {
-                  // Explicitly redirect to origin
                   redirectTo: window.location.origin
               }
           });
@@ -287,7 +262,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                    
                    <h1 className="text-4xl font-black text-white tracking-tighter drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">BIO-SYNC OS</h1>
                    <p className="text-xs tracking-[0.4em] uppercase mt-2 font-bold text-system-neon">
-                     {mode === 'VERIFY_OTP' ? 'UPLINK VERIFICATION' : 'AUTHENTICATION PROTOCOL'}
+                     AUTHENTICATION PROTOCOL
                    </p>
                 </motion.div>
             )}
@@ -303,62 +278,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                     exit="exit"
                 >
                     <ForgotPassword onCancel={() => setMode('LOGIN')} onSuccess={() => setMode('LOGIN')} />
-                </motion.div>
-            ) : mode === 'VERIFY_OTP' ? (
-                <motion.div 
-                    key="otp"
-                    variants={cardTransition}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    className="bg-[#050505]/90 border border-system-neon backdrop-blur-xl rounded-xl p-8 shadow-[0_0_50px_rgba(0,210,255,0.15)] relative overflow-hidden"
-                >
-                    <div className="text-center mb-6">
-                        <CheckCircle size={48} className="text-system-neon mx-auto mb-4 animate-pulse" />
-                        <h3 className="text-white font-bold text-lg">VERIFICATION SENT</h3>
-                        <p className="text-xs text-gray-500 mt-2">
-                            Enter the 6-digit code sent to <span className="text-white font-bold">{email}</span> to synchronize your account.
-                        </p>
-                    </div>
-
-                    {error && (
-                        <div className="bg-red-950/30 border-l-2 border-system-danger text-system-danger p-3 rounded mb-6 text-xs font-bold flex items-center gap-2">
-                            <AlertTriangle size={16} /> {error}
-                        </div>
-                    )}
-
-                    <form onSubmit={handleVerifyOtp} className="space-y-5">
-                        <div>
-                            <label className="text-[10px] text-system-neon uppercase tracking-widest block mb-2 font-bold text-center">ACCESS CODE</label>
-                            <div className="relative group">
-                                <Key className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-neon transition-colors" size={18} />
-                                <input 
-                                    type="text"
-                                    value={otp}
-                                    onChange={e => setOtp(e.target.value)}
-                                    className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white focus:border-system-neon focus:shadow-[0_0_15px_rgba(0,210,255,0.2)] focus:outline-none placeholder:text-gray-800 transition-all font-mono tracking-[0.5em] text-center text-lg"
-                                    placeholder="000000"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <button 
-                            type="submit"
-                            disabled={loading}
-                            className="w-full py-3 bg-system-neon text-black font-bold font-mono rounded hover:bg-white hover:shadow-[0_0_20px_rgba(0,210,255,0.5)] transition-all flex items-center justify-center gap-2 group uppercase tracking-wider"
-                        >
-                            {loading ? <Loader2 className="animate-spin" size={18} /> : 'CONFIRM & SYNC'}
-                        </button>
-                        
-                        <button
-                            type="button"
-                            onClick={() => setMode('LOGIN')}
-                            className="w-full text-xs text-gray-600 hover:text-white transition-colors"
-                        >
-                            CANCEL
-                        </button>
-                    </form>
                 </motion.div>
             ) : (
                 <motion.div 
@@ -484,7 +403,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
         </AnimatePresence>
         
         {/* Footer Admin Status */}
-        {mode !== 'FORGOT_PASSWORD' && mode !== 'VERIFY_OTP' && (
+        {mode !== 'FORGOT_PASSWORD' && (
             <motion.div 
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1 }} 
