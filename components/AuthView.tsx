@@ -101,9 +101,10 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
   const handleSessionUser = async (user: any) => {
       setLoading(true);
       setError(null);
+      
       try {
-          // Use maybeSingle() to avoid errors on 0 rows, checking explicitly for null
-          const { data: profile, error: fetchError } = await supabase
+          // STEP 1: Attempt to fetch existing profile
+          const { data: existingProfile, error: fetchError } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', user.id)
@@ -111,18 +112,14 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
 
           if (fetchError) throw fetchError;
 
-          if (profile) {
-              const playerData = profile.raw_data || {};
-              onLogin({
-                  ...playerData,
-                  userId: user.id,
-                  name: profile.name || user.user_metadata?.full_name || 'Hunter',
-                  username: profile.username || user.email?.split('@')[0],
-                  keys: profile.keys !== undefined ? profile.keys : (playerData.keys || 0)
-              });
+          if (existingProfile) {
+              console.log("Profile Found. Loading Data...");
+              loadUserIntoApp(user, existingProfile);
           } else {
-              // Only create new profile if we are SURE it doesn't exist (profile is null)
-              // This prevents accidental overwrites if the fetch failed for other reasons (handled by fetchError throw above)
+              console.log("No Profile Found. Attempting Creation...");
+              // STEP 2: Profile doesn't exist (or wasn't found). Attempt INSERT.
+              // We use INSERT instead of UPSERT to prevent accidental overwrites if it actually exists.
+              
               const name = user.user_metadata?.full_name || fullName || 'Hunter';
               const username = user.email?.split('@')[0] || `hunter_${Date.now().toString().slice(-4)}`;
               
@@ -130,26 +127,60 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                   id: user.id,
                   username: username,
                   name: name,
-                  pin: '0000', // Legacy field support
+                  pin: '0000',
                   updated_at: new Date().toISOString()
+                  // Note: raw_data is initially null/undefined
               };
 
-              const { error: insertError } = await supabase.from('profiles').upsert(newProfile);
-              if (insertError) throw insertError;
+              const { error: insertError } = await supabase.from('profiles').insert(newProfile);
 
-              onLogin({
-                  userId: user.id,
-                  name: name,
-                  username: username,
-                  keys: 0
-              });
+              if (insertError) {
+                  // STEP 3: Handle Race Condition
+                  // If error is 23505 (Unique Violation), it means the profile DID exist but wasn't found in Step 1.
+                  // This saves us from overwriting data.
+                  if (insertError.code === '23505') {
+                      console.log("Profile already exists (Race Condition). Fetching again...");
+                      const { data: retryProfile, error: retryError } = await supabase
+                          .from('profiles')
+                          .select('*')
+                          .eq('id', user.id)
+                          .single();
+                          
+                      if (retryError) throw retryError;
+                      loadUserIntoApp(user, retryProfile);
+                  } else {
+                      throw insertError;
+                  }
+              } else {
+                  // Insert Success - Truly a new user
+                  console.log("New Profile Created.");
+                  loadUserIntoApp(user, newProfile); 
+              }
           }
       } catch (err: any) {
-          console.error("Profile Load Error:", err);
+          console.error("Profile Load/Create Error:", err);
           setError("Failed to load profile. Please try refreshing.");
-      } finally {
-          // Only stop loading if component is still mounted
-          // Note: onLogin typically unmounts this component, so this might not run, which is fine.
+          setLoading(false);
+          setCheckingSession(false);
+      }
+  };
+
+  const loadUserIntoApp = (user: any, profile: any) => {
+      const playerData = profile.raw_data || {};
+      
+      // If creating a fresh object, ensure we don't pass an empty object that causes reset
+      // registerUser in App.tsx handles merging, but we want to be safe.
+      
+      onLogin({
+          ...playerData,
+          userId: user.id,
+          name: profile.name || user.user_metadata?.full_name || 'Hunter',
+          username: profile.username || user.email?.split('@')[0],
+          keys: profile.keys !== undefined ? profile.keys : (playerData.keys || 0)
+      });
+      
+      // Cleanup loading state usually handled by unmount, but good practice
+      if (document.body.contains(document.getElementById('root'))) {
           setLoading(false);
           setCheckingSession(false);
       }
@@ -191,14 +222,10 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
           if (error) throw error;
 
           // If session exists immediately (email confirm disabled), listener handles it.
-          // If no session but user exists, it usually means check email, but user requested no verification screen.
-          // We will attempt to rely on the session listener. If strict verification is on, this might hang, 
-          // but per user request we assume verification is disabled or seamless.
-          
           if (!data.session && data.user) {
-             // Fallback message if session isn't immediately available (e.g. network lag or strict config)
-             setError("Account created. Attempting auto-login...");
-             // You might trigger a manual signIn here if needed, but signUp usually handles it.
+             // If manual confirm required but user wants seamless, warn them.
+             // But usually listener fires if "Enable Email Confirmations" is OFF in Supabase.
+             setError("Account created. Logging in...");
           }
 
       } catch (err: any) {
