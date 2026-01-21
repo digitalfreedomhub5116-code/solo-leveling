@@ -1,19 +1,12 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { ShieldAlert, Lock, CheckCircle, ArrowRight, X, ScanFace, Database, AlertTriangle, Key } from 'lucide-react';
+import { ShieldAlert, Mail, ArrowRight, X, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import ShadowLoading from './ShadowLoading';
 
 interface ForgotPasswordProps {
   onCancel: () => void;
   onSuccess: () => void;
-}
-
-interface RecoveryQuestion {
-  id: string;
-  question: string;
-  answer_text: string;
 }
 
 const glitchVariants: Variants = {
@@ -33,104 +26,34 @@ const glitchVariants: Variants = {
 };
 
 const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) => {
-  const [step, setStep] = useState<'IDENTITY' | 'VERIFICATION' | 'RESET'>('IDENTITY');
-  const [username, setUsername] = useState('');
-  const [userId, setUserId] = useState<string | null>(null);
-  const [questions, setQuestions] = useState<RecoveryQuestion[]>([]);
-  const [answers, setAnswers] = useState<string[]>(['', '', '']);
-  const [newPin, setNewPin] = useState('');
-  
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
 
-  const handleIdentitySearch = async () => {
-    if (!username.trim()) {
-        setError("ENTER CODENAME TO INITIATE SEARCH");
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+        setError("EMAIL REQUIRED");
         return;
     }
     setLoading(true);
     setError(null);
 
     try {
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('username', username.toLowerCase().trim())
-            .single();
-
-        if (profileError || !profile) {
-            throw new Error("USER NOT FOUND");
-        }
-
-        setUserId(profile.id);
-
-        const { data: qData, error: qError } = await supabase
-            .from('recovery_questions')
-            .select('*')
-            .eq('user_id', profile.id);
-
-        if (qError || !qData || qData.length === 0) {
-            throw new Error("NO RECOVERY DATA FOUND");
-        }
-
-        setQuestions(qData);
-        setStep('VERIFICATION');
-    } catch (err: any) {
-        console.error("Identity Search Error:", JSON.stringify(err));
-        setError("IDENTITY VERIFICATION FAILED. ACCESS DENIED.");
-    } finally {
-        setLoading(false);
-    }
-  };
-
-  const handleVerification = () => {
-    setLoading(true);
-    setError(null);
-
-    setTimeout(() => {
-        let correctCount = 0;
-        
-        questions.forEach((q, index) => {
-            const userAnswer = answers[index]?.toLowerCase().trim();
-            const dbAnswer = q.answer_text.toLowerCase().trim();
-            if (userAnswer === dbAnswer) {
-                correctCount++;
-            }
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin, // Redirects user back to app to set new password
         });
-
-        if (correctCount >= 2) {
-            setStep('RESET');
-        } else {
-            setError(`VERIFICATION FAILED. ${correctCount}/3 MATCHES. 2 REQUIRED.`);
-        }
-        setLoading(false);
-    }, 1500); 
-  };
-
-  const handleReset = async () => {
-    if (!newPin || newPin.length < 4) {
-        setError("INVALID PIN FORMAT");
-        return;
-    }
-    if (!userId) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-        const { error } = await supabase
-            .from('profiles')
-            .update({ pin: newPin })
-            .eq('id', userId);
 
         if (error) throw error;
 
+        setSent(true);
         setTimeout(() => {
             onSuccess();
-        }, 1000);
-    } catch (err) {
-        console.error("Reset Error:", JSON.stringify(err));
-        setError("SYSTEM WRITE ERROR");
+        }, 3000);
+    } catch (err: any) {
+        console.error("Reset Error:", err);
+        setError(err.message || "SYSTEM ERROR");
         setLoading(false);
     }
   };
@@ -140,11 +63,6 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
        {/* Background Animation */}
        <div className="absolute inset-0 bg-system-danger/5 pointer-events-none" />
        
-       {/* Loading Overlay */}
-       <AnimatePresence>
-          {loading && <ShadowLoading />}
-       </AnimatePresence>
-
        <div className="relative z-10">
           <div className="flex justify-between items-start mb-6 border-b border-system-border pb-4">
              <div>
@@ -153,7 +71,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
                     RECOVERY MODE
                 </h2>
                 <p className="text-[10px] text-system-danger/70 font-mono tracking-widest mt-1">
-                    PROTOCOL: MEMORY RECONSTRUCTION
+                    PROTOCOL: PASSWORD RESET
                 </p>
              </div>
              <button onClick={onCancel} className="text-gray-500 hover:text-white transition-colors">
@@ -175,112 +93,55 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onCancel, onSuccess }) 
           </AnimatePresence>
 
           <AnimatePresence mode="wait">
-            {/* STEP 1: FIND USER */}
-            {step === 'IDENTITY' && (
-                <motion.div
-                   key="identity"
+            {!sent ? (
+                <motion.form
+                   key="request"
                    variants={glitchVariants}
                    initial="hidden"
                    animate="visible"
                    exit="exit"
                    className="space-y-4"
+                   onSubmit={handleReset}
                 >
                    <div>
-                      <label className="text-[10px] text-system-danger font-mono tracking-widest block mb-2 font-bold">TARGET CODENAME</label>
+                      <label className="text-[10px] text-system-danger font-mono tracking-widest block mb-2 font-bold">TARGET EMAIL</label>
                       <div className="relative group">
-                         <ScanFace className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-danger transition-colors" size={18} />
+                         <Mail className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-danger transition-colors" size={18} />
                          <input 
-                            value={username}
-                            onChange={e => setUsername(e.target.value.toUpperCase())}
-                            className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white font-mono focus:border-system-danger focus:shadow-[0_0_15px_rgba(220,38,38,0.2)] focus:outline-none uppercase placeholder:text-gray-800 transition-all"
-                            placeholder="ENTER USERNAME"
+                            type="email"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white font-mono focus:border-system-danger focus:shadow-[0_0_15px_rgba(220,38,38,0.2)] focus:outline-none placeholder:text-gray-800 transition-all"
+                            placeholder="USER@SYSTEM.IO"
+                            required
                          />
                       </div>
                    </div>
                    <button 
-                      onClick={handleIdentitySearch}
-                      className="w-full py-3 bg-system-danger/10 border border-system-danger/50 text-system-danger font-bold font-mono rounded hover:bg-system-danger hover:text-black hover:shadow-[0_0_20px_rgba(220,38,38,0.5)] transition-all flex items-center justify-center gap-2 group"
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-3 bg-system-danger/10 border border-system-danger/50 text-system-danger font-bold font-mono rounded hover:bg-system-danger hover:text-black hover:shadow-[0_0_20px_rgba(220,38,38,0.5)] transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
                    >
-                      INITIATE SCAN <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                      {loading ? <Loader2 className="animate-spin" size={16} /> : 'INITIATE RESET PROTOCOL'}
+                      {!loading && <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />}
                    </button>
-                </motion.div>
-            )}
-
-            {/* STEP 2: QUESTIONS */}
-            {step === 'VERIFICATION' && (
+                </motion.form>
+            ) : (
                 <motion.div
-                   key="verification"
+                   key="success"
                    variants={glitchVariants}
                    initial="hidden"
                    animate="visible"
                    exit="exit"
-                   className="space-y-4"
+                   className="space-y-4 text-center py-4"
                 >
-                   <div className="text-[10px] text-gray-500 font-mono mb-2 flex items-center gap-2">
-                       <Database size={12} className="text-system-danger" /> 
-                       ANSWER 2 OF 3 SECURITY QUESTIONS
+                   <div className="w-16 h-16 bg-system-success/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-system-success/30">
+                       <CheckCircle size={32} className="text-system-success" />
                    </div>
-                   
-                   {questions.map((q, idx) => (
-                      <div key={q.id}>
-                         <label className="text-[10px] text-system-danger/80 font-mono block mb-1 truncate">{q.question}</label>
-                         <input 
-                            value={answers[idx]}
-                            onChange={e => {
-                                const newAnswers = [...answers];
-                                newAnswers[idx] = e.target.value;
-                                setAnswers(newAnswers);
-                            }}
-                            className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-2 text-sm text-white font-mono focus:border-system-danger focus:shadow-[0_0_10px_rgba(220,38,38,0.15)] focus:outline-none transition-all placeholder:text-gray-800"
-                            placeholder="Enter answer..."
-                         />
-                      </div>
-                   ))}
-
-                   <button 
-                      onClick={handleVerification}
-                      className="w-full py-3 bg-system-danger/10 border border-system-danger/50 text-system-danger font-bold font-mono rounded hover:bg-system-danger hover:text-black hover:shadow-[0_0_20px_rgba(220,38,38,0.5)] transition-all flex items-center justify-center gap-2 mt-4"
-                   >
-                      VERIFY IDENTITY <ScanFace size={16} />
-                   </button>
-                </motion.div>
-            )}
-
-            {/* STEP 3: RESET */}
-            {step === 'RESET' && (
-                <motion.div
-                   key="reset"
-                   variants={glitchVariants}
-                   initial="hidden"
-                   animate="visible"
-                   exit="exit"
-                   className="space-y-4"
-                >
-                   <div className="p-3 bg-system-success/10 border border-system-success/30 rounded text-system-success text-xs font-mono flex items-center gap-2">
-                       <CheckCircle size={14} /> ACCESS GRANTED.
-                   </div>
-                   
-                   <div>
-                      <label className="text-[10px] text-system-success font-mono tracking-widest block mb-2 font-bold">SET NEW ACCESS KEY</label>
-                      <div className="relative group">
-                         <Lock className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-success transition-colors" size={18} />
-                         <input 
-                            type="password"
-                            maxLength={6}
-                            value={newPin}
-                            onChange={e => { if (/^\d*$/.test(e.target.value)) setNewPin(e.target.value); }}
-                            className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white font-mono text-lg tracking-[0.5em] focus:border-system-success focus:shadow-[0_0_15px_rgba(16,185,129,0.2)] focus:outline-none transition-all placeholder:text-gray-800"
-                            placeholder="••••"
-                         />
-                      </div>
-                   </div>
-
-                   <button 
-                      onClick={handleReset}
-                      className="w-full py-3 bg-system-success/10 border border-system-success/50 text-system-success font-bold font-mono rounded hover:bg-system-success hover:text-black hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-all flex items-center justify-center gap-2 group"
-                   >
-                      UPDATE PROTOCOLS <Key size={16} className="group-hover:rotate-45 transition-transform" />
-                   </button>
+                   <h3 className="text-white font-bold font-mono text-lg">LINK DISPATCHED</h3>
+                   <p className="text-gray-400 text-xs font-mono">
+                       Check your comms (email) for the reset uplink. Redirecting to login...
+                   </p>
                 </motion.div>
             )}
           </AnimatePresence>

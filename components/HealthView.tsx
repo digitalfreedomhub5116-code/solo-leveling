@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp, Trash2, Utensils, Camera, Loader2, Save, Droplets, Wheat, Beef, SkipForward, Lock, Key } from 'lucide-react';
+import { Activity, Ruler, Fingerprint, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp, Trash2, Utensils, Camera, Loader2, Save, Droplets, Wheat, Beef, SkipForward, Lock, Key, Cpu, Database, Scan, Terminal, ArrowUpCircle } from 'lucide-react';
 import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog, FoodItem } from '../types';
 import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
 import WorkoutMap from './WorkoutMap';
@@ -9,6 +9,7 @@ import WorkoutOverview from './WorkoutOverview';
 import ProtocolMonthView from './ProtocolMonthView';
 import { generateSystemProtocol, calculateTimeEstimate } from '../utils/workoutGenerator';
 import { INDIAN_FOOD_DB } from '../utils/indianFoodDb';
+import { playSystemSoundEffect } from '../utils/soundEngine';
 
 interface HealthViewProps {
   healthProfile?: HealthProfile;
@@ -23,11 +24,152 @@ interface HealthViewProps {
   onTutorialAction?: (step: number) => void;
   tutorialStep?: number;
   onToggleNav?: (visible: boolean) => void;
-  onConsumeKey: () => Promise<boolean>;
+  onConsumeKey: (amount?: number) => Promise<boolean>;
 }
 
-// ... (Micro Visualizations & TechRadar code omitted for brevity as it remains unchanged) ...
-// (Retaining existing imports and helper components internally)
+// --- OPTIMIZATION SEQUENCE COMPONENT ---
+const OptimizationSequence: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+    const [progress, setProgress] = useState(0);
+    const [logs, setLogs] = useState<string[]>([]);
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    // System Operations Log
+    const OPERATIONS = [
+        "INITIATING_BIO_SCAN...",
+        "ANALYZING_MUSCLE_FIBER_DENSITY...",
+        "CALIBRATING_METABOLIC_RATE...",
+        "DETECTING_INEFFICIENCIES...",
+        "OPTIMIZING_ATP_PRODUCTION...",
+        "REWRITING_NEURAL_PATHWAYS...",
+        "SYNCHRONIZING_CNS_RESPONSE...",
+        "UPGRADING_VO2_MAX_POTENTIAL...",
+        "RESTRUCTURING_SKELETAL_FRAME...",
+        "UNLOCKING_GENETIC_LIMITERS...",
+        "FINALIZING_EVOLUTION_MATRIX..."
+    ];
+
+    useEffect(() => {
+        let currentProgress = 0;
+        let opIndex = 0;
+        
+        // Sound Loop
+        const soundInterval = setInterval(() => {
+            if (Math.random() > 0.7) playSystemSoundEffect('TICK');
+        }, 150);
+
+        const interval = setInterval(() => {
+            // Variable speed simulation (Stalls and Jumps)
+            const jump = Math.random() > 0.8 ? 5 : Math.random() > 0.5 ? 2 : 0.5;
+            currentProgress += jump;
+
+            // Cap at 100
+            if (currentProgress >= 100) {
+                currentProgress = 100;
+                clearInterval(interval);
+                clearInterval(soundInterval);
+                playSystemSoundEffect('LEVEL_UP');
+                setTimeout(onComplete, 800);
+            }
+
+            setProgress(currentProgress);
+
+            // Log Logic - Add logs based on progress thresholds
+            const targetLogIndex = Math.floor((currentProgress / 100) * OPERATIONS.length);
+            if (targetLogIndex > opIndex && opIndex < OPERATIONS.length) {
+                setLogs(prev => [...prev, `> ${OPERATIONS[opIndex]} [OK]`]);
+                opIndex++;
+                if (scrollRef.current) {
+                    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                }
+            }
+
+        }, 50); // Fast tick rate for smoothness
+
+        return () => {
+            clearInterval(interval);
+            clearInterval(soundInterval);
+        };
+    }, [onComplete]);
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col items-center justify-center py-10 w-full relative overflow-hidden bg-black border border-gray-800 rounded-2xl h-[400px]"
+        >
+            {/* Background Binary Stream */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none overflow-hidden font-mono text-[10px] leading-3 text-system-neon break-all">
+                {Array.from({ length: 2000 }).map(() => Math.round(Math.random())).join('')}
+            </div>
+
+            {/* Central HUD */}
+            <div className="relative z-10 mb-8">
+                <div className="w-32 h-32 relative flex items-center justify-center">
+                    {/* Spinning Outer Ring */}
+                    <motion.div 
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-0 rounded-full border-t-2 border-l-2 border-system-neon opacity-80"
+                    />
+                    {/* Counter Spinning Inner Ring */}
+                    <motion.div 
+                        animate={{ rotate: -360 }}
+                        transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-2 rounded-full border-b-2 border-r-2 border-system-accent opacity-60"
+                    />
+                    {/* Pulsing Core */}
+                    <motion.div 
+                        animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
+                        transition={{ duration: 1, repeat: Infinity }}
+                        className="text-white"
+                    >
+                        <Cpu size={40} />
+                    </motion.div>
+                </div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-system-neon mt-20 tracking-widest bg-black px-2">
+                    {Math.floor(progress)}%
+                </div>
+            </div>
+
+            {/* Main Progress Bar */}
+            <div className="w-64 space-y-2 relative z-10">
+                <div className="flex justify-between text-[10px] font-mono text-system-neon/70 uppercase">
+                    <span>System Optimization</span>
+                    <span>{progress < 100 ? 'Processing...' : 'Complete'}</span>
+                </div>
+                <div className="h-2 bg-gray-900 rounded-full overflow-hidden border border-gray-800 relative">
+                    {/* Glitchy Bar */}
+                    <motion.div 
+                        className="h-full bg-system-neon shadow-[0_0_15px_#00d2ff]"
+                        style={{ width: `${progress}%` }}
+                    />
+                    {/* Scan Line on Bar */}
+                    <motion.div 
+                        animate={{ x: [-100, 300] }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="absolute top-0 bottom-0 w-10 bg-white/30 skew-x-12"
+                    />
+                </div>
+            </div>
+
+            {/* Terminal Logs */}
+            <div 
+                ref={scrollRef}
+                className="mt-6 w-full max-w-xs h-24 overflow-y-hidden bg-black/50 border border-gray-800 rounded p-2 font-mono text-[9px] text-green-500 relative z-10"
+            >
+                <div className="flex flex-col justify-end min-h-full">
+                    {logs.map((log, i) => (
+                        <div key={i} className="truncate">{log}</div>
+                    ))}
+                    <div className="animate-pulse">_</div>
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
+// --- HELPER COMPONENTS ---
 
 const BMIGauge = ({ value }: { value: number }) => {
     const clamped = Math.min(40, Math.max(15, value));
@@ -125,7 +267,6 @@ const CircularCalibration = ({ percent }: { percent: number }) => {
     );
 };
 
-// ... (Rest of helpers like TechRadar, calculateNutritionPlan, getBMICategory, lerp, lerpColor - Assumed present) ...
 const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
   return {
@@ -205,6 +346,8 @@ const TechRadar = React.memo(({ data, color, label, isAnimating, showEntrance = 
     );
 });
 
+// --- HELPER FUNCTIONS ---
+
 const calculateNutritionPlan = (profile: Partial<HealthProfile>) => {
   const weight = profile.weight || 70;
   const height = profile.height || 175;
@@ -243,13 +386,15 @@ const lerpColor = (a: string, b: string, amount: number) => {
 const setupContainerVariants: Variants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } }, exit: { opacity: 0, x: -20, transition: { duration: 0.2 } } };
 const setupItemVariants: Variants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } } };
 
+// --- MAIN EXPORTED COMPONENT ---
+
 export const HealthView: React.FC<HealthViewProps> = ({ 
   healthProfile, onSaveProfile, onCompleteWorkout, onFailWorkout, onLogMeal, onDeleteMeal, playerData, onToggleNav, onConsumeKey
 }) => {
   const [viewMode, setViewMode] = useState<'MAP' | 'OVERVIEW' | 'ACTIVE' | 'SETUP' | 'PROCESSING' | 'DIAGNOSIS' | 'PROJECTION' | 'FINALIZING'>('MAP');
   const [activeTab, setActiveTab] = useState<'WORKOUT' | 'NUTRITION' | 'BODY'>('WORKOUT');
   
-  // NEW: Track if user skipped setup
+  // Track if user skipped setup
   const [skippedSetup, setSkippedSetup] = useState(false);
 
   // Projection Animation States
@@ -296,14 +441,6 @@ export const HealthView: React.FC<HealthViewProps> = ({
         .reduce((acc, log) => ({ calories: acc.calories + log.totalCalories, protein: acc.protein + log.totalProtein, carbs: acc.carbs + log.totalCarbs, fats: acc.fats + log.totalFats }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
   }, [playerData.nutritionLogs]);
 
-  const todaysLogs = useMemo(() => {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      return (playerData.nutritionLogs || [])
-        .filter(log => log.timestamp >= todayStart.getTime())
-        .sort((a, b) => b.timestamp - a.timestamp);
-  }, [playerData.nutritionLogs]);
-
   useEffect(() => {
       if (onToggleNav) {
           const hideNavModes = ['SETUP', 'PROCESSING', 'DIAGNOSIS', 'PROJECTION', 'FINALIZING'];
@@ -316,6 +453,7 @@ export const HealthView: React.FC<HealthViewProps> = ({
       if (!healthProfile && !skippedSetup) setViewMode('SETUP'); 
   }, [healthProfile, skippedSetup]);
 
+  // Scanner Logic
   useEffect(() => {
       let interval: ReturnType<typeof setInterval>;
       if (scanState === 'SCANNING') {
@@ -368,7 +506,6 @@ export const HealthView: React.FC<HealthViewProps> = ({
       }, 1500); 
   };
 
-  // --- NUTRITION FUNCTIONS ---
   const fallbackSimulation = () => {
       setTimeout(() => {
           const count = Math.floor(Math.random() * 2) + 1; 
@@ -397,7 +534,7 @@ export const HealthView: React.FC<HealthViewProps> = ({
       const file = e.target.files?.[0];
       if (!file) return;
 
-      // 2. CONSUME KEY
+      // 2. CONSUME KEY (Default 1)
       const keyConsumed = await onConsumeKey();
       if (!keyConsumed) {
           setShowKeyAlert(true);
@@ -441,17 +578,22 @@ export const HealthView: React.FC<HealthViewProps> = ({
 
   const resetScanner = () => { setScanState('IDLE'); setScannedImage(null); setScanResult(null); setScanItems([]); };
 
+  const handleOptimizationComplete = () => {
+      setIsTransformed(true);
+      setIsAnimating(false);
+  };
+
   const handleAscensionClick = () => {
       setIsAnimating(true);
       let startTime: number | null = null;
-      const duration = 2000; 
+      const duration = 3000; 
       const animate = (timestamp: number) => {
           if (!startTime) startTime = timestamp;
           const elapsed = timestamp - startTime;
           const progress = Math.min(elapsed / duration, 1);
           setTransformProgress(progress);
           if (progress < 1) { animationRef.current = requestAnimationFrame(animate); } 
-          else { setIsTransformed(true); setIsAnimating(false); }
+          else { handleOptimizationComplete(); }
       };
       animationRef.current = requestAnimationFrame(animate);
   };
@@ -529,10 +671,7 @@ export const HealthView: React.FC<HealthViewProps> = ({
                                 <button onClick={handleAscensionClick} className="w-full py-4 bg-red-600 text-white font-black rounded-2xl animate-pulse shadow-[0_0_30px_#ef4444] tracking-widest text-xs sm:text-sm uppercase">INITIATE ASCENSION SEQUENCE</button>
                             </motion.div>
                         ) : isAnimating ? (
-                            <motion.div key="animating" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center py-4">
-                                <div className="text-system-success font-black text-xl tracking-[0.2em] animate-pulse">OPTIMIZING...</div>
-                                <div className="w-64 h-1 bg-gray-900 rounded-full mt-4 overflow-hidden"><motion.div style={{ width: `${transformProgress * 100}%` }} className="h-full bg-system-success shadow-[0_0_10px_#10b981]"/></div>
-                            </motion.div>
+                            <OptimizationSequence onComplete={handleOptimizationComplete} />
                         ) : (
                             <motion.div key="accept" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
                                 <div className="p-3 bg-system-success/5 border border-system-success/30 rounded-2xl"><div className="text-system-success font-black text-xs mb-1 flex items-center justify-center gap-2"><ShieldCheck size={14} /> SYSTEM GUARANTEE</div><p className="text-[10px] text-gray-400 leading-relaxed max-w-xs mx-auto">Adherence to established protocols ensures peak biological evolution.</p></div>
@@ -619,6 +758,7 @@ export const HealthView: React.FC<HealthViewProps> = ({
                             </motion.div>
                         </motion.div>
                       )}
+                      
                       {step === 2 && (
                         <motion.div key="s2" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
                             <motion.div variants={setupItemVariants} className="flex items-center gap-3 mb-4">
@@ -849,7 +989,7 @@ export const HealthView: React.FC<HealthViewProps> = ({
                             </div>
                         </motion.div>
                     )}
-                    {/* ... (Existing NUTRITION and BODY Tabs unchanged) ... */}
+                    
                     {activeTab === 'NUTRITION' && (
                         <motion.div 
                             key="nut" 
@@ -858,7 +998,6 @@ export const HealthView: React.FC<HealthViewProps> = ({
                             exit={{ opacity: 0, y: -10 }} 
                             className="flex flex-col items-center gap-6 px-4"
                         >
-                            {/* ... (Nutrition Content) ... */}
                             <motion.div 
                                 className="w-full max-w-sm bg-gray-900/50 border border-gray-800 rounded-2xl p-6 shadow-lg"
                                 initial={{ scale: 0.95 }}

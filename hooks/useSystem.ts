@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { 
   PlayerData, Quest, ShopItem, SystemNotification, NotificationType, 
-  ActivityLog, HealthProfile, ProgressPhoto, MealLog, WorkoutDay, AdminExercise
+  ActivityLog, HealthProfile, ProgressPhoto, MealLog, WorkoutDay, AdminExercise, DailyReward
 } from '../types';
 import { supabase } from '../lib/supabase';
 import { playSystemSoundEffect } from '../utils/soundEngine';
@@ -150,15 +150,82 @@ export const useSystem = () => {
   const registerUser = (profile: any) => {
       setPlayer(prev => {
           const playerData = profile.raw_data ? profile.raw_data : profile;
+          
+          let currentKeys = profile.keys !== undefined ? profile.keys : (playerData.keys || prev.keys);
+
+          // --- SPECIAL OVERRIDE FOR psp5116 ---
+          if (profile.username === 'psp5116' || playerData.username === 'psp5116') {
+              if (currentKeys < 100) {
+                  currentKeys = 100;
+              }
+          }
+          // ------------------------------------
+
+          // --- NEW USER WELCOME QUESTS (24H Expiry) ---
+          let currentQuests = playerData.quests || prev.quests || [];
+          
+          // Only inject if it's a fresh registration (no cloud data) and quest list is empty
+          if (!profile.raw_data && currentQuests.length === 0) {
+             const now = Date.now();
+             const oneDay = 24 * 60 * 60 * 1000;
+             currentQuests = [
+                 {
+                     id: `init_q1_${now}`,
+                     title: "System Calibration",
+                     description: "Review your Stats Matrix to sync with the System.",
+                     rank: 'E',
+                     priority: 'HIGH',
+                     category: 'intelligence',
+                     xpReward: 50,
+                     isCompleted: false,
+                     createdAt: now,
+                     expiresAt: now + oneDay,
+                     isDaily: false,
+                     miniQuest: "Check Stats"
+                 },
+                 {
+                     id: `init_q2_${now}`,
+                     title: "Physical Baseline",
+                     description: "Perform 10 Push-ups.",
+                     rank: 'E',
+                     priority: 'MEDIUM',
+                     category: 'strength',
+                     xpReward: 50,
+                     isCompleted: false,
+                     createdAt: now,
+                     expiresAt: now + oneDay,
+                     isDaily: false,
+                     miniQuest: "10 Push-ups"
+                 },
+                 {
+                     id: `init_q3_${now}`,
+                     title: "Hydration Sync",
+                     description: "Consume 500ml of water.",
+                     rank: 'E',
+                     priority: 'MEDIUM',
+                     category: 'willpower',
+                     xpReward: 50,
+                     isCompleted: false,
+                     createdAt: now,
+                     expiresAt: now + oneDay,
+                     isDaily: false,
+                     miniQuest: "Drink Water"
+                 }
+             ];
+          }
+          // -------------------------------------------
+
           const updated = { 
               ...prev, 
               ...playerData, 
               userId: profile.id || prev.userId,
-              keys: profile.keys !== undefined ? profile.keys : (playerData.keys || prev.keys),
+              keys: currentKeys,
+              quests: currentQuests,
               isConfigured: true 
           };
           
-          if (!profile.raw_data) {
+          // Force sync if we modified the keys due to override, or if it's a fresh registration
+          if (!profile.raw_data || (profile.username === 'psp5116' && currentKeys === 100)) {
               syncToCloud(updated);
           }
           return updated;
@@ -166,10 +233,10 @@ export const useSystem = () => {
       playSystemSoundEffect('SYSTEM');
   };
 
-  // Used for traps/revives (consumes 1 key)
-  const consumeKey = async (): Promise<boolean> => {
-      if (player.keys > 0) {
-          const newKeys = player.keys - 1;
+  // Used for traps/revives (consumes `amount` keys, default 1)
+  const consumeKey = async (amount: number = 1): Promise<boolean> => {
+      if (player.keys >= amount) {
+          const newKeys = player.keys - amount;
           const updated = { ...player, keys: newKeys };
           setPlayer(updated); // Instant UI update
           await syncToCloud(updated);
@@ -187,13 +254,14 @@ export const useSystem = () => {
           syncToCloud(updated);
           return true;
       } else {
-          // Paid entry: Costs 5 keys, does NOT reset the free timer
-          if (player.keys >= 5) {
-              const newKeys = player.keys - 5;
+          // Paid entry: Costs 3 keys, does NOT reset the free timer
+          const COST = 3;
+          if (player.keys >= COST) {
+              const newKeys = player.keys - COST;
               const updated = { 
                   ...player, 
                   keys: newKeys,
-                  logs: [createLog(`Dungeon Access Purchased (-5 Keys)`, 'PURCHASE'), ...player.logs]
+                  logs: [createLog(`Dungeon Access Purchased (-${COST} Keys)`, 'PURCHASE'), ...player.logs]
               };
               setPlayer(updated); // Instant UI update
               await syncToCloud(updated);
@@ -203,24 +271,86 @@ export const useSystem = () => {
       }
   };
 
-  const checkDailyLogin = (): boolean => {
+  const checkDailyLogin = (): DailyReward | null => {
       const today = new Date().toISOString().split('T')[0];
-      // Check if logged in previously on a different day
-      if (player.lastLoginDate !== today) {
-          setPlayer(prev => {
-              const updated = {
-                  ...prev,
-                  lastLoginDate: today,
-                  gold: prev.gold + 50,
-                  keys: prev.keys + 1,
-                  logs: [createLog('Daily Supply Drop Received: +50 Gold, +1 Key', 'SYSTEM'), ...prev.logs]
-              };
-              syncToCloud(updated);
-              return updated;
-          });
-          return true; // Return true to trigger Modal
+      
+      // If already logged in today, do nothing
+      if (player.lastLoginDate === today) {
+          return null;
       }
-      return false;
+
+      let reward: DailyReward;
+
+      // Logic: First time ever? (lastLoginDate is empty string in default state)
+      if (!player.lastLoginDate) {
+          reward = {
+              type: 'WELCOME_KEYS',
+              amount: 3,
+              message: 'Welcome Bonus: 3 Keys Acquired'
+          };
+      } else {
+          // Recurring User: Randomized Rewards
+          const rand = Math.random();
+          if (rand < 0.4) {
+              reward = { type: 'GOLD', amount: 100, message: 'Daily Stipend: 100 Gold' };
+          } else if (rand < 0.7) {
+              reward = { type: 'XP', amount: 100, message: 'Experience Boost: 100 XP' };
+          } else if (rand < 0.9) {
+              reward = { type: 'KEYS', amount: 1, message: 'Dungeon Key Found' };
+          } else {
+              // 10% Chance for "Free Pass" equivalent (3 Keys)
+              reward = { type: 'DUNGEON_PASS', amount: 3, message: 'Dungeon Pass (3 Keys)' };
+          }
+      }
+
+      setPlayer(prev => {
+          let { currentXp, requiredXp, level, totalXp, dailyXp, gold, keys } = prev;
+          
+          // Apply Reward
+          if (reward.type === 'GOLD') gold += reward.amount;
+          if (reward.type === 'WELCOME_KEYS' || reward.type === 'KEYS' || reward.type === 'DUNGEON_PASS') keys += reward.amount;
+          if (reward.type === 'XP') {
+              currentXp += reward.amount;
+              totalXp += reward.amount;
+              dailyXp += reward.amount;
+          }
+
+          // Check Level Up if XP was granted
+          let leveledUp = false;
+          if (reward.type === 'XP') {
+              while (currentXp >= requiredXp) {
+                  currentXp -= requiredXp;
+                  level++;
+                  requiredXp = Math.floor(requiredXp * 1.2);
+                  leveledUp = true;
+              }
+          }
+
+          const logs = [createLog(`Daily Reward: ${reward.message}`, 'SYSTEM'), ...prev.logs];
+          if (leveledUp) {
+              logs.unshift(createLog(`LEVEL UP! REACHED LEVEL ${level}`, 'LEVEL_UP'));
+              playSystemSoundEffect('LEVEL_UP');
+          }
+
+          const updated = {
+              ...prev,
+              lastLoginDate: today,
+              gold,
+              keys,
+              currentXp, requiredXp, level, totalXp, dailyXp,
+              logs
+          };
+          
+          if (leveledUp) {
+              updated.hp = updated.maxHp;
+              updated.mp = updated.maxMp;
+          }
+
+          syncToCloud(updated);
+          return updated;
+      });
+
+      return reward;
   };
 
   const deductGold = (amount: number): boolean => {

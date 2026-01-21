@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { LayoutDashboard, Sword, Gift, TrendingUp, Activity, Trophy, Ghost } from 'lucide-react';
+import React, { useState } from 'react';
+import { LayoutDashboard, Sword, Gift, TrendingUp, Activity, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Tab, NavItem } from '../types';
 
@@ -13,7 +13,6 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
   const navItems: NavItem[] = [
     { id: 'DASHBOARD', label: 'Home', icon: <LayoutDashboard size={20} /> },
     { id: 'HEALTH', label: 'Health', icon: <Activity size={20} /> },
-    { id: 'CASTLE', label: 'Castle', icon: <Ghost size={20} /> },
     { id: 'QUESTS', label: 'Quests', icon: <Sword size={20} /> },
     { id: 'REWARDS', label: 'Rewards', icon: <Gift size={20} /> },
     { id: 'RANKING', label: 'Rank', icon: <Trophy size={20} /> },
@@ -89,7 +88,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
         className="md:hidden fixed bottom-4 left-2 right-2 z-40 pointer-events-none"
       >
         <div
-          className="h-16 bg-[#0a0a0a]/95 backdrop-blur-xl border border-gray-800 rounded-2xl grid grid-cols-7 items-center shadow-2xl pointer-events-auto px-1"
+          className="h-16 bg-[#0a0a0a]/95 backdrop-blur-xl border border-gray-800 rounded-2xl grid grid-cols-6 items-center shadow-2xl pointer-events-auto px-1"
         >
           {navItems.map((item) => {
             const isActive = activeTab === item.id;

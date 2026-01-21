@@ -20,6 +20,15 @@ export type Rank = 'E' | 'D' | 'C' | 'B' | 'A' | 'S';
 
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
+// --- DAILY REWARDS ---
+export type DailyRewardType = 'WELCOME_KEYS' | 'GOLD' | 'XP' | 'KEYS' | 'DUNGEON_PASS';
+
+export interface DailyReward {
+  type: DailyRewardType;
+  amount: number;
+  message: string;
+}
+
 export interface CoreStats {
   strength: number;
   intelligence: number;

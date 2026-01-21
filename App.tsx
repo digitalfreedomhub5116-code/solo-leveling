@@ -21,11 +21,11 @@ import WelcomeIntro from './components/WelcomeIntro';
 import PenaltyZone from './components/PenaltyZone';
 import TournamentResultModal from './components/TournamentResultModal';
 import TutorialOverlay from './components/TutorialOverlay';
-import DailyLoginModal from './components/DailyLoginModal'; // NEW
-import DemonCastle from './components/DemonCastle'; // NEW
+import DailyLoginModal from './components/DailyLoginModal'; 
+import DemonCastle from './components/DemonCastle'; 
 
 import { useSystem } from './hooks/useSystem';
-import { Tab, CoreStats } from './types';
+import { Tab, CoreStats, DailyReward } from './types';
 
 const STAT_CONFIG: Record<keyof CoreStats, { icon: any, color: string, bar: string }> = {
     strength: { icon: Dumbbell, color: 'text-red-500', bar: 'bg-red-500' },
@@ -44,18 +44,18 @@ const App: React.FC = () => {
     logMeal, deleteMeal, completeWorkoutSession, failWorkout, 
     logout, advanceTutorial, completeTutorial, resolvePenalty, reducePenalty, 
     claimTournamentReward, consumeKey, checkDailyLogin,
-    deductGold, enterDungeon, addRewards // Added from hook
+    deductGold, enterDungeon, addRewards 
   } = useSystem();
 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  // Removed showIntro state as it's not needed for logic branching anymore
   const [showWelcome, setShowWelcome] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [showNav, setShowNav] = useState(true);
-  const [showDailyBonus, setShowDailyBonus] = useState(false); // NEW
+  const [showDailyBonus, setShowDailyBonus] = useState(false); 
+  const [dailyReward, setDailyReward] = useState<DailyReward | null>(null);
   
   // Dungeon Mode State to lock UI
   const [isDungeonMode, setIsDungeonMode] = useState(false);
@@ -86,8 +86,9 @@ const App: React.FC = () => {
   useEffect(() => {
       // Check for tutorial completion before showing daily bonus
       if (player.isConfigured && !loading && player.tutorialComplete) {
-          const hasBonus = checkDailyLogin();
-          if (hasBonus) {
+          const reward = checkDailyLogin();
+          if (reward) {
+              setDailyReward(reward);
               setShowDailyBonus(true);
           }
       }
@@ -123,6 +124,15 @@ const App: React.FC = () => {
           }
       }
   }, [player.tutorialStep, player.quests, player.tutorialComplete]);
+
+  // Handle entering dungeon from Rewards page
+  const handleStartDungeon = async (isFree: boolean) => {
+      const allowed = await enterDungeon(isFree);
+      if (allowed) {
+          setIsDungeonMode(true);
+          setActiveTab('CASTLE');
+      }
+  };
 
   if (loading) {
     return <SplashScreen onComplete={() => setLoading(false)} />;
@@ -192,8 +202,8 @@ const App: React.FC = () => {
             <TournamentResultModal reward={player.tournament.pendingReward} onClaim={claimTournamentReward} />
         )}
         {/* Daily Bonus Modal */}
-        {showDailyBonus && (
-            <DailyLoginModal onClose={() => setShowDailyBonus(false)} />
+        {showDailyBonus && dailyReward && (
+            <DailyLoginModal reward={dailyReward} onClose={() => setShowDailyBonus(false)} />
         )}
       </AnimatePresence>
 
@@ -344,7 +354,7 @@ const App: React.FC = () => {
                 </motion.div>
             )}
 
-            {/* NEW: CASTLE TAB */}
+            {/* CASTLE TAB - Activated via Rewards Page */}
             {activeTab === 'CASTLE' && (
                 <motion.div key="castle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                     <DemonCastle 
@@ -356,12 +366,17 @@ const App: React.FC = () => {
                         onEnterDungeon={enterDungeon}
                         onAddRewards={addRewards}
                         onPlayStateChange={setIsDungeonMode}
+                        initialMode="PLAYING"
+                        onExit={() => {
+                            setIsDungeonMode(false);
+                            setActiveTab('REWARDS');
+                        }}
                     />
                 </motion.div>
             )}
 
             {activeTab === 'QUESTS' && (
-                <motion.div key="quests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.div key="quests" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                     <QuestsView 
                         quests={player.quests}
                         addQuest={addQuest}
@@ -375,8 +390,33 @@ const App: React.FC = () => {
                 </motion.div>
             )}
 
+            {activeTab === 'REWARDS' && (
+                <motion.div key="rewards" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                    <ShopView 
+                        gold={player.gold}
+                        items={player.shopItems}
+                        purchaseItem={purchaseItem}
+                        addItem={addShopItem}
+                        removeItem={removeShopItem}
+                        keys={player.keys}
+                        lastDungeonEntry={player.lastDungeonEntry}
+                        onStartDungeon={handleStartDungeon}
+                    />
+                </motion.div>
+            )}
+
+            {activeTab === 'GROWTH' && (
+                <motion.div key="growth" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                    <GrowthView 
+                        player={player}
+                        onAdminRequest={() => setShowAdminLogin(true)}
+                        onLogout={logout}
+                    />
+                </motion.div>
+            )}
+
             {activeTab === 'HEALTH' && (
-                <motion.div key="health" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.div key="health" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                     <HealthView 
                         healthProfile={player.healthProfile}
                         onSaveProfile={saveHealthProfile}
@@ -385,33 +425,17 @@ const App: React.FC = () => {
                         onLogMeal={logMeal}
                         onDeleteMeal={deleteMeal}
                         playerData={player}
-                        onToggleNav={setShowNav}
+                        onTutorialAction={advanceTutorial}
+                        tutorialStep={player.tutorialStep}
+                        onToggleNav={(visible) => setShowNav(visible)}
                         onConsumeKey={consumeKey}
                     />
                 </motion.div>
             )}
 
-            {activeTab === 'REWARDS' && (
-                <motion.div key="rewards" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <ShopView 
-                        gold={player.gold}
-                        items={player.shopItems}
-                        purchaseItem={purchaseItem}
-                        addItem={addShopItem}
-                        removeItem={removeShopItem}
-                    />
-                </motion.div>
-            )}
-
             {activeTab === 'RANKING' && (
-                <motion.div key="ranking" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.div key="ranking" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                     <RankingView currentPlayer={player} />
-                </motion.div>
-            )}
-
-            {activeTab === 'GROWTH' && (
-                <motion.div key="growth" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <GrowthView player={player} onAdminRequest={() => setShowAdminLogin(true)} onLogout={logout} />
                 </motion.div>
             )}
         </AnimatePresence>

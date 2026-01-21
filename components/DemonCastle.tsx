@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, animate } from 'framer-motion';
 import { Ghost, Key, Coins, Skull, LogOut, DoorOpen, Timer, AlertOctagon, Sparkles, Crown, ArrowUpCircle, XCircle } from 'lucide-react';
@@ -19,10 +19,12 @@ interface DemonCastleProps {
   keys: number;
   lastDungeonEntry: number | undefined;
   onDeductGold: (amount: number) => boolean;
-  onConsumeKey: () => Promise<boolean>;
+  onConsumeKey: (amount?: number) => Promise<boolean>;
   onEnterDungeon: (isFree: boolean) => Promise<boolean>;
   onAddRewards: (gold: number, xp: number, keys?: number) => void;
   onPlayStateChange: (isPlaying: boolean) => void; 
+  initialMode?: 'LOBBY' | 'PLAYING';
+  onExit?: () => void;
 }
 
 // --- SUB-COMPONENT: COUNTING NUMBER ---
@@ -36,7 +38,7 @@ const CountingNumber = ({ value }: { value: number }) => {
 
     // Animate from previous value to new value
     const controls = animate(prevValue.current, value, {
-      duration: 1.5,
+      duration: 1.0, // Faster count up
       ease: "easeOut",
       onUpdate: (v) => {
         node.textContent = Math.round(v).toString();
@@ -49,6 +51,28 @@ const CountingNumber = ({ value }: { value: number }) => {
 
   // Initial render
   return <span ref={nodeRef}>{value}</span>;
+};
+
+// --- SCALING LOGIC HELPERS ---
+const getReviveCost = (floor: number): number => {
+  if (floor <= 6) return 1;
+  if (floor <= 12) return 3;
+  if (floor <= 18) return 6;
+  if (floor <= 24) return 12;
+  if (floor <= 30) return 24;
+  if (floor <= 36) return 35;
+  return 46; // Cap at 46 for very high floors, or extend if needed
+};
+
+const getKeyReward = (floor: number): number => {
+  if (floor <= 10) return 1;
+  if (floor <= 20) return 3;
+  if (floor <= 30) return 5;
+  if (floor <= 40) return 8;
+  if (floor <= 50) return 11;
+  // 51+ adds 3 every 10 floors (14, 17, 20...)
+  const extraTiers = Math.floor((floor - 51) / 10);
+  return 14 + (Math.max(0, extraTiers) * 3);
 };
 
 // --- SUB-COMPONENT: VINTAGE ELEVATOR GAUGE ---
@@ -163,6 +187,19 @@ const VintageCardBack = () => (
 const VintageCardFront = ({ data }: { data: FloorCardData }) => {
   const isTrap = data.type === 'TRAP';
   const isJackpot = data.type === 'JACKPOT';
+  const hasKey = data.reward.keys > 0;
+
+  // Memoize random particle values
+  const jackpotParticles = useMemo(() => Array.from({ length: 6 }).map(() => ({
+      x: (Math.random() - 0.5) * 60,
+      y: (Math.random() - 0.5) * 60,
+      delay: Math.random()
+  })), []);
+
+  const goldParticles = useMemo(() => Array.from({ length: 4 }).map(() => ({
+      marginLeft: (Math.random() - 0.5) * 50,
+      delay: Math.random() * 0.7
+  })), []);
 
   // Base Styles based on Type
   const bgClass = isTrap 
@@ -170,8 +207,6 @@ const VintageCardFront = ({ data }: { data: FloorCardData }) => {
     : isJackpot 
       ? "bg-[#1a0b2e] border-purple-500"
       : "bg-[#f5e6ca] border-[#c2a168]"; // Parchment
-
-  const textClass = isTrap ? "text-red-500" : isJackpot ? "text-purple-300" : "text-[#5c4033]";
 
   return (
     <div className={`w-full h-full rounded-xl border-[4px] relative overflow-hidden flex flex-col items-center justify-center shadow-[inset_0_0_30px_rgba(0,0,0,0.2)] ${bgClass}`}>
@@ -211,12 +246,12 @@ const VintageCardFront = ({ data }: { data: FloorCardData }) => {
         ) : isJackpot ? (
             <>
                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  {[...Array(6)].map((_, i) => (
+                  {jackpotParticles.map((p, i) => (
                       <motion.div
                         key={i}
                         initial={{ opacity: 0, scale: 0 }}
-                        animate={{ opacity: [0, 1, 0], scale: [0, 1, 0], x: (Math.random() - 0.5) * 60, y: (Math.random() - 0.5) * 60 }}
-                        transition={{ duration: 2, repeat: Infinity, delay: Math.random() }}
+                        animate={{ opacity: [0, 1, 0], scale: [0, 1, 0], x: p.x, y: p.y }}
+                        transition={{ duration: 2, repeat: Infinity, delay: p.delay }}
                         className="absolute top-1/2 left-1/2"
                       >
                           <Sparkles size={8} className="text-yellow-200" />
@@ -232,20 +267,48 @@ const VintageCardFront = ({ data }: { data: FloorCardData }) => {
                    <Crown size={48} strokeWidth={1.5} />
                </motion.div>
                <div className="font-black text-purple-300 uppercase tracking-widest text-base font-serif relative z-10">JACKPOT</div>
-               <div className="text-[8px] text-purple-400/70 font-mono tracking-widest mt-1">RARE FIND</div>
+               <div className="text-[8px] text-purple-400/70 font-mono tracking-widest mt-1 flex items-center gap-1 justify-center">
+                   <Key size={8} /> +{data.reward.keys}
+               </div>
+            </>
+        ) : hasKey ? (
+            <>
+               <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  {jackpotParticles.map((p, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{ opacity: [0, 1, 0], scale: [0, 1, 0], x: p.x, y: p.y }}
+                        transition={{ duration: 2, repeat: Infinity, delay: p.delay }}
+                        className="absolute top-1/2 left-1/2"
+                      >
+                          <Sparkles size={8} className="text-purple-200" />
+                      </motion.div>
+                  ))}
+               </div>
+
+               <motion.div 
+                 animate={{ rotateY: 360 }}
+                 transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+                 className="text-purple-600 drop-shadow-[0_0_15px_rgba(147,51,234,0.4)] mb-2 relative z-10"
+               >
+                   <Key size={48} strokeWidth={1.5} fill="#a855f7" className="text-purple-800" />
+               </motion.div>
+               <div className="font-black text-purple-800 uppercase tracking-widest text-xl font-serif relative z-10 drop-shadow-sm">+{data.reward.keys} KEY</div>
+               <div className="text-[8px] text-purple-700 font-bold uppercase tracking-widest relative z-10">DUNGEON ITEM</div>
             </>
         ) : (
             <>
                {/* Gold Particles */}
                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  {[...Array(4)].map((_, i) => (
+                  {goldParticles.map((p, i) => (
                       <motion.div
                         key={i}
                         initial={{ y: 60, opacity: 0 }}
                         animate={{ y: -60, opacity: [0, 1, 0] }}
                         transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.7, ease: "easeOut" }}
                         className="absolute left-1/2 text-[#b08d55]/20"
-                        style={{ marginLeft: (Math.random() - 0.5) * 50 }}
+                        style={{ marginLeft: p.marginLeft }}
                       >
                           <Coins size={10} fill="currentColor" />
                       </motion.div>
@@ -294,8 +357,8 @@ const DemonCard: React.FC<DemonCardProps> = ({ data, isFlipped, isDimmed, onClic
                 animate={{ 
                     rotateY: isFlipped ? 180 : 0,
                     scale: isFlipped && !isDimmed ? 1.05 : isDimmed ? 0.95 : 1,
-                    opacity: isDimmed ? 0.8 : 1, // Reduced dimming so revealed "misses" are visible
-                    filter: isDimmed ? 'grayscale(0.3)' : 'none' // Reduced grayscale for better color visibility
+                    opacity: isDimmed ? 0.8 : 1, 
+                    filter: isDimmed ? 'grayscale(0.3)' : 'none'
                 }}
                 transition={{ duration: 0.4, type: "spring", stiffness: 260, damping: 20 }}
                 className={`w-full h-full relative preserve-3d cursor-pointer transition-all duration-300 ${disabled && !isFlipped ? 'cursor-not-allowed' : ''}`}
@@ -315,9 +378,35 @@ const DemonCard: React.FC<DemonCardProps> = ({ data, isFlipped, isDimmed, onClic
     );
 };
 
+// --- WRAPPER FOR FLOATING ANIMATION ---
+const FloatingCardWrapper: React.FC<{ children: React.ReactNode, index: number }> = ({ children, index }) => {
+    const floatDuration = useMemo(() => 3 + Math.random(), []);
+    const delay = useMemo(() => index * 0.2, [index]);
+
+    return (
+        <motion.div
+            animate={{ y: [0, -6, 0] }}
+            transition={{ 
+                duration: floatDuration, 
+                repeat: Infinity, 
+                ease: "easeInOut",
+                delay: delay 
+            }}
+        >
+            {children}
+        </motion.div>
+    );
+};
+
 // --- LOOT FLYING ANIMATION ---
-const FlyingLoot: React.FC<{ type: CardType; startRect: DOMRect | null }> = ({ type, startRect }) => {
+const FlyingLoot: React.FC<{ lootType: 'GOLD' | 'KEY'; startRect: DOMRect | null }> = ({ lootType, startRect }) => {
     if (!startRect) return null;
+
+    // Calculate different destinations based on type
+    // Gold goes to "loot-bag-balance" (top right, upper)
+    // Key goes to "loot-bag-keys" (top right, lower)
+    const endTop = lootType === 'GOLD' ? 40 : 65; 
+    const endRight = 20; // Approximate padding
 
     return (
         <motion.div
@@ -330,16 +419,16 @@ const FlyingLoot: React.FC<{ type: CardType; startRect: DOMRect | null }> = ({ t
                 zIndex: 100 
             }}
             animate={{ 
-                top: 40, // Approximate header position
-                left: window.innerWidth - 60, 
+                top: endTop, 
+                left: window.innerWidth - 60, // Approximate right align
                 scale: [1, 1.5, 0.5],
                 opacity: [1, 1, 0]
             }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
+            transition={{ duration: 0.6, ease: "easeInOut" }} 
             className="pointer-events-none"
         >
-            <div className={`p-2 rounded-full border-2 shadow-[0_0_20px_rgba(255,255,255,0.8)] ${type === 'JACKPOT' ? 'bg-purple-500 border-white' : 'bg-yellow-400 border-white'}`}>
-                {type === 'JACKPOT' ? <Key size={20} color="white" /> : <Coins size={20} color="white" />}
+            <div className={`p-2 rounded-full border-2 shadow-[0_0_20px_rgba(255,255,255,0.8)] ${lootType === 'KEY' ? 'bg-purple-500 border-white' : 'bg-yellow-400 border-white'}`}>
+                {lootType === 'KEY' ? <Key size={20} color="white" fill="currentColor" /> : <Coins size={20} color="white" fill="currentColor" />}
             </div>
         </motion.div>
     );
@@ -355,19 +444,16 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
     onConsumeKey, 
     onAddRewards, 
     onEnterDungeon,
-    onPlayStateChange
+    onPlayStateChange,
+    initialMode,
+    onExit
 }) => {
   const { triggerCoinReward } = useCoinReward();
   const [windowSize, setWindowSize] = useState({ w: typeof window !== 'undefined' ? window.innerWidth : 0, h: typeof window !== 'undefined' ? window.innerHeight : 0 });
+  const isMounted = useRef(true);
 
-  useEffect(() => {
-      const handleResize = () => setWindowSize({ w: window.innerWidth, h: window.innerHeight });
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
-  // Game States
-  const [mode, setMode] = useState<'LOBBY' | 'PLAYING' | 'VICTORY' | 'GAMEOVER'>('LOBBY');
+  // Initialize mode based on prop or default to LOBBY
+  const [mode, setMode] = useState<'LOBBY' | 'PLAYING' | 'VICTORY' | 'GAMEOVER'>(initialMode || 'LOBBY');
   const [turnState, setTurnState] = useState<'IDLE' | 'REVEALING' | 'SHOW_ALL' | 'TRANSITION'>('IDLE');
   
   // Visual States
@@ -389,12 +475,106 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
   const [zoomFlipped, setZoomFlipped] = useState(false);
 
   // FX
-  const [flyingLoot, setFlyingLoot] = useState<{ type: CardType; rect: DOMRect } | null>(null);
+  const [flyingLoot, setFlyingLoot] = useState<{ lootType: 'GOLD' | 'KEY'; rect: DOMRect } | null>(null);
   const [isScreenShaking, setIsScreenShaking] = useState(false);
 
-  const PAID_ENTRY_COST = 5;
+  const PAID_ENTRY_COST = 3;
+
+  useEffect(() => {
+      isMounted.current = true;
+      const handleResize = () => setWindowSize({ w: window.innerWidth, h: window.innerHeight });
+      window.addEventListener('resize', handleResize);
+      return () => {
+          isMounted.current = false;
+          window.removeEventListener('resize', handleResize);
+      };
+  }, []);
 
   // --- LOGIC ---
+
+  const generateFloor = (floorNum: number) => {
+      const ts = Date.now();
+      const isJackpotFloor = floorNum % 5 === 0;
+      
+      let trapCount = 1;
+      if (floorNum === 1) trapCount = 0;
+      else if (isJackpotFloor) trapCount = 0; // Guaranteed win floor
+      else if (floorNum >= 8) trapCount = 2;
+
+      const newCards: FloorCardData[] = [];
+
+      for (let i = 0; i < trapCount; i++) {
+          newCards.push({ 
+              id: `trap-${i}-${floorNum}-${ts}`, 
+              type: 'TRAP', 
+              reward: { gold: 0, xp: 0, keys: 0 } 
+          });
+      }
+
+      const safeSlots = 4 - trapCount;
+      
+      for (let i = 0; i < safeSlots; i++) {
+          const isJackpotCard = isJackpotFloor && i === 0; 
+          
+          let hasKey = false;
+          if (isJackpotFloor) {
+              hasKey = true; 
+          } else {
+              hasKey = Math.random() < 0.25;
+          }
+
+          // Use the helper to determine key count if a key is present
+          const keyRewardCount = hasKey ? getKeyReward(floorNum) : 0;
+
+          if (isJackpotCard) {
+              newCards.push({
+                  id: `jackpot-${floorNum}-${ts}`,
+                  type: 'JACKPOT',
+                  reward: { 
+                      gold: 100 + floorNum * 10, 
+                      xp: 200 + floorNum * 20, 
+                      keys: Math.max(1, getKeyReward(floorNum)) // Jackpot usually guarantees good loot
+                  }
+              });
+          } else {
+              newCards.push({
+                  id: `safe-${i}-${floorNum}-${ts}`,
+                  type: 'SAFE',
+                  reward: { 
+                      gold: 10 + (floorNum * 5) + Math.floor(Math.random() * 20), 
+                      xp: 20 + (floorNum * 5), 
+                      keys: keyRewardCount
+                  }
+              });
+          }
+      }
+
+      return newCards.sort(() => Math.random() - 0.5);
+  };
+
+  // If initialMode is PLAYING, initialize game state immediately
+  useEffect(() => {
+      if (initialMode === 'PLAYING') {
+          // Initialize game state logic that normally happens in handleStartRun
+          setFloor(1);
+          setLootBag({ gold: 0, xp: 0, keys: 0 });
+          setCards(generateFloor(1));
+          setTurnState('IDLE');
+          setSelectedCardId(null);
+          setIsTrapped(false);
+          playSystemSoundEffect('SYSTEM');
+          
+          setIsDoorOpen(false); 
+          setAreCardsVisible(false);
+          
+          setTimeout(() => {
+              if (isMounted.current) setIsDoorOpen(true);
+              setTimeout(() => {
+                  if (isMounted.current) setAreCardsVisible(true);
+              }, 400); 
+          }, 800);
+      }
+  }, [initialMode]);
 
   // Timer Logic
   useEffect(() => {
@@ -402,7 +582,7 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
           const lastEntry = lastDungeonEntry || 0;
           const nextEntry = lastEntry + (24 * 60 * 60 * 1000);
           const remaining = Math.max(0, nextEntry - Date.now());
-          setTimeUntilFree(remaining);
+          if (isMounted.current) setTimeUntilFree(remaining);
       };
       
       checkTimer();
@@ -415,32 +595,6 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
       const m = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
       const s = Math.floor((ms % (1000 * 60)) / 1000);
       return `${h}h ${m}m ${s}s`;
-  };
-
-  const generateFloor = (floorNum: number) => {
-      const isJackpotFloor = floorNum % 5 === 0;
-      // Floor 1 is always safe (Tutorial/Warmup)
-      const isSafeFloor = floorNum === 1;
-
-      // Unique ID generation to prevent key collision issues
-      const ts = Date.now();
-      const newCards: FloorCardData[] = [
-          // Replace Trap with small reward on Floor 1
-          isSafeFloor 
-            ? { id: `safe-intro-${floorNum}-${ts}`, type: 'SAFE', reward: { gold: 5, xp: 10, keys: 0 } }
-            : { id: `trap-${floorNum}-${ts}`, type: 'TRAP', reward: { gold: 0, xp: 0, keys: 0 } },
-          
-          { id: `safe1-${floorNum}-${ts}`, type: 'SAFE', reward: { gold: 10 + floorNum * 2, xp: 20 + floorNum * 5, keys: 0 } },
-          { id: `safe2-${floorNum}-${ts}`, type: 'SAFE', reward: { gold: 15 + floorNum * 2, xp: 25 + floorNum * 5, keys: 0 } },
-          { 
-              id: `safe3-${floorNum}-${ts}`, 
-              type: isJackpotFloor ? 'JACKPOT' : 'SAFE', 
-              reward: isJackpotFloor 
-                  ? { gold: 50, xp: 100, keys: 1 } 
-                  : { gold: 20 + floorNum * 2, xp: 30 + floorNum * 5, keys: 0 } 
-          },
-      ];
-      return newCards.sort(() => Math.random() - 0.5);
   };
 
   const handleStartRun = async () => {
@@ -470,9 +624,9 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
           setAreCardsVisible(false);
           
           setTimeout(() => {
-              setIsDoorOpen(true);
+              if (isMounted.current) setIsDoorOpen(true);
               setTimeout(() => {
-                  setAreCardsVisible(true);
+                  if (isMounted.current) setAreCardsVisible(true);
               }, 400); 
           }, 800);
       }
@@ -488,35 +642,46 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
       setZoomFlipped(false);
       setTurnState('REVEALING'); 
 
-      // 2. Animate to center then Reveal (Reduced delay to 150ms to make it seamless)
+      // 2. Animate to center then Reveal (Reduced delay to 50ms)
       setTimeout(() => {
+          if (!isMounted.current) return;
           setZoomFlipped(true);
           
-          // 3. Trigger Reward/Trap Effects (Wait 500ms for flip animation)
+          // 3. Trigger Reward/Trap Effects (Wait 400ms for flip animation)
           setTimeout(() => {
+              if (!isMounted.current) return;
               if (card.type === 'TRAP') {
                   playSystemSoundEffect('WARNING');
                   // For Traps, we proceed to logic after a longer gaze
                   setTimeout(() => {
-                      handleTrapTrigger();
-                  }, 1200);
+                      if (isMounted.current) handleTrapTrigger();
+                  }, 800);
               } else {
                   playSystemSoundEffect('PURCHASE');
                   
                   // Construct center rect since card is now centered
                   const centerRect = new DOMRect(window.innerWidth / 2, window.innerHeight / 2, 0, 0);
 
-                  // Trigger Coin Animation
-                  if (card.reward.gold > 0) {
+                  // Decide Loot Type Animation
+                  const isKeyReward = card.reward.keys > 0;
+                  
+                  // Trigger Coin Animation (DOM particles) if gold present
+                  if (card.reward.gold > 0 && !isKeyReward) {
                       triggerCoinReward(centerRect, 'loot-bag-balance');
                   }
                   
-                  // Loot Logic
-                  if (card.reward.keys > 0 || card.type === 'JACKPOT') {
-                      // Use centerRect so loot flies from the zoomed card
-                      setFlyingLoot({ type: card.type, rect: centerRect });
-                      setTimeout(() => setFlyingLoot(null), 600);
+                  // Flying Loot Animation (React Motion)
+                  if (isKeyReward) {
+                      // Prioritize Key animation if keys are present
+                      setFlyingLoot({ lootType: 'KEY', rect: centerRect });
+                  } else if (card.reward.gold > 0) {
+                      setFlyingLoot({ lootType: 'GOLD', rect: centerRect });
                   }
+
+                  // Clear flying loot after animation
+                  setTimeout(() => {
+                      if (isMounted.current) setFlyingLoot(null);
+                  }, 600);
                   
                   setLootBag(prev => ({
                       gold: prev.gold + card.reward.gold,
@@ -524,17 +689,23 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
                       keys: prev.keys + card.reward.keys
                   }));
 
-                  // 4. "NEAR MISS" REVEAL SEQUENCE
+                  // 4. "NEAR MISS" REVEAL SEQUENCE (Reduced to 700ms)
                   setTimeout(() => {
-                      // Modify background cards to show fake results (mostly traps/jackpots)
-                      // This happens while the main card is STILL zoomed.
+                      if (!isMounted.current) return;
+                      
+                      // Calculate "Near Miss" display probability based on current difficulty
+                      // Higher floors = More traps visible in reveal = Scarier
+                      // Jackpot floor = NO TRAPS visible
+                      const isJackpotFloor = floor % 5 === 0;
+                      let trapProbability = floor >= 8 ? 0.6 : 0.3;
+                      if (isJackpotFloor) trapProbability = 0;
+
                       setCards(prevCards => prevCards.map(c => {
                           if (c.id === card.id) return c; // Keep selected safe
                           
                           const r = Math.random();
-                          // Aggressively show High Stakes to induce "Near Miss"
-                          if (r < 0.4) return { ...c, type: 'TRAP' }; 
-                          if (r < 0.6) return { ...c, type: 'JACKPOT', reward: { ...c.reward, gold: 100, keys: 1 } };
+                          if (r < trapProbability) return { ...c, type: 'TRAP' }; 
+                          if (r < trapProbability + 0.2) return { ...c, type: 'JACKPOT', reward: { ...c.reward, gold: 100, keys: getKeyReward(floor) } };
                           return { ...c, type: 'SAFE', reward: { ...c.reward, gold: 5 } };
                       }));
 
@@ -542,23 +713,27 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
                       setTurnState('SHOW_ALL'); 
                       playSystemSoundEffect('SYSTEM'); // Sound for the group flip
 
-                      // 5. Cleanup & Next Floor (Wait 2s so user sees what they missed)
+                      // 5. Cleanup & Next Floor (Reduced to 1000ms)
                       setTimeout(() => {
-                          setZoomedCard(null);
-                          handleFloorSuccess();
-                      }, 2000); 
-                  }, 1500); 
+                          if (isMounted.current) {
+                              setZoomedCard(null);
+                              handleFloorSuccess();
+                          }
+                      }, 1000); 
+                  }, 700); 
               }
-          }, 500); // 500ms allows flip to complete before rewards trigger
-      }, 150); // Start flip earlier
+          }, 400); // 400ms allows flip to complete before rewards trigger
+      }, 50); // Start flip almost immediately
   };
 
   const handleTrapTrigger = () => {
       setIsScreenShaking(true);
       playSystemSoundEffect('DANGER');
       setTimeout(() => {
-          setIsScreenShaking(false);
-          setIsTrapped(true);
+          if (isMounted.current) {
+              setIsScreenShaking(false);
+              setIsTrapped(true);
+          }
       }, 500);
   };
 
@@ -568,13 +743,15 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
       setAreCardsVisible(false);
       setTurnState('TRANSITION'); 
 
-      // 2. Close Doors (400ms delay)
+      // 2. Close Doors (300ms delay)
       setTimeout(() => {
+          if (!isMounted.current) return;
           setIsDoorOpen(false);
           playSystemSoundEffect('SYSTEM'); // Hydraulic sound
           
-          // 3. Move Floor (Needle Rotation) while Door is Closed (800ms)
+          // 3. Move Floor (Needle Rotation) while Door is Closed (600ms)
           setTimeout(() => {
+              if (!isMounted.current) return;
               setFloor(prev => {
                   const nextFloor = prev + 1;
                   setCards(generateFloor(nextFloor));
@@ -584,22 +761,24 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
               setSelectedCardId(null);
               setTurnState('IDLE');
 
-              // 4. Open Doors (1000ms travel time)
+              // 4. Open Doors (800ms travel time)
               setTimeout(() => {
+                  if (!isMounted.current) return;
                   setIsDoorOpen(true);
                   playSystemSoundEffect('SYSTEM'); // Door opening sound
                   
-                  // 5. Show New Cards (300ms delay)
+                  // 5. Show New Cards (200ms delay)
                   setTimeout(() => {
-                      setAreCardsVisible(true);
-                  }, 300); 
-              }, 1000); 
-          }, 800); 
-      }, 400); 
+                      if (isMounted.current) setAreCardsVisible(true);
+                  }, 200); 
+              }, 800); 
+          }, 600); 
+      }, 300); 
   };
 
   const handleSuppressBreak = async () => {
-      if (await onConsumeKey()) {
+      const reviveCost = getReviveCost(floor);
+      if (await onConsumeKey(reviveCost)) {
           playSystemSoundEffect('SUCCESS');
           setIsTrapped(false);
           setZoomedCard(null);
@@ -621,8 +800,12 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
   };
 
   const resetToLobby = () => {
-      setMode('LOBBY');
-      onPlayStateChange(false); // Restore Navigation
+      if (onExit) {
+          onExit(); // Exit to parent (Rewards page)
+      } else {
+          setMode('LOBBY'); // Fallback if no exit prop
+          onPlayStateChange(false); 
+      }
   };
 
   // Calculate Zoom Target Geometry
@@ -715,7 +898,7 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
 
               {/* Loot Animation Layer */}
               <AnimatePresence>
-                  {flyingLoot && <FlyingLoot type={flyingLoot.type} startRect={flyingLoot.rect} />}
+                  {flyingLoot && <FlyingLoot lootType={flyingLoot.lootType} startRect={flyingLoot.rect} />}
               </AnimatePresence>
 
               {/* Header Info */}
@@ -726,8 +909,11 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
                   </div>
                   <div className="text-right">
                       <div className="text-[10px] text-gray-500 font-bold tracking-widest uppercase">Loot Bag</div>
-                      <div id="loot-bag-balance" className="flex items-center gap-2 text-xl font-bold text-yellow-500 font-serif">
+                      <div id="loot-bag-balance" className="flex items-center justify-end gap-2 text-xl font-bold text-yellow-500 font-serif">
                           <Coins size={18} fill="currentColor" /> <CountingNumber value={lootBag.gold} />
+                      </div>
+                      <div id="loot-bag-keys" className="flex items-center justify-end gap-2 text-sm font-bold text-purple-400 font-serif mt-0.5">
+                          <Key size={14} className="text-purple-500" /> <CountingNumber value={lootBag.keys} />
                       </div>
                   </div>
               </div>
@@ -775,15 +961,7 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
                                               className="relative"
                                           >
                                               {/* Isolated Floating Container to prevent transform conflicts */}
-                                              <motion.div
-                                                  animate={{ y: [0, -6, 0] }}
-                                                  transition={{ 
-                                                      duration: 3 + Math.random(), 
-                                                      repeat: Infinity, 
-                                                      ease: "easeInOut",
-                                                      delay: index * 0.2 // Stagger floats
-                                                  }}
-                                              >
+                                              <FloatingCardWrapper index={index}>
                                                   <DemonCard 
                                                       data={card}
                                                       isFlipped={isRevealed}
@@ -791,7 +969,7 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
                                                       onClick={(rect) => handleCardClick(card, rect)}
                                                       disabled={turnState !== 'IDLE'}
                                                   />
-                                              </motion.div>
+                                              </FloatingCardWrapper>
                                           </motion.div>
                                       );
                                   })}
@@ -891,14 +1069,14 @@ const DemonCastle: React.FC<DemonCastleProps> = ({
                                   <div className="grid grid-cols-2 gap-3 w-full">
                                       <button 
                                           onClick={handleSuppressBreak}
-                                          disabled={keys <= 0}
-                                          className={`py-4 rounded-xl font-black text-xs uppercase tracking-widest flex flex-col items-center gap-1 transition-all ${keys > 0 ? 'bg-white text-black shadow-[0_0_20px_white] hover:scale-105' : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'}`}
+                                          disabled={keys < getReviveCost(floor)}
+                                          className={`py-4 rounded-xl font-black text-xs uppercase tracking-widest flex flex-col items-center gap-1 transition-all ${keys >= getReviveCost(floor) ? 'bg-white text-black shadow-[0_0_20px_white] hover:scale-105' : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'}`}
                                       >
                                           <div className="flex items-center gap-2">
                                               <span>REVIVE</span>
-                                              <Key size={14} className={keys > 0 ? "text-purple-600" : "text-gray-600"} />
+                                              <Key size={14} className={keys >= getReviveCost(floor) ? "text-purple-600" : "text-gray-600"} />
                                           </div>
-                                          <span className="text-[9px] opacity-70">COST: 1 KEY</span>
+                                          <span className="text-[9px] opacity-70">COST: {getReviveCost(floor)} KEYS</span>
                                       </button>
 
                                       <button 

@@ -103,7 +103,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
       },
       8: { 
           title: "Calibration Required",
-          body: "The System has issued 5 Welcome Quests.\n\nYou must complete ALL of them to proceed.\n\nWatch how each completion impacts your Daily, Weekly, and Monthly attributes.",
+          body: "The System has issued 3 Welcome Quests.\n\nYou must complete ALL of them to proceed.\n\nWatch how each completion impacts your Daily, Weekly, and Monthly attributes.",
           buttonText: "Complete Task",
           targetId: 'quest-list-container', 
           waitForAction: true,

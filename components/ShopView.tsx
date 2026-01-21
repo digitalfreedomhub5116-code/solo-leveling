@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Coins, Plus, ShoppingBag, X } from 'lucide-react';
+import { Coins, Plus, ShoppingBag, X, Ghost, Timer, Key, Gift } from 'lucide-react';
 import { ShopItem } from '../types';
 import ShopItemCard from './ShopItemCard';
 
@@ -11,13 +11,63 @@ interface ShopViewProps {
   purchaseItem: (item: ShopItem) => void;
   addItem: (item: ShopItem) => void;
   removeItem: (id: string) => void;
+  keys?: number;
+  lastDungeonEntry?: number;
+  onStartDungeon?: (isFree: boolean) => void;
 }
 
-const ShopView: React.FC<ShopViewProps> = ({ gold, items, purchaseItem, addItem, removeItem }) => {
+const ShopView: React.FC<ShopViewProps> = ({ 
+    gold, 
+    items, 
+    purchaseItem, 
+    addItem, 
+    removeItem, 
+    keys = 0, 
+    lastDungeonEntry = 0, 
+    onStartDungeon 
+}) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [cost, setCost] = useState<number>(100);
+  
+  const [timeUntilFree, setTimeUntilFree] = useState<number>(0);
+  const [timeUntilDaily, setTimeUntilDaily] = useState<number>(0);
+
+  // Timer Logic for Dungeon
+  useEffect(() => {
+      const checkTimer = () => {
+          const nextEntry = lastDungeonEntry + (24 * 60 * 60 * 1000);
+          const remaining = Math.max(0, nextEntry - Date.now());
+          setTimeUntilFree(remaining);
+      };
+      
+      checkTimer();
+      const interval = setInterval(checkTimer, 1000);
+      return () => clearInterval(interval);
+  }, [lastDungeonEntry]);
+
+  // Timer Logic for Daily Reset (Midnight UTC)
+  useEffect(() => {
+      const updateDailyTimer = () => {
+          const now = new Date();
+          const tomorrow = new Date(now);
+          tomorrow.setUTCHours(24, 0, 0, 0); // Next midnight UTC
+          const diff = tomorrow.getTime() - now.getTime();
+          setTimeUntilDaily(Math.max(0, diff));
+      };
+      
+      updateDailyTimer();
+      const interval = setInterval(updateDailyTimer, 1000);
+      return () => clearInterval(interval);
+  }, []);
+
+  const formatTime = (ms: number) => {
+      const h = Math.floor(ms / (1000 * 60 * 60));
+      const m = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((ms % (1000 * 60)) / 1000);
+      return `${h}h ${m}m ${s}s`;
+  };
 
   const handleCreate = () => {
     if (!title || cost <= 0) return;
@@ -36,6 +86,9 @@ const ShopView: React.FC<ShopViewProps> = ({ gold, items, purchaseItem, addItem,
     setDescription('');
     setCost(100);
   };
+
+  const isFreeReady = timeUntilFree <= 0;
+  const canAffordPaid = keys >= 3;
 
   return (
     <div className="space-y-6">
@@ -67,6 +120,105 @@ const ShopView: React.FC<ShopViewProps> = ({ gold, items, purchaseItem, addItem,
              </button>
          </div>
       </div>
+
+      {/* --- DUNGEON TOWER WIDGET --- */}
+      {onStartDungeon && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full bg-black/60 border border-red-900/50 rounded-xl p-6 relative overflow-hidden group shadow-[0_0_30px_rgba(220,38,38,0.1)]"
+          >
+              <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-red-600 via-red-900 to-red-600 opacity-80" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(220,38,38,0.1),transparent_50%)]" />
+              
+              <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+                  <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 bg-red-950/30 rounded-full flex items-center justify-center border-2 border-red-500/50 shadow-[0_0_20px_rgba(220,38,38,0.3)]">
+                          <Ghost size={32} className="text-red-500 animate-pulse" />
+                      </div>
+                      <div>
+                          <h3 className="text-2xl font-black text-white font-serif tracking-tight uppercase">DUNGEON TOWER</h3>
+                          <div className="flex items-center gap-3 mt-1">
+                              <span className="text-[10px] bg-red-900/20 text-red-400 px-2 py-0.5 rounded border border-red-900/30 font-mono tracking-widest uppercase">
+                                  HIGH RISK ZONE
+                              </span>
+                              {!isFreeReady && (
+                                  <span className="text-[10px] text-yellow-500 font-mono flex items-center gap-1">
+                                      <Timer size={10} /> RESET: {formatTime(timeUntilFree)}
+                                  </span>
+                              )}
+                          </div>
+                      </div>
+                  </div>
+
+                  <div className="flex gap-3 w-full md:w-auto">
+                      <button 
+                          onClick={() => onStartDungeon(true)}
+                          disabled={!isFreeReady}
+                          className={`flex-1 md:flex-none px-6 py-3 rounded-lg font-mono font-bold text-xs uppercase tracking-widest transition-all
+                              ${isFreeReady 
+                                  ? 'bg-red-600 text-white hover:bg-white hover:text-red-600 shadow-[0_0_15px_rgba(220,38,38,0.5)]' 
+                                  : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
+                              }
+                          `}
+                      >
+                          {isFreeReady ? "ENTER (FREE)" : "LOCKED"}
+                      </button>
+
+                      <button 
+                          onClick={() => onStartDungeon(false)}
+                          disabled={!canAffordPaid}
+                          className={`flex-1 md:flex-none px-6 py-3 rounded-lg font-mono font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 justify-center border
+                              ${canAffordPaid 
+                                  ? 'bg-purple-900/20 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white shadow-[0_0_15px_rgba(168,85,247,0.3)]' 
+                                  : 'bg-gray-900 border-gray-700 text-gray-600 cursor-not-allowed'
+                              }
+                          `}
+                      >
+                          <Key size={12} />
+                          ENTER (3 KEYS)
+                      </button>
+                  </div>
+              </div>
+          </motion.div>
+      )}
+
+      {/* --- DAILY REWARD WIDGET --- */}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="w-full bg-black/60 border border-blue-900/50 rounded-xl p-6 relative overflow-hidden group shadow-[0_0_30px_rgba(0,210,255,0.1)]"
+      >
+          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-600 via-blue-900 to-blue-600 opacity-80" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(0,210,255,0.1),transparent_50%)]" />
+          
+          <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+              <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-blue-950/30 rounded-full flex items-center justify-center border-2 border-blue-500/50 shadow-[0_0_20px_rgba(0,210,255,0.3)]">
+                      <Gift size={32} className="text-blue-500 animate-pulse" />
+                  </div>
+                  <div>
+                      <h3 className="text-2xl font-black text-white font-serif tracking-tight uppercase">DAILY SUPPLY DROP</h3>
+                      <div className="flex items-center gap-3 mt-1">
+                          <span className="text-[10px] bg-blue-900/20 text-blue-400 px-2 py-0.5 rounded border border-blue-900/30 font-mono tracking-widest uppercase">
+                              STATUS: CLAIMED
+                          </span>
+                      </div>
+                  </div>
+              </div>
+
+              <div className="flex gap-3 w-full md:w-auto items-center justify-center md:justify-end">
+                  <div className="text-right">
+                      <div className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-1">NEXT DROP IN</div>
+                      <div className="text-xl font-bold text-white font-mono flex items-center gap-2 bg-black/40 px-4 py-2 rounded border border-gray-800">
+                          <Timer size={16} className="text-system-neon" /> 
+                          {formatTime(timeUntilDaily)}
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </motion.div>
 
       {/* Item Grid */}
       <div id="tut-shop-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-10">

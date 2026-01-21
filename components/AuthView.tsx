@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { Terminal, Shield, Lock, AlertTriangle, User, Eye, ArrowRight, Database, Key, Cpu } from 'lucide-react';
+import { Terminal, Mail, Lock, User, ArrowRight, AlertTriangle, Loader2, Chrome, Key, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PlayerData } from '../types';
 import ForgotPassword from './ForgotPassword';
@@ -12,46 +12,7 @@ interface AuthViewProps {
   onAdminAccess?: () => void;
 }
 
-const PIN_SALT = "biosync-v1"; 
-
-const SECURITY_QUESTIONS = [
-    "What was the name of your first pet?",
-    "In what city were you born?",
-    "What is your mother's maiden name?",
-    "What is the model of your first vehicle?",
-    "What was the name of your childhood best friend?",
-    "What is your favorite food?"
-];
-
-// Polished Slide & Fade Variants
-const contentVariants: Variants = {
-  enter: (direction: number) => ({
-    x: direction > 0 ? 20 : -20,
-    opacity: 0,
-    filter: "blur(4px)"
-  }),
-  center: {
-    zIndex: 1,
-    x: 0,
-    opacity: 1,
-    filter: "blur(0px)",
-    transition: {
-      x: { type: "spring", stiffness: 300, damping: 30 },
-      opacity: { duration: 0.2 }
-    }
-  },
-  exit: (direction: number) => ({
-    zIndex: 0,
-    x: direction < 0 ? 20 : -20,
-    opacity: 0,
-    filter: "blur(4px)",
-    transition: {
-      x: { type: "spring", stiffness: 300, damping: 30 },
-      opacity: { duration: 0.2 }
-    }
-  })
-};
-
+// Animation Variants
 const cardTransition: Variants = {
   hidden: { opacity: 0, scale: 0.95, y: 10 },
   visible: { 
@@ -69,186 +30,231 @@ const cardTransition: Variants = {
 };
 
 const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
-  const [mode, setMode] = useState<'LOGIN' | 'AWAKENING' | 'RECOVERY'>('LOGIN');
-  const [direction, setDirection] = useState(0);
+  const [mode, setMode] = useState<'LOGIN' | 'SIGNUP' | 'VERIFY_OTP' | 'FORGOT_PASSWORD'>('LOGIN');
   
-  const [regStep, setRegStep] = useState<number>(1);
-  const [realName, setRealName] = useState('');
-  const [codename, setCodename] = useState('');
-  const [pin, setPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
+  // Form State
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [otp, setOtp] = useState('');
   
-  const [recoveryQuestions, setRecoveryQuestions] = useState([
-      { question: SECURITY_QUESTIONS[0], answer: '' },
-      { question: SECURITY_QUESTIONS[1], answer: '' },
-      { question: SECURITY_QUESTIONS[2], answer: '' }
-  ]);
-
-  const [loginId, setLoginId] = useState('');
-  const [loginPin, setLoginPin] = useState('');
-
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true); // Start true to check immediately
   const [error, setError] = useState<string | null>(null);
 
-  const formatCodename = (val: string) => val.toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Check for existing session on mount
+  useEffect(() => {
+    let mounted = true;
 
-  const checkAvailability = async (username: string) => {
-    if (!username || username.length < 3) {
-      setError("CODENAME TOO SHORT (MIN 3 CHARS)");
-      return false;
-    }
+    const initSession = async () => {
+        // CRITICAL: Check if we are returning from a Google/MagicLink redirect
+        // If hash exists with access_token, we MUST wait for the onAuthStateChange listener to fire.
+        // If we set checkingSession(false) here, the login form will flash before auth completes.
+        const isCallback = window.location.hash && (
+            window.location.hash.includes('access_token') || 
+            window.location.hash.includes('type=recovery') ||
+            window.location.hash.includes('error_description')
+        );
 
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('username', username)
-        .maybeSingle();
-      
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (data) {
-        setError("CODENAME ALREADY IN USE");
-        setLoading(false);
-        return false;
-      }
-      return true;
-    } catch (err) {
-      console.error("Availability Check Error:", err);
-      setError("CONNECTION ERROR");
-      setLoading(false);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRegNext = async () => {
-    setError(null);
-    if (regStep === 1) {
-        if (!realName.trim()) { setError("IDENTIFICATION REQUIRED"); return; }
-        setRegStep(2);
-    } else if (regStep === 2) {
-        const handle = formatCodename(codename);
-        const isAvailable = await checkAvailability(handle);
-        if (isAvailable) {
-            setRegStep(3);
+        if (isCallback) {
+            console.log("Processing Auth Callback...");
+            // Do NOT turn off loading. Wait for event listener.
+            return;
         }
-    } else if (regStep === 3) {
-        if (pin.length < 4) { setError("PIN MUST BE 4-6 DIGITS"); return; }
-        if (pin !== confirmPin) { setError("PIN MISMATCH"); setPin(''); setConfirmPin(''); return; }
-        setRegStep(4);
-    } else if (regStep === 4) {
-        const isValid = recoveryQuestions.every(q => q.answer.trim().length > 0);
-        if (!isValid) { setError("ALL QUESTIONS MUST BE ANSWERED"); return; }
-        await finalizeRegistration();
-    }
-  };
 
-  const finalizeRegistration = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (mounted) {
+                if (session?.user) {
+                    await handleSessionUser(session.user);
+                } else {
+                    setCheckingSession(false);
+                }
+            }
+        } catch (e) {
+            console.error("Session Check Error", e);
+            if (mounted) setCheckingSession(false);
+        }
+    };
+
+    initSession();
+
+    // Listen for auth changes (Google Redirects, Link clicks)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+            if (mounted) {
+                setCheckingSession(true); // Ensure loading is shown while fetching profile
+                await handleSessionUser(session.user);
+            }
+        } else if (event === 'SIGNED_OUT') {
+            if (mounted) {
+                setCheckingSession(false);
+                setMode('LOGIN');
+            }
+        }
+    });
+
+    return () => {
+        mounted = false;
+        subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleSessionUser = async (user: any) => {
       setLoading(true);
-      const handle = formatCodename(codename);
-      const email = `${handle}.sync@shadow-system.io`;
-      const securePassword = `${pin}-${PIN_SALT}`;
-
-      try {
-          const { data, error: signUpError } = await supabase.auth.signUp({
-              email,
-              password: securePassword,
-              options: { data: { full_name: realName, username: handle } }
-          });
-
-          if (signUpError) throw signUpError;
-          const user = data.user;
-          if (!user) throw new Error("USER CREATION FAILED");
-
-          const { error: profileError } = await supabase.from('profiles').upsert({
-              id: user.id,
-              username: handle,
-              name: realName,
-              pin: pin,
-              updated_at: new Date().toISOString()
-          });
-          if (profileError) throw profileError;
-
-          const { error: recoveryError } = await supabase.from('recovery_questions').insert(
-              recoveryQuestions.map(q => ({
-                  user_id: user.id,
-                  question: q.question,
-                  answer_text: q.answer.trim()
-              }))
-          );
-          if (recoveryError) console.warn("Recovery Save Error:", recoveryError);
-
-          onLogin({ name: realName, username: handle, pin, userId: user.id, keys: 0 });
-
-      } catch (err: any) {
-          console.error("Registration Error:", err);
-          setError(err.message || "INITIALIZATION FAILED");
-      } finally {
-          setLoading(false);
-      }
-  };
-
-  const handleLogin = async () => {
       setError(null);
-      if (!loginId.trim()) { setError("ENTER CODENAME"); return; }
-      if (loginPin.length < 4) { setError("INVALID PIN"); return; }
-
-      setLoading(true);
-      const handle = formatCodename(loginId);
-      const email = `${handle}.sync@shadow-system.io`;
-      const securePassword = `${loginPin}-${PIN_SALT}`;
-
       try {
-          const { data, error: signInError } = await supabase.auth.signInWithPassword({
-              email,
-              password: securePassword
-          });
+          const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', user.id)
+              .single();
 
-          if (signInError) throw new Error("INCORRECT CREDENTIALS");
-          
-          const user = data.user;
-          if (user) {
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', user.id)
-                .single();
+          if (profile) {
+              const playerData = profile.raw_data || {};
+              onLogin({
+                  ...playerData,
+                  userId: user.id,
+                  name: profile.name || user.user_metadata?.full_name || 'Hunter',
+                  username: profile.username || user.email?.split('@')[0],
+                  keys: profile.keys !== undefined ? profile.keys : (playerData.keys || 0)
+              });
+          } else {
+              // New user profile creation
+              const name = user.user_metadata?.full_name || fullName || 'Hunter';
+              const username = user.email?.split('@')[0] || `hunter_${Date.now().toString().slice(-4)}`;
               
-              if (profile) {
-                  const playerData = profile.raw_data || {};
-                  // Ensure keys from the DB column are passed to the initial state
-                  onLogin({ 
-                      ...playerData, 
-                      userId: profile.id, 
-                      name: profile.name || playerData.name,
-                      keys: profile.keys !== undefined ? profile.keys : (playerData.keys || 0)
-                  });
-              } else {
-                  onLogin({ name: handle, username: handle, userId: user.id, keys: 0 });
-              }
+              const newProfile = {
+                  id: user.id,
+                  username: username,
+                  name: name,
+                  pin: '0000', // Legacy field support
+                  updated_at: new Date().toISOString()
+              };
+
+              const { error: insertError } = await supabase.from('profiles').upsert(newProfile);
+              if (insertError) throw insertError;
+
+              onLogin({
+                  userId: user.id,
+                  name: name,
+                  username: username,
+                  keys: 0
+              });
           }
       } catch (err: any) {
-          setError(err.message || "ACCESS DENIED");
-          setLoginPin('');
+          console.error("Profile Load Error:", err);
+          // Fallback if profile fetch fails but auth works
+          onLogin({
+              userId: user.id,
+              name: user.user_metadata?.full_name || 'Hunter',
+              username: user.email?.split('@')[0],
+              keys: 0
+          });
       } finally {
+          // Only stop loading if component is still mounted (though unmount usually happens on login)
+          setLoading(false);
+          setCheckingSession(false);
+      }
+  };
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setError(null);
+      setLoading(true);
+
+      try {
+          const { error } = await supabase.auth.signInWithPassword({
+              email,
+              password
+          });
+          if (error) throw error;
+          // Session listener will handle the rest
+      } catch (err: any) {
+          setError(err.message || "LOGIN FAILED");
           setLoading(false);
       }
   };
 
-  const switchMode = (newMode: 'LOGIN' | 'AWAKENING' | 'RECOVERY') => {
+  const handleSignup = async (e: React.FormEvent) => {
+      e.preventDefault();
       setError(null);
-      if (mode === 'LOGIN' && newMode === 'AWAKENING') setDirection(1);
-      else if (mode === 'AWAKENING' && newMode === 'LOGIN') setDirection(-1);
-      else setDirection(0);
-      setMode(newMode);
+      setLoading(true);
+
+      try {
+          const { data, error } = await supabase.auth.signUp({
+              email,
+              password,
+              options: {
+                  data: {
+                      full_name: fullName
+                  }
+              }
+          });
+          if (error) throw error;
+
+          // If session is null, email confirmation is required.
+          if (!data.session && data.user) {
+              setMode('VERIFY_OTP');
+              setLoading(false);
+          } else {
+              // If session exists immediately (email confirm disabled), listener handles it
+          }
+      } catch (err: any) {
+          setError(err.message || "SIGNUP FAILED");
+          setLoading(false);
+      }
   };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setError(null);
+      setLoading(true);
+
+      try {
+          const { data, error } = await supabase.auth.verifyOtp({
+              email,
+              token: otp,
+              type: 'signup'
+          });
+
+          if (error) throw error;
+          
+          if (data.session) {
+              await handleSessionUser(data.session.user);
+          }
+      } catch (err: any) {
+          setError(err.message || "INVALID CODE");
+          setLoading(false);
+      }
+  };
+
+  const handleGoogleLogin = async () => {
+      setError(null);
+      setLoading(true); // Show loading immediately to prevent clicks
+      try {
+          const { error } = await supabase.auth.signInWithOAuth({
+              provider: 'google',
+              options: {
+                  // Explicitly redirect to origin to avoid subdomain issues
+                  redirectTo: window.location.origin
+              }
+          });
+          if (error) throw error;
+      } catch (err: any) {
+          setError(err.message || "GOOGLE AUTH FAILED");
+          setLoading(false);
+      }
+  };
+
+  // If checking session/redirect, show loading screen only
+  if (checkingSession) {
+      return <ShadowLoading />;
+  }
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-6 font-mono relative overflow-hidden">
-      {/* Dynamic Background */}
+      {/* Background Elements */}
       <div className="absolute inset-0 bg-black">
         <div className="absolute top-[-20%] left-[-20%] w-[500px] h-[500px] bg-system-accent/10 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-20%] right-[-20%] w-[500px] h-[500px] bg-system-neon/10 rounded-full blur-[120px]" />
@@ -257,14 +263,14 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
 
       <div className="relative z-10 w-full max-w-md">
         
-        {/* Header Logo - Always visible except in Recovery */}
+        {/* Header */}
         <AnimatePresence mode="wait">
-            {mode !== 'RECOVERY' && (
+            {mode !== 'FORGOT_PASSWORD' && (
                 <motion.div 
                     key="header"
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+                    exit={{ opacity: 0, y: -20 }}
                     className="text-center mb-8"
                 >
                    <motion.div 
@@ -273,36 +279,88 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                      transition={{ type: "spring", duration: 0.8 }}
                      className="inline-block p-4 bg-black/50 border border-system-border rounded-full mb-4 relative group"
                    >
-                      <div className={`absolute inset-0 rounded-full blur-md opacity-40 ${mode === 'AWAKENING' ? 'bg-system-accent' : 'bg-system-neon'}`} />
-                      <Terminal size={32} className={`relative z-10 ${mode === 'AWAKENING' ? 'text-system-accent' : 'text-system-neon'}`} />
+                      <div className="absolute inset-0 rounded-full blur-md opacity-40 bg-system-neon" />
+                      <Terminal size={32} className="text-system-neon relative z-10" />
                    </motion.div>
                    
                    <h1 className="text-4xl font-black text-white tracking-tighter drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">BIO-SYNC OS</h1>
-                   <p className={`text-xs tracking-[0.4em] uppercase mt-2 font-bold transition-colors ${mode === 'AWAKENING' ? 'text-system-accent' : 'text-system-neon'}`}>
-                     {mode === 'AWAKENING' ? 'PROTOCOL: AWAKENING' : 'PROTOCOL: ACCESS'}
+                   <p className="text-xs tracking-[0.4em] uppercase mt-2 font-bold text-system-neon">
+                     {mode === 'VERIFY_OTP' ? 'UPLINK VERIFICATION' : 'AUTHENTICATION PROTOCOL'}
                    </p>
                 </motion.div>
             )}
         </AnimatePresence>
 
         <AnimatePresence mode="wait">
-            {mode === 'RECOVERY' ? (
+            {mode === 'FORGOT_PASSWORD' ? (
                 <motion.div 
-                    key="recovery"
+                    key="forgot"
                     variants={cardTransition}
                     initial="hidden"
                     animate="visible"
                     exit="exit"
-                    className="w-full"
                 >
-                    <ForgotPassword 
-                        onCancel={() => switchMode('LOGIN')}
-                        onSuccess={() => { switchMode('LOGIN'); setError('PIN RESET SUCCESSFUL. PLEASE LOG IN.'); }}
-                    />
+                    <ForgotPassword onCancel={() => setMode('LOGIN')} onSuccess={() => setMode('LOGIN')} />
+                </motion.div>
+            ) : mode === 'VERIFY_OTP' ? (
+                <motion.div 
+                    key="otp"
+                    variants={cardTransition}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    className="bg-[#050505]/90 border border-system-neon backdrop-blur-xl rounded-xl p-8 shadow-[0_0_50px_rgba(0,210,255,0.15)] relative overflow-hidden"
+                >
+                    <div className="text-center mb-6">
+                        <CheckCircle size={48} className="text-system-neon mx-auto mb-4 animate-pulse" />
+                        <h3 className="text-white font-bold text-lg">VERIFICATION SENT</h3>
+                        <p className="text-xs text-gray-500 mt-2">
+                            Enter the 6-digit code sent to <span className="text-white font-bold">{email}</span> to synchronize your account.
+                        </p>
+                    </div>
+
+                    {error && (
+                        <div className="bg-red-950/30 border-l-2 border-system-danger text-system-danger p-3 rounded mb-6 text-xs font-bold flex items-center gap-2">
+                            <AlertTriangle size={16} /> {error}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleVerifyOtp} className="space-y-5">
+                        <div>
+                            <label className="text-[10px] text-system-neon uppercase tracking-widest block mb-2 font-bold text-center">ACCESS CODE</label>
+                            <div className="relative group">
+                                <Key className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-neon transition-colors" size={18} />
+                                <input 
+                                    type="text"
+                                    value={otp}
+                                    onChange={e => setOtp(e.target.value)}
+                                    className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white focus:border-system-neon focus:shadow-[0_0_15px_rgba(0,210,255,0.2)] focus:outline-none placeholder:text-gray-800 transition-all font-mono tracking-[0.5em] text-center text-lg"
+                                    placeholder="000000"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <button 
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-3 bg-system-neon text-black font-bold font-mono rounded hover:bg-white hover:shadow-[0_0_20px_rgba(0,210,255,0.5)] transition-all flex items-center justify-center gap-2 group uppercase tracking-wider"
+                        >
+                            {loading ? <Loader2 className="animate-spin" size={18} /> : 'CONFIRM & SYNC'}
+                        </button>
+                        
+                        <button
+                            type="button"
+                            onClick={() => setMode('LOGIN')}
+                            className="w-full text-xs text-gray-600 hover:text-white transition-colors"
+                        >
+                            CANCEL
+                        </button>
+                    </form>
                 </motion.div>
             ) : (
                 <motion.div 
-                    key="main-auth"
+                    key="auth-form"
                     variants={cardTransition}
                     initial="hidden"
                     animate="visible"
@@ -310,7 +368,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                     className="bg-[#050505]/90 border border-system-border backdrop-blur-xl rounded-xl p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
                 >
                     {/* Top Border Gradient */}
-                    <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-${mode === 'AWAKENING' ? 'system-accent' : 'system-neon'} to-transparent opacity-70`} />
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-system-neon to-transparent opacity-70" />
 
                     {/* Loading Overlay */}
                     <AnimatePresence>
@@ -324,7 +382,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                          initial={{ height: 0, opacity: 0 }}
                          animate={{ height: 'auto', opacity: 1 }}
                          exit={{ height: 0, opacity: 0 }}
-                         className={`border-l-2 p-3 rounded mb-6 text-xs font-bold flex items-center gap-2 overflow-hidden bg-black/50 ${error.includes("SUCCESS") ? "border-system-success text-system-success" : "border-system-danger text-system-danger"}`}
+                         className="bg-red-950/30 border-l-2 border-system-danger text-system-danger p-3 rounded mb-6 text-xs font-bold flex items-center gap-2 overflow-hidden"
                        >
                           <AlertTriangle size={16} className="shrink-0 animate-pulse" />
                           {error}
@@ -332,217 +390,91 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                      )}
                     </AnimatePresence>
 
-                    <AnimatePresence mode="wait" custom={direction}>
-                    {/* --- AWAKENING FLOW --- */}
-                    {mode === 'AWAKENING' && (
-                        <motion.div 
-                            key="awakening-container" 
-                            custom={direction} 
-                            variants={contentVariants} 
-                            initial="enter" 
-                            animate="center" 
-                            exit="exit" 
-                            className="space-y-6"
-                        >
-                            {/* Progress Bar */}
-                            <div className="flex gap-1 mb-4">
-                                {[1, 2, 3, 4].map(s => (
-                                    <div key={s} className={`h-1 flex-1 rounded-sm ${s <= regStep ? 'bg-system-accent shadow-[0_0_5px_#8b5cf6]' : 'bg-gray-900'}`} />
-                                ))}
-                            </div>
-
-                            <AnimatePresence mode="wait">
-                                {regStep === 1 && (
-                                    <motion.div key="reg1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                                        <label className="text-[10px] text-system-accent uppercase tracking-widest block mb-2 font-bold">REAL NAME IDENTIFICATION</label>
-                                        <div className="relative group">
-                                            <User className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-accent transition-colors" size={18} />
-                                            <input 
-                                                value={realName}
-                                                onChange={e => setRealName(e.target.value)}
-                                                className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white focus:border-system-accent focus:shadow-[0_0_15px_rgba(139,92,246,0.2)] focus:outline-none uppercase placeholder:text-gray-800 transition-all"
-                                                placeholder="JIN-WOO SUNG"
-                                                autoFocus
-                                            />
-                                        </div>
-                                    </motion.div>
-                                )}
-                                {regStep === 2 && (
-                                    <motion.div key="reg2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                                        <label className="text-[10px] text-system-accent uppercase tracking-widest block mb-2 font-bold">DESIRED CODENAME</label>
-                                        <div className="relative group">
-                                            <Eye className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-accent transition-colors" size={18} />
-                                            <input 
-                                                value={codename}
-                                                onChange={e => setCodename(formatCodename(e.target.value))}
-                                                className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white focus:border-system-accent focus:shadow-[0_0_15px_rgba(139,92,246,0.2)] focus:outline-none uppercase font-bold placeholder:text-gray-800 transition-all"
-                                                placeholder="SHADOW_MONARCH"
-                                                autoFocus
-                                            />
-                                        </div>
-                                    </motion.div>
-                                )}
-                                {regStep === 3 && (
-                                    <motion.div key="reg3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-                                        <div>
-                                            <label className="text-[10px] text-system-accent uppercase tracking-widest block mb-2 font-bold">CREATE 4-DIGIT PASSKEY</label>
-                                            <div className="relative group">
-                                                <Lock className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-accent transition-colors" size={18} />
-                                                <input 
-                                                    type="password"
-                                                    maxLength={6}
-                                                    value={pin}
-                                                    onChange={e => { if (/^\d*$/.test(e.target.value)) setPin(e.target.value); }}
-                                                    className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white text-xl tracking-[0.5em] focus:border-system-accent focus:shadow-[0_0_15px_rgba(139,92,246,0.2)] focus:outline-none transition-all placeholder:text-gray-800"
-                                                    placeholder="••••"
-                                                    autoFocus
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] text-gray-500 uppercase tracking-widest block mb-2 font-bold">CONFIRM PASSKEY</label>
-                                            <div className="relative group">
-                                                <Shield className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-accent transition-colors" size={18} />
-                                                <input 
-                                                    type="password"
-                                                    maxLength={6}
-                                                    value={confirmPin}
-                                                    onChange={e => { if (/^\d*$/.test(e.target.value)) setConfirmPin(e.target.value); }}
-                                                    className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white text-xl tracking-[0.5em] focus:border-system-accent focus:shadow-[0_0_15px_rgba(139,92,246,0.2)] focus:outline-none transition-all placeholder:text-gray-800"
-                                                    placeholder="••••"
-                                                />
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}
-                                {regStep === 4 && (
-                                    <motion.div key="reg4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-                                        <div className="text-xs text-gray-500 mb-2 font-mono flex items-center gap-2 border-b border-gray-800 pb-2">
-                                             <Database size={14} className="text-system-accent" /> RECOVERY PROTOCOL (3 Q/A)
-                                        </div>
-                                        {recoveryQuestions.map((q, idx) => (
-                                            <div key={idx} className="space-y-1">
-                                                <select 
-                                                   value={q.question}
-                                                   onChange={e => {
-                                                       const newQ = [...recoveryQuestions];
-                                                       newQ[idx].question = e.target.value;
-                                                       setRecoveryQuestions(newQ);
-                                                   }}
-                                                   className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-2 text-[10px] text-gray-400 focus:border-system-accent outline-none"
-                                                >
-                                                    {SECURITY_QUESTIONS.map(option => (
-                                                        <option key={option} value={option} disabled={recoveryQuestions.some((rq, i) => i !== idx && rq.question === option)}>
-                                                            {option}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                <input 
-                                                   value={q.answer}
-                                                   onChange={e => {
-                                                       const newQ = [...recoveryQuestions];
-                                                       newQ[idx].answer = e.target.value;
-                                                       setRecoveryQuestions(newQ);
-                                                   }}
-                                                   placeholder="Answer..."
-                                                   className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-2 text-sm text-white focus:border-system-accent focus:shadow-[0_0_10px_rgba(139,92,246,0.1)] outline-none"
-                                                />
-                                            </div>
-                                        ))}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-
-                            <button 
-                                onClick={handleRegNext}
-                                disabled={loading}
-                                className="w-full py-3 bg-system-accent/10 border border-system-accent/50 text-system-accent font-bold font-mono rounded hover:bg-system-accent hover:text-black hover:shadow-[0_0_20px_rgba(139,92,246,0.5)] transition-all flex items-center justify-center gap-2 mt-4 group"
-                            >
-                                {regStep === 4 ? 'INITIALIZE SYSTEM' : 'NEXT STEP'} 
-                                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                            </button>
-                        </motion.div>
-                    )}
-
-                    {/* --- LOGIN FLOW --- */}
-                    {mode === 'LOGIN' && (
-                        <motion.div 
-                            key="login-container" 
-                            custom={direction} 
-                            variants={contentVariants} 
-                            initial="enter" 
-                            animate="center" 
-                            exit="exit" 
-                            className="space-y-6"
-                        >
+                    <form onSubmit={mode === 'LOGIN' ? handleEmailLogin : handleSignup} className="space-y-5">
+                        
+                        {mode === 'SIGNUP' && (
                             <div>
-                                <label className="text-[10px] text-system-neon uppercase tracking-widest block mb-2 font-bold">CODENAME</label>
+                                <label className="text-[10px] text-system-neon uppercase tracking-widest block mb-2 font-bold">FULL NAME</label>
                                 <div className="relative group">
                                     <User className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-neon transition-colors" size={18} />
                                     <input 
-                                        value={loginId}
-                                        onChange={e => setLoginId(formatCodename(e.target.value))}
-                                        className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white focus:border-system-neon focus:shadow-[0_0_15px_rgba(0,210,255,0.2)] focus:outline-none uppercase font-bold placeholder:text-gray-800 transition-all"
-                                        placeholder="SHADOW_MONARCH"
-                                        autoFocus
+                                        type="text"
+                                        value={fullName}
+                                        onChange={e => setFullName(e.target.value)}
+                                        className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white focus:border-system-neon focus:shadow-[0_0_15px_rgba(0,210,255,0.2)] focus:outline-none placeholder:text-gray-800 transition-all uppercase"
+                                        placeholder="HUNTER NAME"
+                                        required
                                     />
                                 </div>
                             </div>
+                        )}
 
-                            <div>
-                                <label className="text-[10px] text-system-neon uppercase tracking-widest block mb-2 font-bold">ACCESS KEY</label>
-                                <div className="relative group">
-                                    <Key className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-neon transition-colors" size={18} />
-                                    <input 
-                                        type="password"
-                                        maxLength={6}
-                                        value={loginPin}
-                                        onChange={e => { if (/^\d*$/.test(e.target.value)) setLoginPin(e.target.value); }}
-                                        onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                                        className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white text-xl tracking-[0.5em] focus:border-system-neon focus:shadow-[0_0_15px_rgba(0,210,255,0.2)] focus:outline-none transition-all placeholder:text-gray-800"
-                                        placeholder="••••"
-                                    />
-                                </div>
+                        <div>
+                            <label className="text-[10px] text-system-neon uppercase tracking-widest block mb-2 font-bold">EMAIL ADDRESS</label>
+                            <div className="relative group">
+                                <Mail className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-neon transition-colors" size={18} />
+                                <input 
+                                    type="email"
+                                    value={email}
+                                    onChange={e => setEmail(e.target.value)}
+                                    className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white focus:border-system-neon focus:shadow-[0_0_15px_rgba(0,210,255,0.2)] focus:outline-none placeholder:text-gray-800 transition-all"
+                                    placeholder="HUNTER@SYSTEM.IO"
+                                    required
+                                />
                             </div>
+                        </div>
 
-                            <button 
-                                onClick={handleLogin}
-                                disabled={loading || !loginId || loginPin.length < 4}
-                                className="w-full py-3 bg-system-neon/10 border border-system-neon/50 text-system-neon font-bold font-mono rounded hover:bg-system-neon hover:text-black hover:shadow-[0_0_20px_rgba(0,210,255,0.5)] transition-all flex items-center justify-center gap-2 group"
-                            >
-                                <Cpu size={16} className="group-hover:rotate-180 transition-transform duration-500" />
-                                ACCESS SYSTEM
-                            </button>
-
-                            <div className="text-center pt-2">
-                                <button 
-                                   onClick={() => switchMode('RECOVERY')}
-                                   className="text-[10px] text-gray-600 hover:text-system-danger transition-colors font-mono tracking-widest"
-                                >
-                                   FORGOT PASSKEY?
-                                </button>
+                        <div>
+                            <label className="text-[10px] text-system-neon uppercase tracking-widest block mb-2 font-bold">PASSWORD</label>
+                            <div className="relative group">
+                                <Lock className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-system-neon transition-colors" size={18} />
+                                <input 
+                                    type="password"
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white focus:border-system-neon focus:shadow-[0_0_15px_rgba(0,210,255,0.2)] focus:outline-none placeholder:text-gray-800 transition-all"
+                                    placeholder="••••••••"
+                                    minLength={6}
+                                    required
+                                />
                             </div>
-                        </motion.div>
-                    )}
-                    </AnimatePresence>
+                        </div>
 
-                    {/* Mode Switcher */}
-                    <div className="mt-8 pt-6 border-t border-gray-900 text-center">
                         <button 
-                           onClick={() => {
-                               if (mode === 'LOGIN') {
-                                   switchMode('AWAKENING');
-                                   setRegStep(1);
-                                   setPin('');
-                                   setConfirmPin('');
-                               } else {
-                                   switchMode('LOGIN');
-                                   setLoginPin('');
-                               }
-                           }}
-                           className="text-xs font-mono text-gray-500 hover:text-white transition-colors tracking-wider"
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-3 bg-system-neon text-black font-bold font-mono rounded hover:bg-white hover:shadow-[0_0_20px_rgba(0,210,255,0.5)] transition-all flex items-center justify-center gap-2 group uppercase tracking-wider"
                         >
-                            {mode === 'LOGIN' ? 'NEW USER? [ INITIATE AWAKENING ]' : 'RETURNING USER? [ SYSTEM LOGIN ]'}
+                            {loading ? <Loader2 className="animate-spin" size={18} /> : (mode === 'LOGIN' ? 'LOGIN' : 'INITIATE REGISTRATION')} 
+                            {!loading && <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />}
+                        </button>
+                    </form>
+
+                    <div className="my-6 flex items-center gap-4">
+                        <div className="h-px bg-gray-800 flex-1" />
+                        <span className="text-[10px] text-gray-600 font-mono">OR CONTINUE WITH</span>
+                        <div className="h-px bg-gray-800 flex-1" />
+                    </div>
+
+                    <button 
+                        onClick={handleGoogleLogin}
+                        className="w-full py-3 bg-white text-black font-bold font-mono rounded hover:bg-gray-200 transition-all flex items-center justify-center gap-3 uppercase tracking-wider mb-4"
+                    >
+                        <Chrome size={18} /> GOOGLE
+                    </button>
+
+                    <div className="flex justify-between items-center pt-2">
+                        <button 
+                           onClick={() => setMode('FORGOT_PASSWORD')}
+                           className="text-[10px] text-gray-500 hover:text-system-neon transition-colors font-mono tracking-widest"
+                        >
+                           FORGOT PASSWORD?
+                        </button>
+                        <button 
+                           onClick={() => setMode(mode === 'LOGIN' ? 'SIGNUP' : 'LOGIN')}
+                           className="text-[10px] text-system-accent hover:text-white transition-colors font-mono tracking-widest font-bold"
+                        >
+                           {mode === 'LOGIN' ? 'CREATE ACCOUNT' : 'LOGIN'}
                         </button>
                     </div>
                 </motion.div>
@@ -550,14 +482,14 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
         </AnimatePresence>
         
         {/* Footer Admin Status */}
-        {mode !== 'RECOVERY' && (
+        {mode !== 'FORGOT_PASSWORD' && mode !== 'VERIFY_OTP' && (
             <motion.div 
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1 }} 
                 exit={{ opacity: 0 }}
                 className="mt-6 text-center text-[10px] text-gray-600 font-mono flex flex-col items-center gap-2"
             >
-                <span>SECURE CONNECTION v2.0.1 // SHADOW PROTOCOL ENABLED</span>
+                <span>SECURE CONNECTION v2.5.0 // SHADOW PROTOCOL ENABLED</span>
                 {onAdminAccess && (
                     <button 
                         onClick={onAdminAccess}
