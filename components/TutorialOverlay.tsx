@@ -2,15 +2,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, ArrowRight, CheckCircle, Info, Lock, FastForward, ArrowUp, ArrowDown, ShieldAlert } from 'lucide-react';
+import { Terminal, ArrowRight, CheckCircle, Info, Lock, FastForward, ArrowUp, ArrowDown, ShieldAlert, Target } from 'lucide-react';
 import { playSystemSoundEffect } from '../utils/soundEngine';
-
-interface TutorialOverlayProps {
-  currentStep: number;
-  onNext: () => void;
-  onComplete: () => void;
-  dynamicTargetId?: string | null;
-}
 
 interface ScriptStep {
   title: string;
@@ -25,34 +18,44 @@ interface ScriptStep {
   forcePosition?: 'top' | 'bottom' | 'center'; 
 }
 
-const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, onComplete, dynamicTargetId }) => {
+interface TutorialOverlayProps {
+  currentStep: number;
+  onNext: () => void;
+  onComplete: () => void;
+  dynamicTargetId?: string | null;
+  overrideStep?: ScriptStep | null; // Prop to override current step data temporarily
+}
+
+const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, onComplete, dynamicTargetId, overrideStep }) => {
   const [dialogPosition, setDialogPosition] = useState<'top' | 'bottom' | 'center'>('bottom');
   const [isError, setIsError] = useState(false);
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
   const [spotlightStyles, setSpotlightStyles] = useState<React.CSSProperties>({ opacity: 0 });
   const observerRef = useRef<ResizeObserver | null>(null);
   
-  // Script Configuration
+  // Previous rect ref to debounce state updates
+  const prevRect = useRef<{top: number, left: number, width: number, height: number} | null>(null);
+
+  // Script Configuration - REFINED 10-STEP FLOW
   const SCRIPT: Record<number, ScriptStep> = {
       0: { 
-          title: "Core Attributes",
-          body: "Your stats represent who you are becoming.\nEvery action builds Discipline, Health, and Growth.",
+          title: "System Interface",
+          body: "This Command Deck visualizes your current capabilities and active focus protocols.",
           buttonText: "Next",
-          targetId: 'tut-stats',
-          allowInteraction: true, 
-          forcePosition: 'bottom'
+          targetId: 'tut-radar-chart',
+          allowInteraction: false, 
       },
       1: { 
-          title: "The Compound Effect",
-          body: "Motivation fades. Attributes last.\nImproving your stats makes progress automatic.",
-          buttonText: "Go to Quests",
+          title: "Attribute Matrix",
+          body: "Your core stats. Every workout, quest, and meal affects these values directly.",
+          buttonText: "Initialize Protocols",
           targetId: 'tut-stats', 
-          allowInteraction: true,
+          allowInteraction: false,
           forcePosition: 'bottom'
       },
       2: { 
-          title: "Create a Quest",
-          body: "A Quest is a promise to yourself.\nTurn intention into action now.",
+          title: "Protocol Initiation",
+          body: "Establish a daily objective. The System rewards consistency.",
           buttonText: "Tap 'Add Quest'",
           targetId: 'tut-add-quest',
           waitForAction: true,
@@ -60,8 +63,8 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           forcePosition: 'bottom'
       },
       3: { 
-          title: "Identity & Name",
-          body: "Name your goal. Give it power.\nMake it real.",
+          title: "Define Objective",
+          body: "Input a specific task. E.g., 'Run 5km' or 'Read 20 pages'.",
           buttonText: "Next",
           targetId: 'tut-quest-title',
           allowInteraction: true,
@@ -69,64 +72,64 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           forcePosition: 'bottom'
       },
       4: {
-          title: "Attribute Mapping",
-          body: "Everything you do builds your character.\nSelect which stat this quest improves.",
-          buttonText: "Next",
-          targetId: 'tut-quest-category',
+          title: "ForgeGuard Analysis",
+          body: "The System AI will analyze difficulty and assign Rank & XP.",
+          buttonText: "Waiting...",
+          targetId: 'tut-analyze-btn',
+          waitForAction: true,
           allowInteraction: true,
-          forcePosition: 'bottom'
+          forcePosition: 'top'
       },
       5: { 
-          title: "Mini Quests",
-          body: "Too hard? Break it down.\n'Mini Quests' are small wins that build momentum.",
+          title: "System Verdict",
+          body: "Review the assigned Rank and reasoning. Higher difficulty = Greater XP.",
           buttonText: "Next",
-          targetId: 'tut-quest-mini',
-          allowInteraction: true,
-          forcePosition: 'top'
+          targetId: 'tut-analysis-result',
+          allowInteraction: false 
       },
       6: { 
-          title: "Triggers",
-          body: "Don't rely on memory.\nSet a 'Trigger' (e.g. After coffee) to anchor this habit.",
-          buttonText: "Next",
-          targetId: 'tut-quest-trigger',
-          allowInteraction: true,
-          forcePosition: 'top'
-      },
-      7: { 
-          title: "Alignment",
-          body: "Categorize your goal.\nBalance is key to a high-level hunter.",
-          buttonText: "Tap 'Confirm'",
+          title: "Confirm Protocol",
+          body: "Lock in the quest to add it to your daily schedule.",
+          buttonText: "Confirm",
           targetId: 'tut-confirm-quest',
           waitForAction: true,
           allowInteraction: true,
           forcePosition: 'top'
       },
-      8: { 
-          title: "Calibration Required",
-          body: "The System has issued 3 Welcome Quests.\n\nYou must complete ALL of them to proceed.\n\nWatch how each completion impacts your Daily, Weekly, and Monthly attributes.",
-          buttonText: "Complete Task",
+      7: { 
+          title: "Execution Phase",
+          body: "Complete this task now to verify synchronization.",
+          buttonText: "Awaiting Completion...",
           targetId: 'quest-list-container', 
           waitForAction: true,
           allowInteraction: true, 
           forcePosition: 'bottom'
       },
-      9: { 
-          title: "The Reward Shop",
-          body: "Earn Gold by showing up.\nUse it to buy real-life rewards you define.",
-          buttonText: "Setup Health",
-          targetId: 'tut-gold-display',
-          allowInteraction: true, 
+      8: { 
+          title: "Biometric Dashboard",
+          body: "Track BMI, Body Fat %, and physical evolution metrics here.",
+          buttonText: "View Nutrition",
+          targetId: 'tut-biometric-analysis',
+          allowInteraction: false, 
           forcePosition: 'bottom'
+      },
+      9: { 
+          title: "Fuel Management",
+          body: "Log intake here. The System calculates energy balance automatically.",
+          buttonText: "System Online",
+          targetId: 'tut-nutrition-dashboard',
+          allowInteraction: true, 
+          forcePosition: 'top'
       }
   };
 
-  const stepData = { ...SCRIPT[currentStep] };
+  // Determine active step data
+  const stepData = overrideStep || { ...SCRIPT[currentStep] };
 
-  // Dynamic override for Step 8 (Sequential Highlighting)
-  if (currentStep === 8 && dynamicTargetId) {
+  // Dynamic override for Step 7 (Sequential Highlighting)
+  if (currentStep === 7 && dynamicTargetId && !overrideStep) {
       stepData.targetId = dynamicTargetId;
-      stepData.body = "Focus on this specific task.\nComplete it to calibrate your stats.\n\nThe System requires full compliance.";
-      // Remove forced position to allow smart positioning to avoid overlap
+      stepData.body = "Mark this protocol as complete to finish calibration.";
       stepData.forcePosition = undefined;
   }
 
@@ -152,7 +155,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
     }
 
     if (targetElement) {
-        // Scroll to target
+        // Scroll to target with block 'center' to ensure it's vertically centered
         targetElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
 
         // Lock after animation duration (approx 600ms for smooth scroll)
@@ -166,7 +169,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
         clearTimeout(lockTimer);
         unlockScroll();
     };
-  }, [targetElement, stepData.hideOverlay, currentStep]);
+  }, [targetElement, stepData.hideOverlay, currentStep, overrideStep]);
 
   // --- SPOTLIGHT TRACKING ---
   useEffect(() => {
@@ -175,15 +178,33 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
               const rect = targetElement.getBoundingClientRect();
               
               // Mobile adjustment: Ensure spotlight covers full touch targets comfortably
-              const padding = window.innerWidth < 768 ? 12 : 12;
+              const padding = window.innerWidth < 768 ? 8 : 12;
               
+              const newTop = rect.top - padding;
+              const newLeft = rect.left - padding;
+              const newWidth = rect.width + (padding * 2);
+              const newHeight = rect.height + (padding * 2);
+
+              // Debounce check: Only update if values changed significantly (>1px) to prevent micro-jitter loops
+              if (prevRect.current && 
+                  Math.abs(prevRect.current.top - newTop) < 1 &&
+                  Math.abs(prevRect.current.left - newLeft) < 1 &&
+                  Math.abs(prevRect.current.width - newWidth) < 1 &&
+                  Math.abs(prevRect.current.height - newHeight) < 1
+              ) {
+                  return;
+              }
+
+              prevRect.current = { top: newTop, left: newLeft, width: newWidth, height: newHeight };
+
               setSpotlightStyles({
                   opacity: 1,
-                  top: rect.top - padding,
-                  left: rect.left - padding,
-                  width: rect.width + (padding * 2),
-                  height: rect.height + (padding * 2),
+                  top: newTop,
+                  left: newLeft,
+                  width: newWidth,
+                  height: newHeight,
                   borderRadius: '12px',
+                  // Use a huge shadow to create the dimming effect around the hole
                   boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.85)' 
               });
 
@@ -191,7 +212,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
               if (!stepData.forcePosition) {
                   const spaceBelow = window.innerHeight - rect.bottom;
                   const spaceAbove = rect.top;
-                  const minSpaceNeeded = 280; // Dialog height approx
+                  const minSpaceNeeded = 200; // Reduced tolerance for faster fit
 
                   if (spaceBelow > minSpaceNeeded) {
                       setDialogPosition('bottom');
@@ -206,6 +227,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
 
           } else {
               setSpotlightStyles({ opacity: 0 });
+              prevRect.current = null;
           }
       };
 
@@ -286,7 +308,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
   }, [stepData, targetElement, currentStep]);
 
 
-  // --- TARGET ELEMENT FINDER ---
+  // --- TARGET ELEMENT FINDER (WITH POLLING) ---
   useEffect(() => {
       // Cleanup previous highlights
       document.querySelectorAll('.tutorial-highlight').forEach(el => {
@@ -298,11 +320,13 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
           return;
       }
 
-      // Find Target (Retry logic for async rendering)
+      let intervalId: ReturnType<typeof setInterval>;
+      let attempts = 0;
+      const maxAttempts = 50; // 50 * 100ms = 5 seconds max wait
+
       const findAndSetTarget = () => {
           let targetId = stepData.targetId;
           
-          // Mobile Fallback Logic
           if (window.innerWidth < 768 && stepData.mobileTargetId) {
               targetId = stepData.mobileTargetId;
           }
@@ -317,28 +341,37 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                   } else {
                       el.classList.add('tutorial-highlight');
                   }
+                  // Stop polling once found
+                  clearInterval(intervalId);
+              } else {
+                  attempts++;
+                  // If we exceed max attempts, stop trying and default to center
+                  if (attempts >= maxAttempts) {
+                      clearInterval(intervalId);
+                      setTargetElement(null);
+                      setDialogPosition(stepData.forcePosition || 'center');
+                  }
               }
           } else {
               setTargetElement(null);
               setDialogPosition(stepData.forcePosition || 'center');
+              clearInterval(intervalId);
           }
       };
 
+      // Initial check
       findAndSetTarget();
-      // Retry aggressively to catch mount animations/tab switches
-      const retryTimer1 = setTimeout(findAndSetTarget, 100);
-      const retryTimer2 = setTimeout(findAndSetTarget, 500);
-      const retryTimer3 = setTimeout(findAndSetTarget, 1000);
+      
+      // Start polling
+      intervalId = setInterval(findAndSetTarget, 100);
 
       return () => {
-          clearTimeout(retryTimer1);
-          clearTimeout(retryTimer2);
-          clearTimeout(retryTimer3);
+          clearInterval(intervalId);
           document.querySelectorAll('.tutorial-highlight, .tutorial-highlight-inset').forEach(el => {
               el.classList.remove('tutorial-highlight', 'tutorial-highlight-inset');
           });
       };
-  }, [currentStep, stepData.targetId]); 
+  }, [currentStep, stepData.targetId, overrideStep]); 
 
   const handleNextClick = () => {
       if (stepData?.requireInput && stepData.targetId) {
@@ -362,29 +395,24 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
       'center': 'top-1/2 -translate-y-1/2'
   };
 
-  // --- RENDER VIA PORTAL ---
-  // Using Portal ensures the fixed overlay is relative to the VIEWPORT, 
-  // ignoring any parent transforms (which caused the "wrong side" issue).
   return createPortal(
     <>
         {/* Inject Styles */}
         <style>{`
-            @keyframes tutorial-pulse-aggressive {
-                0% { box-shadow: 0 0 0 2px #00d2ff, 0 0 15px rgba(0,210,255,0.3); transform: scale(1); }
-                50% { box-shadow: 0 0 0 2px #ffffff, 0 0 30px rgba(0,210,255,0.6); transform: scale(1.02); }
-                100% { box-shadow: 0 0 0 2px #00d2ff, 0 0 15px rgba(0,210,255,0.3); transform: scale(1); }
+            @keyframes tutorial-pulse-fast {
+                0% { box-shadow: 0 0 0 2px #00d2ff, 0 0 10px rgba(0,210,255,0.3); }
+                50% { box-shadow: 0 0 0 4px #ffffff, 0 0 20px rgba(0,210,255,0.6); }
+                100% { box-shadow: 0 0 0 2px #00d2ff, 0 0 10px rgba(0,210,255,0.3); }
             }
             .tutorial-highlight {
-                animation: tutorial-pulse-aggressive 2s infinite !important;
+                animation: tutorial-pulse-fast 1.5s infinite !important;
                 z-index: 9999 !important;
                 position: relative !important;
-                /* NOTE: Do NOT set background-color here, it overrides button styles */
             }
             .tutorial-highlight-inset {
-                animation: tutorial-pulse-aggressive 2s infinite !important;
+                animation: tutorial-pulse-fast 1.5s infinite !important;
                 z-index: 9999 !important;
                 position: relative !important;
-                /* NOTE: Do NOT set background-color here */
             }
         `}</style>
 
@@ -394,11 +422,11 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                 className="fixed z-[9998] pointer-events-none"
                 initial={{ opacity: 0 }}
                 animate={spotlightStyles as any}
-                transition={{ duration: 0.3, ease: "easeOut" }}
+                // Snappier spring for fast response
+                transition={{ type: "spring", stiffness: 300, damping: 28, mass: 0.8 }}
                 style={{
                     ...spotlightStyles,
-                    // Use a subtle border on the spotlight itself to define the hole
-                    border: '1px solid rgba(0, 210, 255, 0.3)',
+                    border: '1px solid rgba(0, 210, 255, 0.5)',
                 }}
             />
         ) : (
@@ -417,7 +445,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                 layout 
                 initial={{ opacity: 0, scale: 0.9, y: 10 }}
                 animate={isError ? { x: [-10, 10, -10, 10, 0], scale: [1, 1.05, 1] } : { opacity: 1, scale: 1, y: 0 }}
-                transition={{ type: "spring", stiffness: 200, damping: 25 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
                 className={`absolute left-4 right-4 md:left-auto md:right-auto md:w-[400px] pointer-events-auto ${positionClasses[dialogPosition]}`}
             >
                 <div className={`bg-[#0a0a0a] border rounded-xl shadow-2xl overflow-hidden flex flex-col transition-colors ${isError ? 'border-red-500 shadow-[0_0_30px_rgba(220,38,38,0.5)]' : 'border-system-neon shadow-[0_0_30px_rgba(0,210,255,0.3)]'}`}>
@@ -442,11 +470,11 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                             <div className="flex-1 min-w-0">
                                 <AnimatePresence mode="wait">
                                     <motion.div
-                                        key={`content-${currentStep}-${dynamicTargetId || 'static'}`}
+                                        key={`content-${currentStep}-${dynamicTargetId || 'static'}-${overrideStep ? 'override' : 'normal'}`}
                                         initial={{ opacity: 0, x: 10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         exit={{ opacity: 0, x: -10 }}
-                                        transition={{ duration: 0.2 }}
+                                        transition={{ duration: 0.15 }}
                                     >
                                         <h3 className={`text-sm md:text-base font-bold font-mono tracking-tight mb-2 flex items-center gap-2 ${isError ? 'text-red-500' : 'text-white'}`}>
                                             <span className="sm:hidden text-system-neon">{isError ? <Lock size={16} /> : <Terminal size={16} />}</span>
@@ -477,12 +505,12 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                                 onClick={onComplete}
                                 className="text-[10px] text-gray-600 hover:text-red-400 font-mono tracking-wider transition-colors px-2 py-1 flex items-center gap-1 group"
                             >
-                                ABORT <FastForward size={10} className="group-hover:translate-x-0.5 transition-transform" />
+                                SKIP <FastForward size={10} className="group-hover:translate-x-0.5 transition-transform" />
                             </button>
 
                             <div className="flex justify-end gap-2">
                                 <AnimatePresence mode="wait">
-                                    {currentStep === 9 ? ( 
+                                    {currentStep === 9 && !overrideStep ? ( 
                                         <motion.button 
                                             key="btn-complete"
                                             initial={{ opacity: 0, scale: 0.8 }}
@@ -510,7 +538,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ currentStep, onNext, 
                                             animate={{ opacity: 1 }}
                                             className="text-[10px] text-system-neon font-mono animate-pulse flex items-center gap-2 px-3 py-2 border border-system-neon/30 rounded bg-system-neon/5"
                                         >
-                                            <Info size={12} /> {stepData.buttonText}
+                                            {currentStep === 7 ? <Target size={12} /> : <Info size={12} />} {stepData.buttonText}
                                         </motion.div>
                                     )}
                                 </AnimatePresence>

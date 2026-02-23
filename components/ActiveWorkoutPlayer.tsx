@@ -184,13 +184,15 @@ const ActiveWorkoutPlayer: React.FC<ActiveWorkoutPlayerProps> = ({ plan, onCompl
   const progressPercent = totalExercises > 0 ? (currentIdx / totalExercises) * 100 : 0;
   
   // FIXED: Ultra-Strict safe calculation for array generation to prevent RangeError
-  // 1. Ensure it is a number
-  let setVal = parseInt(String(exercise?.sets), 10);
-  // 2. Validate bounds
-  if (isNaN(setVal) || setVal < 1) setVal = 3; // Default to 3 sets if invalid
-  if (setVal > 30) setVal = 30; // Hard cap at 30 to prevent massive arrays
-  
-  const safeSetCount = setVal;
+  let setVal = 3; // Default safe value
+  if (exercise?.sets) {
+      const parsed = parseInt(String(exercise.sets), 10);
+      if (!isNaN(parsed) && parsed > 0) {
+          setVal = parsed;
+      }
+  }
+  // Hard cap to prevent memory issues or UI breakage
+  const safeSetCount = Math.min(30, setVal);
 
   if (!exercise) return null; // Safety render
 

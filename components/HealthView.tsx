@@ -1,1233 +1,1073 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { Activity, Ruler, Fingerprint, Flame, Target, Check, Sparkles, User, Weight, ChevronRight, ChevronLeft, ShieldCheck, ArrowRight, Clock, TrendingUp, Trash2, Utensils, Camera, Loader2, Save, Droplets, Wheat, Beef, SkipForward, Lock, Key, Cpu } from 'lucide-react';
-import { HealthProfile, WorkoutDay, PlayerData, ProgressPhoto, MealLog, FoodItem } from '../types';
-import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
-import WorkoutMap from './WorkoutMap';
-import WorkoutOverview from './WorkoutOverview';
-import ProtocolMonthView from './ProtocolMonthView';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Activity, Utensils, Dumbbell, Camera, Search, Trash2, 
+  X, ScanLine, Target, Scale,
+  Crosshair, BarChart3, AlertTriangle, Check, Flame, Droplets, User, Edit2, Plus, ChevronDown, Settings, List, Play, Lock
+} from 'lucide-react';
+import { 
+  HealthProfile, MealLog, FoodItem, PlayerData, WorkoutDay, AdminExercise
+} from '../types';
 import { generateSystemProtocol, calculateTimeEstimate } from '../utils/workoutGenerator';
 import { INDIAN_FOOD_DB } from '../utils/indianFoodDb';
-import { playSystemSoundEffect } from '../utils/soundEngine';
+import WorkoutOverview from './WorkoutOverview';
+import ActiveWorkoutPlayer from './ActiveWorkoutPlayer';
+import WorkoutMap from './WorkoutMap';
+import { PlanCreator } from './PlanCreator';
+import { GoogleGenAI, Type } from "@google/genai";
 
 interface HealthViewProps {
   healthProfile?: HealthProfile;
   onSaveProfile: (profile: HealthProfile, identity: string) => void;
   onCompleteWorkout: (exercisesCompleted: number, totalExercises: number, results: Record<string, number>, intensityModifier: boolean) => void;
   onFailWorkout: () => void;
-  onAddPhoto?: (photo: ProgressPhoto) => void;
-  onDeletePhoto?: (id: string) => void;
-  onLogMeal?: (meal: MealLog) => void;
-  onDeleteMeal?: (id: string) => void;
+  onLogMeal: (meal: MealLog) => void;
+  onDeleteMeal: (id: string) => void;
   playerData: PlayerData;
   onTutorialAction?: (step: number) => void;
   tutorialStep?: number;
-  onToggleNav?: (visible: boolean) => void;
+  onToggleNav: (visible: boolean) => void;
   onConsumeKey: (amount?: number) => Promise<boolean>;
+  onUpdateCustomPlans?: (protocols: Record<string, WorkoutDay[]>) => void;
 }
 
-// --- OPTIMIZATION SEQUENCE COMPONENT ---
-const OptimizationSequence: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
-    const [progress, setProgress] = useState(0);
-    const [logs, setLogs] = useState<string[]>([]);
-    const scrollRef = useRef<HTMLDivElement>(null);
+type Tab = 'PROTOCOL' | 'INTAKE';
+type ScanState = 'IDLE' | 'SCANNING' | 'RESULT';
 
-    // System Operations Log
-    const OPERATIONS = [
-        "INITIATING_BIO_SCAN...",
-        "ANALYZING_MUSCLE_FIBER_DENSITY...",
-        "CALIBRATING_METABOLIC_RATE...",
-        "DETECTING_INEFFICIENCIES...",
-        "OPTIMIZING_ATP_PRODUCTION...",
-        "REWRITING_NEURAL_PATHWAYS...",
-        "SYNCHRONIZING_CNS_RESPONSE...",
-        "UPGRADING_VO2_MAX_POTENTIAL...",
-        "RESTRUCTURING_SKELETAL_FRAME...",
-        "UNLOCKING_GENETIC_LIMITERS...",
-        "FINALIZING_EVOLUTION_MATRIX..."
-    ];
-
-    useEffect(() => {
-        let currentProgress = 0;
-        let opIndex = 0;
-        
-        // Sound Loop
-        const soundInterval = setInterval(() => {
-            if (Math.random() > 0.7) playSystemSoundEffect('TICK');
-        }, 150);
-
-        const interval = setInterval(() => {
-            // Variable speed simulation (Stalls and Jumps)
-            const jump = Math.random() > 0.8 ? 5 : Math.random() > 0.5 ? 2 : 0.5;
-            currentProgress += jump;
-
-            // Cap at 100
-            if (currentProgress >= 100) {
-                currentProgress = 100;
-                clearInterval(interval);
-                clearInterval(soundInterval);
-                playSystemSoundEffect('LEVEL_UP');
-                setTimeout(onComplete, 800);
-            }
-
-            setProgress(currentProgress);
-
-            // Log Logic - Add logs based on progress thresholds
-            const targetLogIndex = Math.floor((currentProgress / 100) * OPERATIONS.length);
-            if (targetLogIndex > opIndex && opIndex < OPERATIONS.length) {
-                setLogs(prev => [...prev, `> ${OPERATIONS[opIndex]} [OK]`]);
-                opIndex++;
-                if (scrollRef.current) {
-                    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-                }
-            }
-
-        }, 50); // Fast tick rate for smoothness
-
-        return () => {
-            clearInterval(interval);
-            clearInterval(soundInterval);
-        };
-    }, [onComplete]);
-
-    return (
-        <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-10 w-full relative overflow-hidden bg-black border border-gray-800 rounded-2xl h-[400px]"
-        >
-            {/* Background Binary Stream */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none overflow-hidden font-mono text-[10px] leading-3 text-system-neon break-all">
-                {Array.from({ length: 2000 }).map(() => Math.round(Math.random())).join('')}
-            </div>
-
-            {/* Central HUD */}
-            <div className="relative z-10 mb-8">
-                <div className="w-32 h-32 relative flex items-center justify-center">
-                    {/* Spinning Outer Ring */}
-                    <motion.div 
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                        className="absolute inset-0 rounded-full border-t-2 border-l-2 border-system-neon opacity-80"
-                    />
-                    {/* Counter Spinning Inner Ring */}
-                    <motion.div 
-                        animate={{ rotate: -360 }}
-                        transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
-                        className="absolute inset-2 rounded-full border-b-2 border-r-2 border-system-accent opacity-60"
-                    />
-                    {/* Pulsing Core */}
-                    <motion.div 
-                        animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
-                        transition={{ duration: 1, repeat: Infinity }}
-                        className="text-white"
-                    >
-                        <Cpu size={40} />
-                    </motion.div>
-                </div>
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-system-neon mt-20 tracking-widest bg-black px-2">
-                    {Math.floor(progress)}%
-                </div>
-            </div>
-
-            {/* Main Progress Bar */}
-            <div className="w-64 space-y-2 relative z-10">
-                <div className="flex justify-between text-[10px] font-mono text-system-neon/70 uppercase">
-                    <span>System Optimization</span>
-                    <span>{progress < 100 ? 'Processing...' : 'Complete'}</span>
-                </div>
-                <div className="h-2 bg-gray-900 rounded-full overflow-hidden border border-gray-800 relative">
-                    {/* Glitchy Bar */}
-                    <motion.div 
-                        className="h-full bg-system-neon shadow-[0_0_15px_#00d2ff]"
-                        style={{ width: `${progress}%` }}
-                    />
-                    {/* Scan Line on Bar */}
-                    <motion.div 
-                        animate={{ x: [-100, 300] }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="absolute top-0 bottom-0 w-10 bg-white/30 skew-x-12"
-                    />
-                </div>
-            </div>
-
-            {/* Terminal Logs */}
-            <div 
-                ref={scrollRef}
-                className="mt-6 w-full max-w-xs h-24 overflow-y-hidden bg-black/50 border border-gray-800 rounded p-2 font-mono text-[9px] text-green-500 relative z-10"
-            >
-                <div className="flex flex-col justify-end min-h-full">
-                    {logs.map((log, i) => (
-                        <div key={i} className="truncate">{log}</div>
-                    ))}
-                    <div className="animate-pulse">_</div>
-                </div>
-            </div>
-        </motion.div>
-    );
-};
-
-// --- HELPER COMPONENTS ---
-
-const BMIGauge = ({ value }: { value: number }) => {
-    const clamped = Math.min(40, Math.max(15, value));
-    const percentage = (clamped - 15) / (40 - 15);
-    const rotation = -90 + (percentage * 180);
-
-    return (
-        <div className="relative w-24 h-12 overflow-hidden">
-            <div className="absolute top-0 left-0 w-24 h-24 rounded-full border-[6px] border-gray-800 border-t-system-neon border-r-gray-800 border-b-gray-800 border-l-system-neon transform rotate-[-45deg]" />
-            <motion.div 
-                initial={{ rotate: -90 }}
-                animate={{ rotate: rotation }}
-                transition={{ duration: 1.5, ease: "easeOut", delay: 0.5 }}
-                className="absolute bottom-0 left-1/2 w-1 h-12 bg-white origin-bottom rounded-full z-10"
-                style={{ marginLeft: '-2px' }}
-            >
-                <div className="w-2 h-2 bg-white rounded-full absolute bottom-0 left-1/2 -translate-x-1/2 shadow-[0_0_10px_white]" />
-            </motion.div>
-            <div className="absolute bottom-0 w-full text-center">
-                <span className="text-[9px] text-gray-500 font-mono">15</span>
-                <span className="absolute right-0 text-[9px] text-gray-500 font-mono">40</span>
-            </div>
-        </div>
-    );
-};
-
-const BMRWave = () => (
-    <div className="relative w-24 h-12 flex items-center justify-center overflow-hidden bg-gray-900/30 rounded-lg border border-gray-800">
-        <Activity className="text-system-accent animate-pulse" />
-    </div>
-);
-
-const DurationGraph = () => (
-    <div className="flex items-end gap-1 h-12 w-24">
-        {[0.4, 0.7, 0.5, 0.9, 0.6, 0.8].map((h, i) => (
-            <motion.div
-                key={i}
-                initial={{ height: 0 }}
-                animate={{ height: `${h * 100}%` }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                className={`flex-1 rounded-t-sm ${i % 2 === 0 ? 'bg-system-accent' : 'bg-gray-700'}`}
-            />
-        ))}
-    </div>
-);
-
-const CircularCalibration = ({ percent }: { percent: number }) => {
-    const radius = 45;
+// --- HELPER COMPONENT: CIRCULAR METRIC ---
+const CircularMetric = ({ value, max, label, color, suffix = '', size = 80 }: { value: number, max: number, label: string, color: string, suffix?: string, size?: number }) => {
+    const radius = size / 2 - 4; // 4px stroke width
     const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (percent / 100) * circumference;
+    // Ensure progress is valid number
+    const safeValue = isNaN(value) ? 0 : value;
+    const progress = Math.min(100, Math.max(0, (safeValue / max) * 100));
+    const offset = circumference - (progress / 100) * circumference;
 
     return (
-        <div className="relative w-64 h-64 flex items-center justify-center p-4">
-            {/* Outer Decorative Ring */}
-            <motion.div 
-                animate={{ rotate: 360 }}
-                transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-                className="absolute inset-0 rounded-full border border-dashed border-gray-800"
-            />
-            
-            {/* Inner Decorative Ring - Spaced Inwards */}
-            <motion.div 
-                animate={{ rotate: -360 }}
-                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                className="absolute inset-8 rounded-full border border-gray-800/50"
-            />
-
-            {/* Progress SVG - Centered with Padding */}
-            <div className="absolute inset-0 flex items-center justify-center">
-                <svg className="w-48 h-48 -rotate-90 drop-shadow-[0_0_15px_rgba(0,210,255,0.2)]" viewBox="0 0 120 120">
-                    <circle cx="60" cy="60" r={radius} stroke="#1f2937" strokeWidth="6" fill="none" strokeOpacity={0.5} />
-                    <motion.circle 
-                        cx="60" cy="60" r={radius} 
-                        stroke="#00d2ff" 
-                        strokeWidth="6" 
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeDasharray={circumference}
+        <div className="flex flex-col items-center">
+            <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+                {/* Background Circle */}
+                <svg className="absolute inset-0 w-full h-full -rotate-90">
+                    <circle
+                        cx="50%" cy="50%" r={radius}
+                        stroke="rgba(255,255,255,0.1)" 
+                        strokeWidth="4"
+                        fill="transparent"
+                    />
+                    {/* Foreground Circle */}
+                    <motion.circle
+                        initial={{ strokeDashoffset: circumference }}
                         animate={{ strokeDashoffset: offset }}
-                        transition={{ ease: "linear" }}
+                        transition={{ duration: 1.5, ease: "easeOut" }}
+                        cx="50%" cy="50%" r={radius}
+                        stroke={color}
+                        strokeWidth="4"
+                        strokeDasharray={circumference}
+                        strokeLinecap="round"
+                        fill="transparent"
+                        style={{ filter: `drop-shadow(0 0 2px ${color})` }}
                     />
                 </svg>
-            </div>
-
-            {/* Inner Content */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center z-10">
-                <div className="text-5xl font-black text-white tabular-nums tracking-tighter">
-                    {percent}%
-                </div>
-                <div className="text-[10px] text-system-neon font-bold tracking-[0.3em] uppercase mt-2 animate-pulse">
-                    Analyzing
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-sm font-black text-white font-mono leading-none">{safeValue}{suffix}</span>
                 </div>
             </div>
+            <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-2">{label}</span>
         </div>
     );
 };
 
-const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
-  const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
-  return {
-    x: centerX + (radius * Math.cos(angleInRadians)),
-    y: centerY + (radius * Math.sin(angleInRadians))
-  };
-};
+// --- HELPER: BIOMETRIC CALCULATIONS ---
+const calculateStats = (profile: Partial<HealthProfile>) => {
+    if (!profile.weight || !profile.height || !profile.age) return null;
 
-const TechRadar = React.memo(({ data, color, label, isAnimating, showEntrance = false }: { data: { value: number; fullMark: number; subject: string }[], color: string, label: string, isAnimating?: boolean, showEntrance?: boolean }) => {
-    const size = 320;
-    const center = size / 2;
-    const radius = 100;
-    const gridLevels = 4;
-    const DOT_STAGGER = 0.2;
-    const LINE_DELAY = data.length * DOT_STAGGER; 
-    const FILL_DELAY = LINE_DELAY + 0.8;
-    const gradientId = useMemo(() => `radarFill-${label.replace(/[^a-z0-9]/gi, '')}`, [label]);
+    let bmr = 10 * profile.weight + 6.25 * profile.height - 5 * profile.age;
+    bmr += profile.gender === 'MALE' ? 5 : -161;
 
-    const gridPaths = useMemo(() => {
-        const paths = [];
-        for (let level = 1; level <= gridLevels; level++) {
-            const levelRadius = (radius / gridLevels) * level;
-            const pts = data.map((_, i) => {
-                const angle = (360 / data.length) * i;
-                const { x, y } = polarToCartesian(center, center, levelRadius, angle);
-                return `${x},${y}`;
-            });
-            paths.push(pts.join(' '));
+    const activityMultipliers: Record<string, number> = {
+        'SEDENTARY': 1.2,
+        'LIGHT': 1.375,
+        'MODERATE': 1.55,
+        'VERY_ACTIVE': 1.725
+    };
+    
+    let tdee = bmr * (activityMultipliers[profile.activityLevel || 'MODERATE'] || 1.2);
+
+    if (profile.goal === 'LOSE_WEIGHT') tdee *= 0.85;
+    else if (profile.goal === 'BUILD_MUSCLE') tdee *= 1.10;
+    
+    const protein = profile.weight * 2.0; 
+    const fats = profile.weight * 0.9;
+    const proteinCal = protein * 4;
+    const fatsCal = fats * 9;
+    const remainingCal = Math.max(0, tdee - proteinCal - fatsCal);
+    const carbs = remainingCal / 4;
+
+    const heightM = profile.height / 100;
+    const bmi = profile.weight / (heightM * heightM);
+    const bodyFat = (1.20 * bmi) + (0.23 * profile.age) - (profile.gender === 'MALE' ? 16.2 : 5.4);
+
+    return {
+        bmi: parseFloat(bmi.toFixed(1)),
+        bmr: Math.round(bmr),
+        bodyFat: Math.max(5, parseFloat(bodyFat.toFixed(1))),
+        tdee: Math.round(tdee),
+        macros: {
+            protein: Math.round(protein),
+            fats: Math.round(fats),
+            carbs: Math.round(carbs),
+            calories: Math.round(tdee)
         }
-        return paths;
-    }, [data.length, radius, center]);
-
-    const axesLines = useMemo(() => {
-        return data.map((_, i) => {
-            const angle = (360 / data.length) * i;
-            const { x, y } = polarToCartesian(center, center, radius, angle);
-            return { x1: center, y1: center, x2: x, y2: y };
-        });
-    }, [data.length, radius, center]);
-
-    const points = data.map((d, i) => {
-        const angle = (360 / data.length) * i;
-        const valRadius = (d.value / d.fullMark) * radius;
-        return polarToCartesian(center, center, valRadius, angle);
-    });
-
-    const pathD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ') + ' Z';
-
-    return (
-        <div className="relative flex flex-col items-center justify-center w-full h-full font-mono">
-            <h3 className="text-sm font-bold mb-6 tracking-[0.4em] uppercase transition-colors duration-300" style={{ color }}>{label}</h3>
-            <svg width={size} height={size} className="overflow-visible">
-                <defs>
-                    <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={color} stopOpacity={0.8}/>
-                        <stop offset="100%" stopColor={color} stopOpacity={0.3}/>
-                    </linearGradient>
-                    <filter id="glow"><feGaussianBlur stdDeviation="3.5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                </defs>
-                {gridPaths.map((pts, i) => <polygon key={`grid-${i}`} points={pts} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="4 4" />)}
-                {axesLines.map((line, i) => <line key={`axis-${i}`} {...line} stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="4 4" />)}
-                <motion.path d={pathD} fill={`url(#${gradientId})`} stroke="none" initial={showEntrance ? { opacity: 0 } : { opacity: 1 }} animate={{ opacity: 1 }} transition={{ delay: showEntrance ? FILL_DELAY : 0, duration: 0.8 }} />
-                <motion.path d={pathD} fill="none" stroke={color} strokeWidth="3" filter="url(#glow)" initial={showEntrance ? { pathLength: 0, opacity: 0 } : { pathLength: 1, opacity: 1 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ pathLength: { delay: showEntrance ? LINE_DELAY : 0, duration: 1.0, ease: "easeInOut" }, opacity: { delay: showEntrance ? LINE_DELAY : 0, duration: 0.2 } }} />
-                {data.map((d, i) => {
-                     const angle = (360 / data.length) * i;
-                     const labelPos = polarToCartesian(center, center, radius + 30, angle);
-                     const point = points[i];
-                     return (
-                        <g key={i}>
-                             <motion.text initial={showEntrance ? { opacity: 0, scale: 0.5 } : { opacity: 1, scale: 1 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: showEntrance ? i * DOT_STAGGER : 0 }} x={labelPos.x} y={labelPos.y} textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.5)" fontSize="9" fontWeight="bold" letterSpacing="1px" className="uppercase font-mono">{d.subject}</motion.text>
-                             <motion.circle initial={showEntrance ? { r: 0, opacity: 0 } : { r: 4, opacity: 1 }} animate={{ r: 4, opacity: 1, cx: point.x, cy: point.y }} transition={{ r: { delay: showEntrance ? i * DOT_STAGGER : 0, type: "spring" }, opacity: { delay: showEntrance ? i * DOT_STAGGER : 0, duration: 0.2 }, cx: { duration: isAnimating ? 0 : 0.5 }, cy: { duration: isAnimating ? 0 : 0.5 } }} cx={point.x} cy={point.y} fill={color} stroke="#000" strokeWidth={1.5}/>
-                        </g>
-                     );
-                })}
-            </svg>
-        </div>
-    );
-});
-
-// --- HELPER FUNCTIONS ---
-
-const calculateNutritionPlan = (profile: Partial<HealthProfile>) => {
-  const weight = profile.weight || 70;
-  const height = profile.height || 175;
-  const age = profile.age || 25;
-  const gender = profile.gender || 'MALE';
-  const activity = profile.activityLevel || 'MODERATE';
-  const goal = profile.goal || 'RECOMP';
-  let bmr = (10 * weight) + (6.25 * height) - (5 * age);
-  if (gender === 'MALE') bmr += 5;
-  else if (gender === 'FEMALE') bmr -= 161;
-  const multipliers: Record<string, number> = { 'SEDENTARY': 1.2, 'LIGHT': 1.375, 'MODERATE': 1.55, 'VERY_ACTIVE': 1.725 };
-  const tdee = bmr * (multipliers[activity] || 1.55);
-  let targetCalories = tdee;
-  if (goal === 'LOSE_WEIGHT') targetCalories -= 500;
-  else if (goal === 'BUILD_MUSCLE') targetCalories += 300;
-  const protein = Math.round(weight * 2.2);
-  const fats = Math.round((targetCalories * 0.25) / 9);
-  const carbs = Math.round((targetCalories - (protein * 4) - (fats * 9)) / 4);
-  return { bmr: Math.round(bmr), macros: { protein, fats, carbs, calories: Math.round(targetCalories) }, tdee: Math.round(tdee) };
+    };
 };
-
-const getBMICategory = (bmi: number) => {
-    if (bmi < 18.5) return { label: 'Underweight', color: 'text-yellow-500' };
-    if (bmi < 25) return { label: 'Healthy Weight', color: 'text-system-success' };
-    if (bmi < 30) return { label: 'Overweight', color: 'text-orange-500' };
-    if (bmi < 40) return { label: 'Obesity', color: 'text-red-500' };
-    return { label: 'Severe Obesity', color: 'text-red-700' };
-};
-
-const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
-const lerpColor = (a: string, b: string, amount: number) => { 
-    const ah = parseInt(a.replace(/#/g, ''), 16), ar = ah >> 16, ag = ah >> 8 & 0xff, ab = ah & 0xff, bh = parseInt(b.replace(/#/g, ''), 16), br = bh >> 16, bg = bh >> 8 & 0xff, bb = bh & 0xff, rr = ar + amount * (br - ar), rg = ag + amount * (bg - ag), rb = ab + amount * (bb - ab);
-    return '#' + ((1 << 24) + (Math.round(rr) << 16) + (Math.round(rg) << 8) + Math.round(rb)).toString(16).slice(1);
-}
-
-const setupContainerVariants: Variants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } }, exit: { opacity: 0, x: -20, transition: { duration: 0.2 } } };
-const setupItemVariants: Variants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } } };
-
-// --- MAIN EXPORTED COMPONENT ---
 
 export const HealthView: React.FC<HealthViewProps> = ({ 
-  healthProfile, onSaveProfile, onCompleteWorkout, onFailWorkout, onLogMeal, onDeleteMeal: _onDeleteMeal, playerData, onToggleNav, onConsumeKey
+    healthProfile, 
+    onSaveProfile, 
+    onCompleteWorkout, 
+    onFailWorkout,
+    onLogMeal,
+    onDeleteMeal,
+    playerData,
+    onTutorialAction,
+    tutorialStep,
+    onToggleNav,
+    onConsumeKey,
+    onUpdateCustomPlans
 }) => {
-  const [viewMode, setViewMode] = useState<'MAP' | 'OVERVIEW' | 'ACTIVE' | 'SETUP' | 'PROCESSING' | 'DIAGNOSIS' | 'PROJECTION' | 'FINALIZING'>('MAP');
-  const [activeTab, setActiveTab] = useState<'WORKOUT' | 'NUTRITION' | 'BODY'>('WORKOUT');
+  const [activeTab, setActiveTab] = useState<Tab>('PROTOCOL');
   
-  // Track if user skipped setup
-  const [skippedSetup, setSkippedSetup] = useState(false);
+  // Auto-switch to INTAKE tab for tutorial step 9 (which is the Nutrition step)
+  useEffect(() => {
+      if (tutorialStep === 9) {
+          setActiveTab('INTAKE');
+      }
+  }, [tutorialStep]);
 
-  // Projection Animation States
-  const [transformProgress, setTransformProgress] = useState(0);
-  const [processingPercent, setProcessingPercent] = useState(0);
-  const [isTransformed, setIsTransformed] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const animationRef = useRef<number | null>(null);
+  // --- WORKOUT STATE ---
+  const [activeWorkoutDay, setActiveWorkoutDay] = useState<WorkoutDay | null>(null);
+  const [showWorkoutOverview, setShowWorkoutOverview] = useState(false);
+  const [isWorkoutActive, setIsWorkoutActive] = useState(false);
+  
+  // Plan Management
+  const [showPlanCreator, setShowPlanCreator] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('SYSTEM'); // 'SYSTEM' or custom ID
+  const [editingPlan, setEditingPlan] = useState<{name: string, plan: WorkoutDay[]} | undefined>(undefined);
 
-  const [activePlan, setActivePlan] = useState<WorkoutDay | null>(null);
-  const [step, setStep] = useState(1);
-  const TOTAL_STEPS = 9;
-  const [formData, setFormData] = useState<Partial<HealthProfile>>({
-      gender: 'MALE', activityLevel: 'MODERATE', goal: 'RECOMP', equipment: 'GYM', workoutSplit: 'CLASSIC', age: 25, height: 175, weight: 70, targetWeight: 70
-  });
-  const [finalizingLog, setFinalizingLog] = useState("Initializing...");
-
-  // --- NUTRITION SCANNER STATE ---
-  const [scanState, setScanState] = useState<'IDLE' | 'SCANNING' | 'RESULT'>('IDLE');
-  const [scannedImage, setScannedImage] = useState<string | null>(null);
+  // --- NUTRITION STATE ---
+  const [scanState, setScanState] = useState<ScanState>('IDLE');
   const [scanResult, setScanResult] = useState<FoodItem | null>(null);
-  const [scanItems, setScanItems] = useState<any[]>([]);
+  const [scanItems, setScanItems] = useState<{name: string; quantity: string; calories: number}[]>([]);
+  const [scanDescription, setScanDescription] = useState<string>('');
+  const [loadingMessage, setLoadingMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [loadingMessage, setLoadingMessage] = useState("ANALYSING IMAGE...");
+  const [foodSearch, setFoodSearch] = useState('');
   
-  // Keys Alert State
-  const [showKeyAlert, setShowKeyAlert] = useState(false);
+  // --- PROFILE STATE ---
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [tempProfile, setTempProfile] = useState<Partial<HealthProfile>>(healthProfile || {
+      gender: 'MALE', 
+      age: 0, 
+      height: 0, 
+      weight: 0, 
+      targetWeight: 0,
+      activityLevel: 'MODERATE', 
+      goal: 'RECOMP', 
+      equipment: 'GYM'
+  });
 
-  const projectedIncrease = useMemo(() => {
-      if (playerData.username) {
-          let hash = 0;
-          for (let i = 0; i < playerData.username.length; i++) { hash = playerData.username.charCodeAt(i) + ((hash << 5) - hash); }
-          const normalized = Math.abs(hash) % 11; 
-          return 60 + normalized;
-      }
-      return Math.floor(Math.random() * 11) + 60;
-  }, [playerData.username]);
+  // Check if profile is valid (Calibrated)
+  const isCalibrated = healthProfile && healthProfile.height > 0 && healthProfile.weight > 0 && healthProfile.age > 0;
 
-  const dailyIntake = useMemo(() => {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      return (playerData.nutritionLogs || [])
-        .filter(log => log.timestamp >= todayStart.getTime())
-        .reduce((acc, log) => ({ calories: acc.calories + log.totalCalories, protein: acc.protein + log.totalProtein, carbs: acc.carbs + log.totalCarbs, fats: acc.fats + log.totalFats }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
-  }, [playerData.nutritionLogs]);
-
-  useEffect(() => {
-      if (onToggleNav) {
-          const hideNavModes = ['SETUP', 'PROCESSING', 'DIAGNOSIS', 'PROJECTION', 'FINALIZING'];
-          onToggleNav(!hideNavModes.includes(viewMode));
-      }
-  }, [viewMode, onToggleNav]);
-
-  useEffect(() => { 
-      // Only force setup if profile missing AND not skipped
-      if (!healthProfile && !skippedSetup) setViewMode('SETUP'); 
-  }, [healthProfile, skippedSetup]);
-
-  // Scanner Logic
-  useEffect(() => {
-      let interval: ReturnType<typeof setInterval>;
-      if (scanState === 'SCANNING') {
-          const messages = [ "ANALYSING IMAGE...", "GETTING MACROS...", "DON'T CHANGE THE TAB...", "DOING MAGIC...", "FINALIZING..." ];
-          let i = 0;
-          setLoadingMessage(messages[0]);
-          interval = setInterval(() => { i++; if (i < messages.length) { setLoadingMessage(messages[i]); } }, 4500);
-      }
-      return () => { if (interval) clearInterval(interval); };
-  }, [scanState]);
-
-  // --- WORKOUT PLAN CALCULATION ---
-  const calculatedPlan = useMemo(() => {
-      const profileToUse = healthProfile || formData;
-      return generateSystemProtocol(profileToUse as HealthProfile, playerData.customProtocols);
-  }, [healthProfile, formData, playerData.customProtocols]);
-
-  const nutritionInfo = useMemo(() => calculateNutritionPlan(healthProfile || formData), [healthProfile, formData]);
+  // Resolve Current Plan
+  const customPlans = playerData.customProtocols || {};
   
-  const rawBMI = useMemo(() => (formData.weight && formData.height) ? (formData.weight / ((formData.height/100) ** 2)) : 0, [formData.weight, formData.height]);
-  const currentBMI = rawBMI.toFixed(1);
-  const bmiCategory = useMemo(() => getBMICategory(rawBMI), [rawBMI]);
-  const estimatedTimeStr = useMemo(() => calculateTimeEstimate(healthProfile || formData), [healthProfile, formData]);
+  const systemPlan = useMemo(() => {
+      // If we are in SYSTEM mode, use the one from profile or generate it
+      return healthProfile?.workoutPlan && healthProfile.workoutPlan.length > 0 
+          ? healthProfile.workoutPlan 
+          : generateSystemProtocol((healthProfile || {}) as HealthProfile, customPlans);
+  }, [healthProfile, customPlans]);
 
-  const startProcessing = () => {
-      setViewMode('PROCESSING');
-      setProcessingPercent(0);
-      let p = 0;
-      const interval = setInterval(() => {
-          p += 1;
-          setProcessingPercent(p);
-          if (p >= 100) { clearInterval(interval); setTimeout(() => setViewMode('DIAGNOSIS'), 500); }
-      }, 40);
+  const currentPlan = useMemo(() => {
+      if (selectedPlanId === 'SYSTEM') return systemPlan;
+      return customPlans[selectedPlanId] || systemPlan;
+  }, [selectedPlanId, systemPlan, customPlans]);
+
+  // Completion calculation logic
+  const startWeight = healthProfile?.startingWeight || healthProfile?.weight || 0;
+  const targetWeight = healthProfile?.targetWeight || healthProfile?.weight || 0;
+  const currentWeight = healthProfile?.weight || 0;
+  
+  const totalLossNeeded = Math.abs(startWeight - targetWeight);
+  const currentLoss = Math.abs(startWeight - currentWeight);
+  
+  let completionPercent = 0;
+  if (totalLossNeeded > 0) {
+      completionPercent = Math.min(100, (currentLoss / totalLossNeeded) * 100);
+  } else {
+      completionPercent = 100;
+  }
+
+  // Consumed Stats
+  const consumedCalories = playerData.nutritionLogs.reduce((sum, log) => sum + log.totalCalories, 0);
+  const consumedProtein = playerData.nutritionLogs.reduce((sum, log) => sum + log.totalProtein, 0);
+  const consumedCarbs = playerData.nutritionLogs.reduce((sum, log) => sum + log.totalCarbs, 0);
+  const consumedFats = playerData.nutritionLogs.reduce((sum, log) => sum + log.totalFats, 0);
+
+  // Targets
+  const targetCalories = healthProfile?.macros?.calories || 2000;
+  const targetProtein = healthProfile?.macros?.protein || 150;
+  const targetCarbs = healthProfile?.macros?.carbs || 200;
+  const targetFats = healthProfile?.macros?.fats || 60;
+
+  // --- CALIBRATION HANDLER ---
+  const handleCalibrate = () => {
+      if (!tempProfile.height || !tempProfile.weight || !tempProfile.age) {
+          alert("Please fill in all biometric fields.");
+          return;
+      }
+
+      // Perform calculations
+      const stats = calculateStats(tempProfile);
+      
+      if (stats) {
+          const fullProfile: HealthProfile = {
+              ...(tempProfile as HealthProfile),
+              bmi: stats.bmi,
+              bmr: stats.bmr,
+              bodyFat: stats.bodyFat,
+              macros: stats.macros,
+              category: 'Hunter', // Default class
+              workoutPlan: [], // Will be generated if empty
+              startingWeight: healthProfile?.startingWeight || tempProfile.weight,
+              injuries: healthProfile?.injuries || []
+          };
+          
+          onSaveProfile(fullProfile, playerData.identity || "Hunter");
+          setIsEditingProfile(false);
+      }
   };
 
-  const startJourneySequence = () => {
-      setViewMode('FINALIZING');
-      const sequence = ["BIOLOGICAL RESTRUCTURING...", "NEURAL SYNCING...", "CONSTRUCTING PROTOCOLS...", "SYSTEM ONLINE. ASCEND."];
-      let i = 0;
-      const interval = setInterval(() => {
-          if (i < sequence.length) { setFinalizingLog(sequence[i]); i++; } 
-          else {
-              clearInterval(interval);
-              setTimeout(() => {
-                const fullProfile = { ...formData, bmi: parseFloat(currentBMI), bmr: nutritionInfo.bmr, workoutPlan: calculatedPlan, macros: nutritionInfo.macros, injuries: [], category: 'Hunter', startingWeight: formData.weight } as HealthProfile;
-                onSaveProfile(fullProfile, "Shadow Vessel");
-                setViewMode('MAP');
-              }, 2000);
-          }
-      }, 1500); 
-  };
-
-  const fallbackSimulation = () => {
-      setTimeout(() => {
-          const count = Math.floor(Math.random() * 2) + 1; 
-          const shuffled = [...INDIAN_FOOD_DB].sort(() => 0.5 - Math.random());
-          const selected = shuffled.slice(0, count);
-          const totalCalories = selected.reduce((sum, item) => sum + item.calories, 0);
-          const totalProtein = selected.reduce((sum, item) => sum + item.protein, 0);
-          const totalCarbs = selected.reduce((sum, item) => sum + item.carbs, 0);
-          const totalFats = selected.reduce((sum, item) => sum + item.fats, 0);
-          const mappedResult: FoodItem = { id: 'scan_' + Date.now(), name: selected.map(i => i.name).join(' + '), calories: totalCalories, protein: totalProtein, carbs: totalCarbs, fats: totalFats, servingSize: '1 Meal' };
-          const mockScanItems = selected.map(item => ({ name: item.name, quantity: item.servingSize, calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fats }));
-          setScanResult(mappedResult);
-          setScanItems(mockScanItems);
-          setScanState('RESULT');
-      }, 2000);
+  // --- AI SCANNING LOGIC ---
+  const resetScanner = () => {
+      setScanState('IDLE');
+      setScanResult(null);
+      setScanItems([]);
+      setScanDescription('');
+      setLoadingMessage("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      // 1. CHECK KEYS
-      if (playerData.keys <= 0) {
-          setShowKeyAlert(true);
-          e.target.value = ''; // Reset input
-          return;
-      }
-
       const file = e.target.files?.[0];
       if (!file) return;
 
-      // 2. CONSUME KEY (Default 1)
-      const keyConsumed = await onConsumeKey();
-      if (!keyConsumed) {
-          setShowKeyAlert(true);
-          e.target.value = '';
+      const hasKey = await onConsumeKey(1);
+      if (!hasKey) {
+          alert("Insufficient Keys for AI Scan (Requires 1 Key)");
+          if (fileInputRef.current) fileInputRef.current.value = "";
           return;
       }
 
-      const reader = new FileReader();
-      reader.onload = (event) => { setScannedImage(event.target?.result as string); };
-      reader.readAsDataURL(file);
+      setLoadingMessage("ANALYZING BIOMATTER...");
       setScanState('SCANNING');
-      
+
       try {
-          const formData = new FormData();
-          formData.append('image', file);
-          const response = await fetch('https://n8n.srv1279605.hstgr.cloud/webhook/mealai', { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
-          if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-          const data = await response.json();
-          const output = Array.isArray(data) ? data[0]?.output : data?.output;
-          if (output && (output.total || (output.food && output.food.length > 0))) {
-              const total = output.total || { calories: 0, protein: 0, carbs: 0, fat: 0 };
-              if (!output.total && output.food) {
-                  output.food.forEach((f: any) => { total.calories += f.calories || 0; total.protein += f.protein || 0; total.carbs += f.carbs || 0; total.fat += f.fat || 0; });
+          // Convert file to base64
+          const base64Data = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                  const result = reader.result as string;
+                  // Remove data URL prefix (e.g., "data:image/jpeg;base64,")
+                  const base64 = result.split(',')[1];
+                  resolve(base64);
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+          });
+
+          // Instantiate AI locally to avoid import issues
+          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+          const response = await ai.models.generateContent({
+              model: 'gemini-3-flash-preview',
+              contents: {
+                  parts: [
+                      {
+                          inlineData: {
+                              mimeType: file.type,
+                              data: base64Data
+                          }
+                      },
+                      {
+                          text: "Analyze this meal. Identify the food items and estimate total calories, protein, carbs, and fats. Return JSON with 'output' containing 'total' (calories, protein, carbs, fat), 'food' (array of name, quantity, calories), and 'status' string."
+                      }
+                  ]
+              },
+              config: {
+                  responseMimeType: 'application/json',
+                  responseSchema: {
+                      type: Type.OBJECT,
+                      properties: {
+                          output: {
+                              type: Type.OBJECT,
+                              properties: {
+                                  total: {
+                                      type: Type.OBJECT,
+                                      properties: {
+                                          calories: { type: Type.NUMBER },
+                                          protein: { type: Type.NUMBER },
+                                          carbs: { type: Type.NUMBER },
+                                          fat: { type: Type.NUMBER },
+                                      },
+                                      required: ["calories", "protein", "carbs", "fat"],
+                                  },
+                                  food: {
+                                      type: Type.ARRAY,
+                                      items: {
+                                          type: Type.OBJECT,
+                                          properties: {
+                                              name: { type: Type.STRING },
+                                              quantity: { type: Type.STRING },
+                                              calories: { type: Type.NUMBER },
+                                          },
+                                          required: ["name", "quantity", "calories"],
+                                      },
+                                  },
+                                  status: { type: Type.STRING },
+                              },
+                              required: ["total", "food", "status"],
+                          },
+                      },
+                      required: ["output"],
+                  },
               }
-              const name = output.food && output.food.length > 0 ? output.food.map((f: any) => f.name).join(', ') : 'Analyzed Meal';
-              const mappedResult: FoodItem = { id: 'scan_' + Date.now(), name: name.length > 50 ? name.substring(0, 47) + '...' : name, calories: Math.round(total.calories), protein: Math.round(total.protein), carbs: Math.round(total.carbs), fats: Math.round(total.fat), servingSize: '1 meal' };
-              setScanResult(mappedResult);
-              setScanItems(output.food || []);
+          });
+
+          const responseText = response.text;
+          if (!responseText) throw new Error("No data received from System AI.");
+
+          const data = JSON.parse(responseText);
+          const responseData = Array.isArray(data) ? data[0] : data;
+          
+          if (responseData?.output && responseData.output.total) {
+              const { total, food, status } = responseData.output;
+              
+              const summary: FoodItem = {
+                  id: `scan_${Date.now()}`,
+                  name: (food && food.length > 0) ? food[0].name : "AI Analyzed Meal",
+                  calories: Math.round(total.calories),
+                  protein: Math.round(total.protein),
+                  carbs: Math.round(total.carbs),
+                  fats: Math.round(total.fat || 0), 
+                  servingSize: "1 meal",
+                  region: "Detected"
+              };
+
+              const detailedItems = Array.isArray(food) ? food.map((f: any) => ({
+                  name: f.name,
+                  quantity: f.quantity,
+                  calories: Math.round(f.calories)
+              })) : [];
+
+              setScanResult(summary);
+              setScanItems(detailedItems);
+              setScanDescription(typeof status === 'string' ? status : "Analysis Complete.");
               setScanState('RESULT');
-          } else { throw new Error("Analysis failed or invalid format"); }
-      } catch (error) { console.warn("API Connection Failed, switching to Simulation Mode.", error); fallbackSimulation(); }
+          } else {
+              throw new Error("AI analysis failed or returned invalid format");
+          }
+
+      } catch (err: any) {
+          console.error("Scanning Error:", err);
+          setLoadingMessage(`SYSTEM ERROR: ${err.message || "Unknown"}`);
+          setTimeout(() => resetScanner(), 3000);
+      }
   };
 
-  const confirmLog = () => {
-      if (onLogMeal && scanResult) {
-          const detailedItems = scanItems.map((item, idx) => ({ id: `scan_item_${idx}_${Date.now()}`, name: item.name, calories: item.calories, protein: item.protein, carbs: item.carbs, fats: item.fat, servingSize: item.quantity, quantity: 1 }));
-          onLogMeal({ id: Math.random().toString(36).substr(2, 9), label: scanResult.name, items: detailedItems.length > 0 ? detailedItems : [{ ...scanResult, quantity: 1 }], totalCalories: scanResult.calories, totalProtein: scanResult.protein, totalCarbs: scanResult.carbs, totalFats: scanResult.fats, timestamp: Date.now(), imageUrl: scannedImage || undefined });
+  const handleLogScan = () => {
+      if (scanResult) {
+          const mealLog: MealLog = {
+              id: `log_${Date.now()}`,
+              label: scanResult.name,
+              items: [{ ...scanResult, quantity: 1 }],
+              totalCalories: scanResult.calories,
+              totalProtein: scanResult.protein,
+              totalCarbs: scanResult.carbs,
+              totalFats: scanResult.fats,
+              timestamp: Date.now()
+          };
+          onLogMeal(mealLog);
           resetScanner();
       }
   };
 
-  const resetScanner = () => { setScanState('IDLE'); setScannedImage(null); setScanResult(null); setScanItems([]); };
-
-  const handleOptimizationComplete = () => {
-      setIsTransformed(true);
-      setIsAnimating(false);
+  // --- WORKOUT HANDLERS ---
+  const handleDaySelect = (dayIndex: number) => {
+      if (!isCalibrated) return;
+      setActiveWorkoutDay(currentPlan[dayIndex]);
+      setShowWorkoutOverview(true);
+      onToggleNav(false);
   };
 
-  const handleAscensionClick = () => {
-      setIsAnimating(true);
-      let startTime: number | null = null;
-      const duration = 3000; 
-      const animate = (timestamp: number) => {
-          if (!startTime) startTime = timestamp;
-          const elapsed = timestamp - startTime;
-          const progress = Math.min(elapsed / duration, 1);
-          setTransformProgress(progress);
-          if (progress < 1) { animationRef.current = requestAnimationFrame(animate); } 
-          else { handleOptimizationComplete(); }
-      };
-      animationRef.current = requestAnimationFrame(animate);
+  const handleStartWorkout = (modifiedPlan: WorkoutDay, isCardioActive: boolean) => {
+      setActiveWorkoutDay(modifiedPlan); 
+      setShowWorkoutOverview(false);
+      setIsWorkoutActive(true);
   };
 
-  useEffect(() => { return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); }; }, []);
+  const handleWorkoutComplete = (exercisesCompleted: number, totalExercises: number, results: Record<string, number>) => {
+      setIsWorkoutActive(false);
+      setActiveWorkoutDay(null);
+      onToggleNav(true);
+      onCompleteWorkout(exercisesCompleted, totalExercises, results, false);
+  };
 
-  // --- RENDER LOGIC ---
+  const handleWorkoutFail = () => {
+      setIsWorkoutActive(false);
+      setActiveWorkoutDay(null);
+      onToggleNav(true);
+      onFailWorkout();
+  };
 
-  if (viewMode === 'PROCESSING') {
-      return (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono p-12 overflow-hidden">
-              <div className="relative mb-24 scale-125"><CircularCalibration percent={processingPercent} /></div>
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-center space-y-8">
-                <div className="text-[9px] text-gray-500 font-mono tracking-widest uppercase mb-4 flex gap-4 justify-center"><span>Load_Buffer_0x692</span><span>Async_Success</span></div>
-                <div className="mt-8 h-6 overflow-hidden w-64 mx-auto border-t border-gray-900/50 pt-2 relative">
-                    <div className="absolute inset-0 bg-gradient-to-b from-black to-transparent z-10 pointer-events-none opacity-50" />
-                    <motion.div animate={{ y: -80 }} transition={{ duration: 4, ease: "linear" }} className="text-[9px] text-system-neon/70 space-y-1 text-center"><div>MAPPING EXERCISE REGISTRY</div><div>OPTIMIZING NEURAL SYNC LEVEL</div><div>INITIALIZING SHADOW PROTOCOLS</div><div>CALIBRATION COMPLETE</div></motion.div>
-                </div>
-              </motion.div>
-          </motion.div>
-      );
-  }
+  // --- RENDERERS ---
 
-  if (viewMode === 'DIAGNOSIS') {
-      return (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/95 overflow-y-auto font-mono">
-              <div className="flex min-h-full items-center justify-center p-4">
-                <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut" }} className="w-full max-w-2xl border border-gray-800 p-6 md:p-8 rounded-3xl bg-system-card relative overflow-hidden group shadow-[0_0_50px_rgba(0,0,0,0.5)] my-8">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-system-neon to-transparent opacity-50" />
-                    <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="flex justify-between items-start mb-8"><h2 className="text-3xl font-black text-white flex items-center gap-3 tracking-tighter italic"><Fingerprint className="text-system-neon animate-pulse" size={28} /> INITIAL ANALYSIS</h2><div className="text-[10px] text-gray-500 font-bold border border-gray-800 px-3 py-1 rounded">OS_v1.0.42</div></motion.div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.3 }} className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon/50 transition-all group/card shadow-lg flex flex-col justify-between"><div><div className="text-[10px] text-gray-500 mb-2 uppercase font-bold tracking-widest">BMI Index</div><div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{currentBMI}</div><div className={`text-[9px] font-bold mt-2 uppercase tracking-widest ${bmiCategory.color}`}>{bmiCategory.label}</div></div><div className="mt-4 self-end"><BMIGauge value={parseFloat(currentBMI)} /></div></motion.div>
-                        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.4 }} className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-neon/50 transition-all group/card shadow-lg flex flex-col justify-between"><div><div className="text-[10px] text-gray-500 mb-2 uppercase font-bold tracking-widest">BMR Status</div><div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{nutritionInfo.bmr}</div><div className="text-[9px] text-gray-600 font-bold mt-2 uppercase tracking-widest">KCAL / DAY</div></div><div className="mt-4 self-end"><BMRWave /></div></motion.div>
-                        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5 }} className="bg-black/50 p-6 rounded-2xl border border-gray-800 hover:border-system-accent/50 transition-all group/card shadow-lg flex flex-col justify-between"><div><div className="text-[10px] text-system-accent mb-2 uppercase font-bold tracking-widest">Est. Duration</div><div className="text-3xl text-white font-black drop-shadow-[0_0_8px_rgba(139,92,246,0.3)]">{estimatedTimeStr.split(' ')[0]}</div><div className="text-[9px] text-system-accent/70 font-bold mt-2 uppercase tracking-widest">WEEKS TO GOAL</div></div><div className="mt-4 self-end"><DurationGraph /></div></motion.div>
-                    </div>
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="grid grid-cols-2 gap-4 mb-8"><div className="flex items-center gap-2 text-[10px] text-gray-400 uppercase font-bold"><Check size={14} className="text-system-success" /> METABOLIC SYNC STABLE</div><div className="flex items-center gap-2 text-[10px] text-gray-400 uppercase font-bold"><Check size={14} className="text-system-success" /> NEURAL INTERFACE ONLINE</div></motion.div>
-                    <motion.button initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.8 }} onClick={() => setViewMode('PROJECTION')} className="w-full py-5 bg-white text-black font-black rounded-2xl shadow-[0_0_30px_white] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">VIEW ASCENSION PROJECTION <ArrowRight size={20} /></motion.button>
-                </motion.div>
+  const renderCalibrationForm = () => (
+      <div className="p-4 space-y-6">
+          <div className="bg-system-neon/10 border border-system-neon/30 p-4 rounded-xl flex items-start gap-3">
+              <AlertTriangle className="text-system-neon shrink-0 mt-1" size={20} />
+              <div>
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-1">System Calibration Required</h3>
+                  <p className="text-xs text-gray-400 font-mono leading-relaxed">
+                      Biometric data missing. To synchronize with the System, you must provide your physical specifications.
+                  </p>
               </div>
-          </motion.div>
-      );
-  }
+          </div>
 
-  if (viewMode === 'PROJECTION') {
-      const lowStats = [ { subject: 'STRENGTH', value: 40, fullMark: 100 }, { subject: 'INTELLIGENCE', value: 50, fullMark: 100 }, { subject: 'FOCUS', value: 30, fullMark: 100 }, { subject: 'SOCIAL', value: 20, fullMark: 100 }, { subject: 'WILLPOWER', value: 60, fullMark: 100 } ];
-      const highStatsData = [ { subject: 'STRENGTH', value: 85, fullMark: 100 }, { subject: 'INTELLIGENCE', value: 75, fullMark: 100 }, { subject: 'FOCUS', value: 80, fullMark: 100 }, { subject: 'SOCIAL', value: 65, fullMark: 100 }, { subject: 'WILLPOWER', value: 95, fullMark: 100 } ];
-      const currentStats = lowStats.map((stat, i) => ({ subject: stat.subject, value: lerp(stat.value, highStatsData[i].value, transformProgress), fullMark: 100 }));
-      const currentColor = lerpColor("#ef4444", "#10b981", transformProgress);
-      return (
-          <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-between p-6 font-mono overflow-hidden h-[100dvh]">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.05)_0%,transparent_70%)]" />
-              <div className="flex-1 w-full flex flex-col items-center justify-center min-h-0 relative z-10">
-                  <div className="absolute top-4 left-4 opacity-30 text-[10px] space-y-4 hidden lg:block">
-                      <div className="p-2 border border-gray-800 rounded">TARGET_GOAL: {formData.goal}</div>
-                      <div className="p-2 border border-gray-800 rounded">EQUIPMENT: {formData.equipment}</div>
+          <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                  <div>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 block">Gender</label>
+                      <div className="flex bg-black border border-gray-800 rounded-lg p-1">
+                          {['MALE', 'FEMALE'].map((g) => (
+                              <button
+                                  key={g}
+                                  onClick={() => setTempProfile({...tempProfile, gender: g as any})}
+                                  className={`flex-1 py-2 text-[10px] font-bold rounded-md transition-colors ${tempProfile.gender === g ? 'bg-gray-800 text-white' : 'text-gray-600'}`}
+                              >
+                                  {g}
+                              </button>
+                          ))}
+                      </div>
                   </div>
-                  <div className="w-full max-w-md aspect-square flex items-center justify-center">
-                    <TechRadar label={isTransformed ? "PEAK EVOLUTION REALISED" : isAnimating ? "REWRITING BIOLOGY..." : "CURRENT BIO-SCAN"} color={currentColor} data={currentStats} isAnimating={isAnimating} showEntrance={!isTransformed && !isAnimating} />
+                  <div>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 block">Age</label>
+                      <input 
+                          type="number" 
+                          value={tempProfile.age || ''}
+                          onChange={e => setTempProfile({...tempProfile, age: Number(e.target.value)})}
+                          className="w-full bg-black border border-gray-800 rounded-lg p-2.5 text-white text-sm focus:border-system-neon outline-none font-mono"
+                          placeholder="Years"
+                      />
                   </div>
               </div>
-              <div className="w-full max-w-md shrink-0 space-y-6 pb-4 relative z-10">
-                  <AnimatePresence>
-                      {isTransformed && (
-                          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex gap-4 w-full">
-                              <div className="flex-1 bg-system-success/10 border border-system-success/30 p-3 rounded-xl text-center shadow-lg"><div className="text-[10px] text-system-success/70 font-bold uppercase mb-1 flex items-center justify-center gap-1"><TrendingUp size={12}/> PROJECTED STAT INCREASE</div><div className="text-2xl font-black text-system-success">+{projectedIncrease}%</div></div>
-                              <div className="flex-1 bg-system-success/10 border border-system-success/30 p-3 rounded-xl text-center shadow-lg"><div className="text-[10px] text-system-success/70 font-bold uppercase mb-1 flex items-center justify-center gap-1"><Clock size={12}/> EST. TIME</div><div className="text-2xl font-black text-system-success">{estimatedTimeStr}</div></div>
+
+              <div className="grid grid-cols-2 gap-4">
+                  <div>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 block">Height (CM)</label>
+                      <input 
+                          type="number" 
+                          value={tempProfile.height || ''}
+                          onChange={e => setTempProfile({...tempProfile, height: Number(e.target.value)})}
+                          className="w-full bg-black border border-gray-800 rounded-lg p-2.5 text-white text-sm focus:border-system-neon outline-none font-mono"
+                          placeholder="cm"
+                      />
+                  </div>
+                  <div>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 block">Weight (KG)</label>
+                      <input 
+                          type="number" 
+                          value={tempProfile.weight || ''}
+                          onChange={e => setTempProfile({...tempProfile, weight: Number(e.target.value)})}
+                          className="w-full bg-black border border-gray-800 rounded-lg p-2.5 text-white text-sm focus:border-system-neon outline-none font-mono"
+                          placeholder="kg"
+                      />
+                  </div>
+              </div>
+
+              <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 block">Target Weight (KG)</label>
+                  <input 
+                      type="number" 
+                      value={tempProfile.targetWeight || ''}
+                      onChange={e => setTempProfile({...tempProfile, targetWeight: Number(e.target.value)})}
+                      className="w-full bg-black border border-gray-800 rounded-lg p-2.5 text-white text-sm focus:border-system-neon outline-none font-mono"
+                      placeholder="Goal kg"
+                  />
+              </div>
+
+              <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 block">Activity Level</label>
+                  <select 
+                      value={tempProfile.activityLevel}
+                      onChange={e => setTempProfile({...tempProfile, activityLevel: e.target.value as any})}
+                      className="w-full bg-black border border-gray-800 rounded-lg p-2.5 text-white text-xs focus:border-system-neon outline-none font-mono uppercase"
+                  >
+                      <option value="SEDENTARY">Sedentary (Desk Job)</option>
+                      <option value="LIGHT">Light Active (1-3 days)</option>
+                      <option value="MODERATE">Moderate (3-5 days)</option>
+                      <option value="VERY_ACTIVE">Very Active (6-7 days)</option>
+                  </select>
+              </div>
+
+              <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 block">Primary Goal</label>
+                  <select 
+                      value={tempProfile.goal}
+                      onChange={e => setTempProfile({...tempProfile, goal: e.target.value as any})}
+                      className="w-full bg-black border border-gray-800 rounded-lg p-2.5 text-white text-xs focus:border-system-neon outline-none font-mono uppercase"
+                  >
+                      <option value="LOSE_WEIGHT">Lose Weight</option>
+                      <option value="BUILD_MUSCLE">Build Muscle</option>
+                      <option value="RECOMP">Recomposition</option>
+                  </select>
+              </div>
+          </div>
+
+          <button 
+              onClick={handleCalibrate}
+              className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-system-neon transition-all flex items-center justify-center gap-2 shadow-lg"
+          >
+              <Check size={18} /> CALIBRATE SYSTEM
+          </button>
+      </div>
+  );
+
+  const renderProtocol = () => {
+      // Consolidate plans into a single array
+      const plans = [
+          {
+              id: 'SYSTEM',
+              name: 'DUSK PROTOCOL',
+              subtext: 'SYSTEM DEFAULT',
+              image: 'https://images.unsplash.com/photo-1517963879466-e925ac69aa18?q=80&w=2070&auto=format&fit=crop', // Dark Gym
+              isCustom: false
+          },
+          ...Object.keys(customPlans).map((key, idx) => ({
+              id: key,
+              name: key.toUpperCase(),
+              subtext: 'CUSTOM ROUTINE',
+              image: `https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070&auto=format&fit=crop`, // Weights
+              isCustom: true
+          }))
+      ];
+
+      return (
+          <div className="space-y-6 pb-20 relative min-h-screen">
+              
+              {/* PLAN CAROUSEL (Replacements for Dropdown) */}
+              <div className="relative">
+                  <div data-no-swipe="true" className="flex overflow-x-auto gap-4 p-4 scrollbar-hide snap-x">
+                      {plans.map((plan) => (
+                          <motion.div
+                              key={plan.id}
+                              onClick={() => setSelectedPlanId(plan.id)}
+                              className={`
+                                  relative w-48 h-28 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer snap-center group glass-card
+                                  ${selectedPlanId === plan.id ? 'border-system-neon shadow-[0_0_15px_rgba(0,210,255,0.4)] scale-105' : 'border-white/5 opacity-60 hover:opacity-100'}
+                              `}
+                              whileTap={{ scale: 0.95 }}
+                          >
+                              {/* Background Image */}
+                              <img src={plan.image} alt={plan.name} className="absolute inset-0 w-full h-full object-cover opacity-70" />
+                              <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
+                              
+                              {/* Selection Ring */}
+                              {selectedPlanId === plan.id && (
+                                  <div className="absolute inset-0 border-2 border-system-neon rounded-xl animate-pulse" />
+                              )}
+
+                              {/* Text Content */}
+                              <div className="absolute bottom-2 left-2 right-2">
+                                  <div className={`text-[10px] font-black uppercase tracking-widest truncate ${selectedPlanId === plan.id ? 'text-white' : 'text-gray-300'}`}>
+                                      {plan.name}
+                                  </div>
+                                  <div className="text-[8px] text-system-neon font-mono uppercase">
+                                      {plan.subtext}
+                                  </div>
+                              </div>
+
+                              {/* Edit Button for Custom Plans */}
+                              {plan.isCustom && selectedPlanId === plan.id && (
+                                  <button 
+                                      onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingPlan({ name: plan.id, plan: customPlans[plan.id] });
+                                          setShowPlanCreator(true);
+                                      }}
+                                      className="absolute top-2 right-2 p-1.5 bg-black/50 backdrop-blur rounded-full text-white hover:bg-system-neon hover:text-black transition-colors"
+                                  >
+                                      <Settings size={12} />
+                                  </button>
+                              )}
                           </motion.div>
-                      )}
-                  </AnimatePresence>
-                  <div className="w-full text-center"> 
-                    <AnimatePresence mode="wait">
-                        {!isTransformed && !isAnimating ? (
-                            <motion.div key="init" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-                                <p className="text-xs text-gray-500 max-w-xs mx-auto leading-relaxed">The System has analyzed your current vessel. You are capable of reaching peak human potential within this cycle.</p>
-                                <button onClick={handleAscensionClick} className="w-full py-4 bg-red-600 text-white font-black rounded-2xl animate-pulse shadow-[0_0_30px_#ef4444] tracking-widest text-xs sm:text-sm uppercase">INITIATE ASCENSION SEQUENCE</button>
-                            </motion.div>
-                        ) : isAnimating ? (
-                            <OptimizationSequence onComplete={handleOptimizationComplete} />
-                        ) : (
-                            <motion.div key="accept" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                                <div className="p-3 bg-system-success/5 border border-system-success/30 rounded-2xl"><div className="text-system-success font-black text-xs mb-1 flex items-center justify-center gap-2"><ShieldCheck size={14} /> SYSTEM GUARANTEE</div><p className="text-[10px] text-gray-400 leading-relaxed max-w-xs mx-auto">Adherence to established protocols ensures peak biological evolution.</p></div>
-                                <button onClick={startJourneySequence} className="w-full py-4 bg-system-success text-black font-black rounded-2xl shadow-[0_0_40px_#10b981] hover:bg-white transition-all uppercase tracking-widest text-xs sm:text-sm">ACCEPT SYSTEM PROTOCOLS</button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                  </div>
-              </div>
-              <div className="absolute top-6 right-6 flex items-center gap-3 text-gray-800 opacity-50 pointer-events-none"><Activity size={24} /><div className="text-[10px] font-bold">BIO_SYNC_V2 // STABLE</div></div>
-          </div>
-      );
-  }
+                      ))}
 
-  if (viewMode === 'FINALIZING') {
-      return (
-          <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center font-mono">
-              <Sparkles className="text-system-neon mb-8 animate-pulse" size={48} />
-              <div className="text-2xl text-white font-black uppercase text-center tracking-[0.3em]">{finalizingLog}</div>
-              <div className="mt-8 w-64 h-1 bg-gray-900 rounded-full overflow-hidden">
-                  <motion.div initial={{ width: 0 }} animate={{ width: "100%" }} transition={{ duration: 6 }} className="h-full bg-system-neon shadow-[0_0_15px_#00d2ff]" />
-              </div>
-          </div>
-      );
-  }
-
-  if (viewMode === 'SETUP') {
-      return (
-          <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 font-mono">
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="max-w-md w-full bg-system-card border border-system-border rounded-3xl p-8 shadow-2xl relative overflow-hidden"
-              >
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gray-800">
-                    <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(step/TOTAL_STEPS)*100}%` }} 
-                        className="h-full bg-system-neon shadow-[0_0_15px_#00d2ff]" 
-                    />
+                      {/* Add New Plan Card */}
+                      <motion.button
+                          onClick={() => {
+                              setEditingPlan(undefined);
+                              setShowPlanCreator(true);
+                          }}
+                          className="relative w-28 h-28 rounded-xl border-2 border-dashed border-gray-700 flex flex-col items-center justify-center shrink-0 hover:border-system-neon hover:bg-system-neon/10 transition-colors group snap-center bg-black/20 backdrop-blur-sm"
+                          whileTap={{ scale: 0.95 }}
+                      >
+                          <Plus size={24} className="text-gray-500 group-hover:text-system-neon mb-1" />
+                          <span className="text-[9px] font-bold text-gray-500 group-hover:text-white uppercase tracking-widest">
+                              New Plan
+                          </span>
+                      </motion.button>
                   </div>
                   
-                  <div className="flex justify-between items-center mb-10">
-                    <h2 className="text-xl font-bold text-white tracking-widest uppercase">Calibration Phase {step}/{TOTAL_STEPS}</h2>
-                    <motion.span 
-                        animate={{ opacity: [1, 0.3, 1] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                        className="text-[10px] text-system-neon font-black bg-system-neon/10 px-2 py-0.5 rounded border border-system-neon/30"
-                    >
-                        SYNCING...
-                    </motion.span>
+                  {/* Fade Indicators */}
+                  <div className="absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-black/80 to-transparent pointer-events-none" />
+                  <div className="absolute top-0 left-0 h-full w-4 bg-gradient-to-r from-black/80 to-transparent pointer-events-none" />
+              </div>
+
+              {/* Biometric Analysis & Physical Evolution Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-1">
+                  
+                  {/* Biometric Analysis */}
+                  <div id="tut-biometric-analysis" className="glass-card rounded-2xl p-5">
+                      <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                              <BarChart3 size={14} className="text-system-accent" /> Biometric Analysis
+                          </h3>
+                          <button 
+                              onClick={() => {
+                                  setTempProfile(healthProfile || {});
+                                  setIsEditingProfile(true);
+                              }} 
+                              className="text-[10px] text-gray-600 hover:text-white flex items-center gap-1 border border-white/10 px-2 py-1 rounded hover:border-white/30 transition-colors"
+                          >
+                              <Edit2 size={10} /> RE-CALIBRATE
+                          </button>
+                      </div>
+                      <div className="flex justify-around items-start">
+                          <CircularMetric 
+                              value={parseFloat((healthProfile?.bmi || 0).toFixed(1))} 
+                              max={40} 
+                              label="BMI RATIO" 
+                              color={(healthProfile?.bmi || 0) > 25 ? "#f59e0b" : "#00d2ff"} 
+                          />
+                          <CircularMetric 
+                              value={Math.round(healthProfile?.bodyFat || 0)} 
+                              max={50} 
+                              label="BODY FAT %" 
+                              color="#ef4444" 
+                              suffix="%"
+                          />
+                      </div>
                   </div>
 
-                  <AnimatePresence mode="wait">
-                      {step === 1 && (
-                        <motion.div key="s1" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-                            <motion.div variants={setupItemVariants} className="flex items-center gap-3 mb-4">
-                                <User className="text-system-neon" size={24} />
-                                <div className="text-xs text-gray-500 uppercase tracking-widest font-bold">Vessel Identification</div>
-                            </motion.div>
-                            <motion.div variants={setupItemVariants} className="grid grid-cols-2 gap-4">
-                                {['MALE', 'FEMALE'].map(g => (
-                                    <button 
-                                        key={g} 
-                                        onClick={() => { setFormData({...formData, gender: g as any}); setStep(2); }} 
-                                        className="py-6 border border-gray-800 rounded-2xl hover:bg-white hover:text-black hover:shadow-[0_0_20px_white] transition-all font-black text-sm tracking-widest"
-                                    >
-                                        {g}
-                                    </button>
-                                ))}
-                            </motion.div>
-                            
-                            {/* Skip / Later Button */}
-                            <motion.div variants={setupItemVariants} className="flex justify-center mt-6 pt-4 border-t border-gray-800/50">
-                                <button 
-                                    onClick={() => {
-                                        setSkippedSetup(true);
-                                        setViewMode('MAP');
-                                    }}
-                                    className="text-gray-600 text-xs font-mono flex items-center gap-2 hover:text-white transition-colors uppercase tracking-widest"
-                                >
-                                    <SkipForward size={14} /> Calibrate Later
-                                </button>
-                            </motion.div>
-                        </motion.div>
-                      )}
-                      
-                      {step === 2 && (
-                        <motion.div key="s2" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-                            <motion.div variants={setupItemVariants} className="flex items-center gap-3 mb-4">
-                                <Activity className="text-system-neon" size={24} />
-                                <div className="text-xs text-gray-500 uppercase tracking-widest font-bold">Chronological Age</div>
-                            </motion.div>
-                            <motion.input 
-                                variants={setupItemVariants}
-                                type="number" 
-                                value={formData.age} 
-                                onChange={e => setFormData({...formData, age: Number(e.target.value)})} 
-                                className="w-full bg-black border-b-2 border-gray-800 text-center text-6xl text-white outline-none focus:border-system-neon py-6 transition-colors"
-                            />
-                            <motion.div variants={setupItemVariants} className="flex justify-between items-center mt-8">
-                                <button onClick={() => setStep(1)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase"><ChevronLeft size={14}/> BACK</button>
-                                <button onClick={() => setStep(3)} className="bg-system-neon text-black px-10 py-3 rounded-full font-black text-xs shadow-[0_0_15px_#00d2ff] hover:bg-white transition-all uppercase flex items-center gap-2">NEXT <ChevronRight size={14}/></button>
-                            </motion.div>
-                        </motion.div>
-                      )}
-                      {step === 3 && (
-                        <motion.div key="s3" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-                            <motion.div variants={setupItemVariants} className="flex items-center gap-3 mb-4">
-                                <Ruler className="text-system-neon" size={24} />
-                                <div className="text-xs text-gray-500 uppercase tracking-widest font-bold">Verticality Mapping (CM)</div>
-                            </motion.div>
-                            <motion.input 
-                                variants={setupItemVariants}
-                                type="number" 
-                                value={formData.height} 
-                                onChange={e => setFormData({...formData, height: Number(e.target.value)})} 
-                                className="w-full bg-black border-b-2 border-gray-800 text-center text-6xl text-white outline-none focus:border-system-neon py-6 transition-colors"
-                            />
-                            <motion.div variants={setupItemVariants} className="flex justify-between items-center mt-8">
-                                <button onClick={() => setStep(2)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase"><ChevronLeft size={14}/> BACK</button>
-                                <button onClick={() => setStep(4)} className="bg-system-neon text-black px-10 py-3 rounded-full font-black text-xs shadow-[0_0_15px_#00d2ff] hover:bg-white transition-all uppercase flex items-center gap-2">NEXT <ChevronRight size={14}/></button>
-                            </motion.div>
-                        </motion.div>
-                      )}
-                      {step === 4 && (
-                        <motion.div key="s4" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-                            <motion.div variants={setupItemVariants} className="flex items-center gap-3 mb-4">
-                                <Weight className="text-system-neon" size={24} />
-                                <div className="text-xs text-gray-500 uppercase tracking-widest font-bold">Current Mass (KG)</div>
-                            </motion.div>
-                            <motion.input 
-                                variants={setupItemVariants}
-                                type="number" 
-                                value={formData.weight} 
-                                onChange={e => setFormData({...formData, weight: Number(e.target.value)})} 
-                                className="w-full bg-black border-b-2 border-gray-800 text-center text-6xl text-white outline-none focus:border-system-neon py-6 transition-colors"
-                            />
-                            <motion.div variants={setupItemVariants} className="flex justify-between items-center mt-8">
-                                <button onClick={() => setStep(3)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase"><ChevronLeft size={14}/> BACK</button>
-                                <button onClick={() => setStep(5)} className="bg-system-neon text-black px-10 py-3 rounded-full font-black text-xs shadow-[0_0_15px_#00d2ff] hover:bg-white transition-all uppercase flex items-center gap-2">NEXT <ChevronRight size={14}/></button>
-                            </motion.div>
-                        </motion.div>
-                      )}
-                      {step === 5 && (
-                        <motion.div key="s5" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-                            <motion.div variants={setupItemVariants} className="flex items-center gap-3 mb-4">
-                                <Target className="text-system-accent" size={24} />
-                                <div className="text-xs text-system-accent uppercase tracking-widest font-black">Target Mass (KG)</div>
-                            </motion.div>
-                            <motion.div variants={setupItemVariants} className="relative">
-                                <div className="absolute inset-0 bg-system-accent/10 blur-xl -z-10 rounded-full" />
-                                <input 
-                                    type="number" 
-                                    value={formData.targetWeight} 
-                                    onChange={e => setFormData({...formData, targetWeight: Number(e.target.value)})} 
-                                    className="w-full bg-black border-b-2 border-system-accent text-center text-6xl text-white outline-none focus:shadow-[0_4px_15px_rgba(139,92,246,0.5)] py-6 transition-all font-black"
+                  {/* Physical Evolution (Completion) */}
+                  <div className="glass-card rounded-2xl p-5 relative overflow-hidden bg-gradient-to-br from-black/40 to-transparent">
+                      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10" />
+                      <div className="relative z-10 flex items-center gap-6">
+                          <CircularMetric 
+                              value={Math.round(completionPercent)} 
+                              max={100} 
+                              label="GOAL SYNC" 
+                              color="#eab308" 
+                              suffix="%" 
+                              size={70}
+                          />
+                          <div className="flex-1">
+                              <h3 className="text-sm font-black text-white uppercase tracking-wider mb-1">Physical Evolution</h3>
+                              <p className="text-[10px] text-gray-500 font-mono leading-relaxed mb-3">
+                                  Current transformation progress based on initial calibration data.
+                              </p>
+                              {completionPercent >= 100 && (
+                                  <div className="flex items-center gap-2 text-[10px] font-bold text-yellow-500 bg-yellow-900/10 px-2 py-1 rounded border border-yellow-500/20 w-fit">
+                                      <Check size={12} /> TARGET ACHIEVED
+                                  </div>
+                              )}
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <WorkoutMap 
+                  currentWeight={healthProfile?.weight || 70}
+                  targetWeight={healthProfile?.targetWeight || 70}
+                  workoutPlan={currentPlan.length > 0 ? currentPlan : generateSystemProtocol(healthProfile!, playerData.customProtocols)}
+                  startDate={playerData.startDate || Date.now()}
+                  logs={playerData.logs}
+                  onStartDay={handleDaySelect}
+              />
+          </div>
+      );
+  };
+
+  const renderNutrition = () => (
+      <div id="tut-nutrition-dashboard" className="space-y-6">
+          {/* ENERGY & FUEL DASHBOARD */}
+          <div className="glass-panel rounded-2xl p-6 relative overflow-hidden">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xs text-white font-bold uppercase tracking-widest flex items-center gap-2">
+                        <Utensils size={14} className="text-system-neon" /> Energy & Fuel
+                    </h3>
+                    <div className="text-[10px] text-gray-500 font-mono">
+                        DAILY TARGETS
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Calories Circle (Radial Gauge) */}
+                    <div className="flex flex-col items-center justify-center p-4 bg-black/20 rounded-xl border border-white/5 relative backdrop-blur-sm">
+                        <div className="relative w-32 h-32 flex items-center justify-center">
+                            {/* Background Track */}
+                            <svg className="absolute inset-0 w-full h-full -rotate-90">
+                                <circle cx="50%" cy="50%" r="46%" stroke="rgba(255,255,255,0.05)" strokeWidth="8" fill="transparent" />
+                                <motion.circle 
+                                    initial={{ strokeDashoffset: 289 }} // 2*PI*r approx
+                                    animate={{ strokeDashoffset: 289 - (Math.min(1, consumedCalories / targetCalories) * 289) }}
+                                    cx="50%" cy="50%" r="46%" 
+                                    stroke={consumedCalories > targetCalories ? "#ef4444" : "#00d2ff"} 
+                                    strokeWidth="8" 
+                                    strokeDasharray="289" 
+                                    strokeLinecap="round" 
+                                    fill="transparent" 
+                                    className="drop-shadow-[0_0_5px_rgba(0,210,255,0.5)]"
                                 />
-                            </motion.div>
-                            <motion.div variants={setupItemVariants} className="flex justify-between items-center mt-8">
-                                <button onClick={() => setStep(4)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase"><ChevronLeft size={14}/> BACK</button>
-                                <button onClick={() => setStep(6)} className="bg-system-accent text-white px-10 py-3 rounded-full font-black text-xs shadow-[0_0_20px_#8b5cf6] hover:bg-white hover:text-black transition-all uppercase flex items-center gap-2">NEXT <ChevronRight size={14}/></button>
-                            </motion.div>
-                        </motion.div>
-                      )}
-                      {step === 6 && (
-                        <motion.div key="s6" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-4">
-                            <motion.div variants={setupItemVariants} className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Energy Flux Levels</motion.div>
-                            <motion.div variants={setupItemVariants} className="grid gap-2">
-                                {['SEDENTARY', 'LIGHT', 'MODERATE', 'VERY_ACTIVE'].map(a => (
-                                    <button 
-                                        key={a} 
-                                        onClick={() => { setFormData({...formData, activityLevel: a as any}); setStep(7); }} 
-                                        className="w-full py-4 border border-gray-800 rounded-xl font-black text-[10px] tracking-widest hover:bg-white hover:text-black transition-all uppercase"
-                                    >
-                                        {a}
-                                    </button>
-                                ))}
-                            </motion.div>
-                            <motion.button variants={setupItemVariants} onClick={() => setStep(5)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-4"><ChevronLeft size={14}/> BACK</motion.button>
-                        </motion.div>
-                      )}
-                      {step === 7 && (
-                        <motion.div key="s7" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-4">
-                            <motion.div variants={setupItemVariants} className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Primary Directive</motion.div>
-                            <motion.div variants={setupItemVariants} className="grid gap-2">
-                                {['LOSE_WEIGHT', 'BUILD_MUSCLE', 'RECOMP'].map(g => (
-                                    <button 
-                                        key={g} 
-                                        onClick={() => { setFormData({...formData, goal: g as any}); setStep(8); }} 
-                                        className="w-full py-4 border border-gray-800 rounded-xl font-black text-[10px] tracking-widest hover:bg-white hover:text-black transition-all uppercase"
-                                    >
-                                        {g === 'RECOMP' ? 'LOSE WEIGHT + BUILD MUSCLE' : g.replace('_', ' ')}
-                                    </button>
-                                ))}
-                            </motion.div>
-                            <motion.button variants={setupItemVariants} onClick={() => setStep(6)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-4"><ChevronLeft size={14}/> BACK</motion.button>
-                        </motion.div>
-                      )}
-                      {step === 8 && (
-                        <motion.div key="s8" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-4">
-                            <motion.div variants={setupItemVariants} className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-4">Resource Availability</motion.div>
-                            <motion.div variants={setupItemVariants} className="grid gap-2">
-                                {['GYM', 'HOME_DUMBBELLS', 'BODYWEIGHT'].map(eq => (
-                                    <button 
-                                        key={eq} 
-                                        onClick={() => { 
-                                            setFormData({...formData, equipment: eq as any}); 
-                                            if (eq === 'BODYWEIGHT') startProcessing(); 
-                                            else setStep(9); 
-                                        }} 
-                                        className="w-full py-4 border border-gray-800 rounded-xl font-black text-[10px] tracking-widest hover:bg-white hover:text-black transition-all uppercase"
-                                    >
-                                        {eq.replace('_', ' ')}
-                                    </button>
-                                ))}
-                            </motion.div>
-                            <motion.button variants={setupItemVariants} onClick={() => setStep(7)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-4"><ChevronLeft size={14}/> BACK</motion.button>
-                        </motion.div>
-                      )}
-                      {step === 9 && (
-                        <motion.div key="s9" variants={setupContainerVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6 text-center">
-                            <motion.h3 variants={setupItemVariants} className="text-xl text-white font-black italic">CONFIRM CONFIGURATION</motion.h3>
-                            <motion.div variants={setupItemVariants} className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 text-left space-y-3 font-mono text-xs">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500">PROFILE</span>
-                                    <span className="text-white">{formData.gender}, {formData.age}y</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500">METRICS</span>
-                                    <span className="text-white">{formData.height}cm / {formData.weight}kg</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500">GOAL</span>
-                                    <span className="text-system-neon">
-                                        {formData.goal === 'RECOMP' ? 'LOSE WEIGHT + BUILD MUSCLE' : formData.goal?.replace('_', ' ')}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500">PROTOCOL</span>
-                                    <span className="text-white">{formData.equipment} / {formData.workoutSplit}</span>
-                                </div>
-                            </motion.div>
-                            <motion.button 
-                              variants={setupItemVariants}
-                              onClick={startProcessing}
-                              className="w-full bg-system-neon text-black font-black py-5 rounded-xl shadow-[0_0_30px_#00d2ff] hover:scale-105 transition-transform"
-                            >
-                                INITIALIZE SYSTEM
-                            </motion.button>
-                            <motion.button variants={setupItemVariants} onClick={() => setStep(8)} className="text-gray-600 hover:text-white flex items-center gap-1 font-bold text-xs uppercase mt-6 mx-auto"><ChevronLeft size={14}/> BACK</motion.button>
-                        </motion.div>
-                      )}
-                  </AnimatePresence>
-              </motion.div>
+                            </svg>
+                            <div className="text-center">
+                                <div className="text-2xl font-black text-white leading-none">{consumedCalories}</div>
+                                <div className="text-[10px] text-gray-500 font-mono mt-1">/ {targetCalories}</div>
+                                <div className="text-[9px] text-system-neon font-bold uppercase tracking-wider mt-1">KCAL</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Macros Grid (Horizontal Bars) */}
+                    <div className="space-y-3 flex flex-col justify-center">
+                        {/* Protein */}
+                        <div className="bg-black/20 border border-white/5 rounded-lg p-3 backdrop-blur-sm">
+                            <div className="flex justify-between text-xs mb-1">
+                                <span className="font-bold text-blue-400">PROTEIN</span>
+                                <span className="font-mono text-white">{consumedProtein} / {targetProtein}g</span>
+                            </div>
+                            <div className="h-1.5 bg-gray-900/80 rounded-full overflow-hidden">
+                                <motion.div 
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${Math.min(100, (consumedProtein / targetProtein) * 100)}%` }}
+                                    className="h-full bg-blue-500 shadow-[0_0_10px_#3b82f6]"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Carbs */}
+                        <div className="bg-black/20 border border-white/5 rounded-lg p-3 backdrop-blur-sm">
+                            <div className="flex justify-between text-xs mb-1">
+                                <span className="font-bold text-yellow-400">CARBS</span>
+                                <span className="font-mono text-white">{consumedCarbs} / {targetCarbs}g</span>
+                            </div>
+                            <div className="h-1.5 bg-gray-900/80 rounded-full overflow-hidden">
+                                <motion.div 
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${Math.min(100, (consumedCarbs / targetCarbs) * 100)}%` }}
+                                    className="h-full bg-yellow-500 shadow-[0_0_10px_#eab308]"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Fats */}
+                        <div className="bg-black/20 border border-white/5 rounded-lg p-3 backdrop-blur-sm">
+                            <div className="flex justify-between text-xs mb-1">
+                                <span className="font-bold text-red-400">FATS</span>
+                                <span className="font-mono text-white">{consumedFats} / {targetFats}g</span>
+                            </div>
+                            <div className="h-1.5 bg-gray-900/80 rounded-full overflow-hidden">
+                                <motion.div 
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${Math.min(100, (consumedFats / targetFats) * 100)}%` }}
+                                    className="h-full bg-red-500 shadow-[0_0_10px_#ef4444]"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+          </div>
+
+          {/* Scanner Button */}
+          <div className="relative">
+              <input 
+                  type="file" 
+                  accept="image/*" 
+                  capture="environment"
+                  className="hidden" 
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+              />
+              <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-6 glass-card rounded-xl flex flex-col items-center justify-center gap-2 hover:border-system-neon hover:bg-system-neon/5 transition-all group"
+              >
+                  <div className="w-12 h-12 rounded-full bg-black/50 border border-gray-600 flex items-center justify-center group-hover:border-system-neon group-hover:text-system-neon transition-colors">
+                      <Camera size={24} />
+                  </div>
+                  <span className="text-xs font-bold text-gray-400 group-hover:text-white uppercase tracking-widest">
+                      AI Food Analysis (1 Key)
+                  </span>
+              </button>
+          </div>
+
+          {/* Scanner Result Overlay */}
+          <AnimatePresence>
+              {scanState !== 'IDLE' && (
+                  <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 20 }}
+                      className="glass-panel rounded-xl p-4 relative overflow-hidden"
+                  >
+                      {scanState === 'SCANNING' ? (
+                          <div className="flex flex-col items-center py-8">
+                              <ScanLine size={40} className="text-system-neon animate-pulse mb-4" />
+                              <div className="text-xs font-mono text-system-neon font-bold tracking-widest">{loadingMessage}</div>
+                          </div>
+                      ) : scanResult ? (
+                          <div>
+                              <div className="flex justify-between items-start mb-2">
+                                  <div>
+                                      <h3 className="text-lg font-black text-white uppercase italic leading-none">{scanResult.name}</h3>
+                                      {scanDescription && (
+                                          <p className="text-[10px] text-gray-400 font-mono mt-2 mb-2 leading-relaxed border-l-2 border-gray-700 pl-2">
+                                              {scanDescription}
+                                          </p>
+                                      )}
+                                      <div className="flex gap-2 mt-2">
+                                          <span className="text-[10px] bg-system-neon/10 text-system-neon px-2 py-0.5 rounded border border-system-neon/20 font-bold">
+                                              {scanResult.calories} KCAL
+                                          </span>
+                                          <span className="text-[10px] bg-blue-900/20 text-blue-400 px-2 py-0.5 rounded border border-blue-900/30 font-bold">
+                                              {scanResult.protein}G PROTEIN
+                                          </span>
+                                      </div>
+                                  </div>
+                                  <button onClick={resetScanner} className="text-gray-500 hover:text-white"><X size={16}/></button>
+                              </div>
+                              
+                              {scanItems.length > 0 && (
+                                  <div className="bg-black/40 rounded p-2 mb-4 space-y-1">
+                                      {scanItems.map((item, idx) => (
+                                          <div key={idx} className="flex justify-between text-[10px] text-gray-400 font-mono border-b border-gray-800 last:border-0 pb-1 last:pb-0">
+                                              <span>{item.name} ({item.quantity})</span>
+                                              <span>{item.calories} kcal</span>
+                                          </div>
+                                      ))}
+                                  </div>
+                              )}
+
+                              <button 
+                                  onClick={handleLogScan}
+                                  className="w-full py-3 bg-system-neon text-black font-bold text-xs uppercase tracking-widest rounded hover:bg-white transition-colors"
+                              >
+                                  LOG CONSUMPTION
+                              </button>
+                          </div>
+                      ) : null}
+                  </motion.div>
+              )}
+          </AnimatePresence>
+
+          {/* Manual Search */}
+          <div className="glass-card rounded-xl p-4">
+              <div className="relative mb-4">
+                  <Search size={16} className="absolute left-3 top-3 text-gray-500" />
+                  <input 
+                      value={foodSearch}
+                      onChange={e => setFoodSearch(e.target.value)}
+                      placeholder="Search Database..."
+                      className="w-full bg-black/50 border border-gray-800 rounded-lg pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-system-neon transition-colors"
+                  />
+              </div>
+
+              <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1">
+                  {INDIAN_FOOD_DB.filter(f => f.name.toLowerCase().includes(foodSearch.toLowerCase())).map(food => (
+                      <button 
+                          key={food.id}
+                          onClick={() => {
+                              const log: MealLog = {
+                                  id: `manual_${Date.now()}`,
+                                  label: food.name,
+                                  items: [{...food, quantity: 1}],
+                                  totalCalories: food.calories,
+                                  totalProtein: food.protein,
+                                  totalCarbs: food.carbs,
+                                  totalFats: food.fats,
+                                  timestamp: Date.now()
+                              };
+                              onLogMeal(log);
+                              setFoodSearch('');
+                          }}
+                          className="w-full text-left p-2 hover:bg-white/5 rounded flex justify-between items-center group"
+                      >
+                          <span className="text-xs text-gray-300 font-mono group-hover:text-white">{food.name}</span>
+                          <span className="text-[10px] text-gray-600 font-mono group-hover:text-system-neon">{food.calories} kcal</span>
+                      </button>
+                  ))}
+              </div>
+          </div>
+
+          {/* Today's Logs */}
+          <div className="space-y-2">
+              <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Today's Intake</div>
+              {playerData.nutritionLogs.map(log => (
+                  <div key={log.id} className="flex justify-between items-center bg-black/20 border border-white/5 p-3 rounded-lg group backdrop-blur-sm">
+                      <div>
+                          <div className="text-xs font-bold text-white">{log.label}</div>
+                          <div className="text-[10px] text-gray-500 font-mono mt-0.5">{log.totalCalories} kcal • {new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                      </div>
+                      <button onClick={() => onDeleteMeal(log.id)} className="text-gray-700 hover:text-red-500 transition-colors">
+                          <Trash2 size={14} />
+                      </button>
+                  </div>
+              ))}
+              {playerData.nutritionLogs.length === 0 && (
+                  <div className="text-center py-4 text-xs text-gray-700 font-mono">NO DATA LOGGED</div>
+              )}
+          </div>
+      </div>
+  );
+
+  // --- RENDER MAIN ---
+  
+  // Force Calibration View if needed
+  if (!isCalibrated && !isEditingProfile) {
+      return renderCalibrationForm();
+  }
+
+  // Edit Overlay
+  if (isEditingProfile) {
+      return (
+          <div className="relative">
+              <button 
+                  onClick={() => setIsEditingProfile(false)} 
+                  className="absolute top-2 right-2 text-gray-500 hover:text-white z-10"
+              >
+                  <X size={20} />
+              </button>
+              {renderCalibrationForm()}
           </div>
       );
   }
 
-  if (viewMode === 'OVERVIEW' && activePlan) return <WorkoutOverview plan={activePlan} focusVideos={playerData.focusVideos} onStart={(p) => { setActivePlan(p); setViewMode('ACTIVE'); }} onCancel={() => setViewMode('MAP')} userWeight={healthProfile?.weight} />;
-  if (viewMode === 'ACTIVE' && activePlan) return <ActiveWorkoutPlayer plan={activePlan} onComplete={(c, t, r) => { onCompleteWorkout(c, t, r, false); setViewMode('MAP'); }} onFail={() => { onFailWorkout(); setViewMode('MAP'); }} streak={playerData.streak} />;
+  // Plan Creator Overlay
+  if (showPlanCreator) {
+      return (
+          <PlanCreator 
+              exerciseDatabase={playerData.exerciseDatabase}
+              initialPlan={editingPlan?.plan}
+              initialName={editingPlan?.name}
+              onCancel={() => setShowPlanCreator(false)}
+              onSave={(name, plan) => {
+                  const newCustomPlans = { ...customPlans, [name]: plan };
+                  if (onUpdateCustomPlans) {
+                      onUpdateCustomPlans(newCustomPlans);
+                  }
+                  setShowPlanCreator(false);
+                  setSelectedPlanId(name);
+              }}
+          />
+      );
+  }
 
   return (
-    <>
-        <AnimatePresence>
-            {showKeyAlert && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
-                    <motion.div 
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.8, opacity: 0 }}
-                        className="bg-[#0a0a0a] border border-purple-500/50 w-full max-w-sm rounded-2xl p-8 text-center shadow-[0_0_50px_rgba(168,85,247,0.3)] relative overflow-hidden"
-                    >
-                        {/* Background Effect */}
-                        <div className="absolute inset-0 bg-purple-900/10 pointer-events-none" />
-                        
-                        <div className="relative z-10 flex flex-col items-center">
-                            <div className="w-16 h-16 rounded-full bg-black border border-purple-500 flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(168,85,247,0.5)]">
-                                <Lock size={32} className="text-purple-500" />
-                            </div>
-                            
-                            <h2 className="text-xl font-black text-white font-mono uppercase tracking-tighter mb-2">ACCESS DENIED</h2>
-                            <p className="text-xs text-purple-300 font-mono mb-6 leading-relaxed">
-                                INSUFFICIENT KEYS.<br/>Obtain Keys from the Demon Castle to perform Deep Scans.
-                            </p>
-                            
-                            <button 
-                                onClick={() => setShowKeyAlert(false)}
-                                className="w-full py-4 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-500 transition-colors uppercase tracking-widest text-xs font-mono shadow-lg"
-                            >
-                                ACKNOWLEDGE
-                            </button>
-                        </div>
+    <div className="flex flex-col h-full relative">
+        
+        {/* TAB HEADER */}
+        <div className="flex border-b border-gray-800 mb-6">
+            <button 
+                onClick={() => setActiveTab('PROTOCOL')}
+                className={`flex-1 pb-4 text-xs font-bold tracking-widest transition-colors flex justify-center gap-2 ${activeTab === 'PROTOCOL' ? 'text-system-neon border-b-2 border-system-neon' : 'text-gray-600 hover:text-gray-300'}`}
+            >
+                <Dumbbell size={14} /> PROTOCOL
+            </button>
+            <button 
+                id="tut-nutrition-tab-btn"
+                onClick={() => setActiveTab('INTAKE')}
+                className={`flex-1 pb-4 text-xs font-bold tracking-widest transition-colors flex justify-center gap-2 ${activeTab === 'INTAKE' ? 'text-system-neon border-b-2 border-system-neon' : 'text-gray-600 hover:text-gray-300'}`}
+            >
+                <Utensils size={14} /> INTAKE
+            </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto pb-20 custom-scrollbar">
+            <AnimatePresence mode="wait">
+                {activeTab === 'PROTOCOL' && (
+                    <motion.div key="protocol" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
+                        {renderProtocol()}
                     </motion.div>
-                </div>
+                )}
+                {activeTab === 'INTAKE' && (
+                    <motion.div key="intake" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
+                        {renderNutrition()}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+
+        {/* FLOATING ACTION BUTTON - Backup, still useful for quick adds */}
+        <AnimatePresence>
+            {activeTab === 'PROTOCOL' && (
+                <motion.div
+                    initial={{ scale: 0, rotate: 180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    exit={{ scale: 0, rotate: 180 }}
+                    className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-40"
+                >
+                    <button 
+                        onClick={() => {
+                            setEditingPlan(undefined); // Clear edit state for new plan
+                            setShowPlanCreator(true);
+                        }}
+                        className="w-14 h-14 bg-system-neon rounded-full flex items-center justify-center shadow-[0_0_20px_#00d2ff] hover:scale-110 transition-transform active:scale-95 group"
+                        title="Create New Protocol"
+                    >
+                        <Plus size={24} className="text-black group-hover:rotate-90 transition-transform duration-300" />
+                    </button>
+                </motion.div>
             )}
         </AnimatePresence>
 
-        <div className="h-full flex flex-col gap-6 font-mono">
-            <div className="flex border-b border-gray-800 bg-black/50 backdrop-blur sticky top-20 z-30">
-                {['WORKOUT', 'NUTRITION', 'BODY'].map(t => <button key={t} onClick={() => setActiveTab(t as any)} className={`flex-1 py-4 text-xs font-bold tracking-widest ${activeTab === t ? 'text-system-neon border-b-2 border-system-neon' : 'text-gray-600'}`}>{t}</button>)}
-            </div>
-            <div className="flex-1 pb-20">
-                <AnimatePresence mode="wait">
-                    {activeTab === 'WORKOUT' && (
-                        <motion.div key="wo" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 text-center shadow-lg"><Flame className="text-orange-500 mx-auto mb-2 animate-pulse" size={24} /><div className="text-2xl font-black text-white">{playerData.streak}</div><div className="text-[10px] text-gray-500 uppercase tracking-widest">STREAK</div></div>
-                                <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 text-center shadow-lg"><Target className="text-system-neon mx-auto mb-2" size={24} /><div className="text-xl font-bold text-white uppercase tracking-tight">{calculateTimeEstimate(healthProfile || formData)}</div><div className="text-[10px] text-gray-500 uppercase tracking-widest">TARGET</div></div>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                <WorkoutMap currentWeight={healthProfile?.weight || 0} targetWeight={healthProfile?.targetWeight || 0} workoutPlan={calculatedPlan} completedDays={playerData.logs.filter(l => l.type === 'WORKOUT').length} onStartDay={(idx) => { setActivePlan(calculatedPlan[idx % calculatedPlan.length]); setViewMode('OVERVIEW'); }} />
-                                <ProtocolMonthView plan={calculatedPlan} />
-                            </div>
-                        </motion.div>
-                    )}
-                    
-                    {activeTab === 'NUTRITION' && (
-                        <motion.div 
-                            key="nut" 
-                            initial={{ opacity: 0, y: 10 }} 
-                            animate={{ opacity: 1, y: 0 }} 
-                            exit={{ opacity: 0, y: -10 }} 
-                            className="flex flex-col items-center gap-6 px-4"
-                        >
-                            <motion.div 
-                                className="w-full max-w-sm bg-gray-900/50 border border-gray-800 rounded-2xl p-6 shadow-lg"
-                                initial={{ scale: 0.95 }}
-                                animate={{ scale: 1 }}
-                            >
-                                <h3 className="text-xs font-bold text-gray-400 mb-4 tracking-widest flex items-center gap-2 uppercase">
-                                    <Clock size={14} className="text-system-neon" /> Daily Fuel Status
-                                </h3>
-                                
-                                {/* Calories Comparison */}
-                                <div className="flex justify-between items-end mb-2">
-                                    <div>
-                                        <div className="text-[10px] text-gray-500 uppercase font-bold">Consumed</div>
-                                        <div className="text-2xl font-black text-white">{dailyIntake.calories}</div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-[10px] text-gray-500 uppercase font-bold">Target</div>
-                                        <div className="text-2xl font-black text-gray-400">{nutritionInfo.macros.calories}</div>
-                                    </div>
-                                </div>
-                                
-                                {/* Calorie Progress Bar */}
-                                <div className="h-2 bg-gray-800 rounded-full overflow-hidden mb-6">
-                                    <motion.div 
-                                        className={`h-full ${dailyIntake.calories > nutritionInfo.macros.calories ? 'bg-red-500' : 'bg-system-neon'}`}
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${Math.min((dailyIntake.calories / nutritionInfo.macros.calories) * 100, 100)}%` }}
-                                    />
-                                </div>
+        {/* WORKOUT OVERVIEW MODAL */}
+        <AnimatePresence>
+            {showWorkoutOverview && activeWorkoutDay && (
+                <WorkoutOverview 
+                    plan={activeWorkoutDay} 
+                    focusVideos={playerData.focusVideos || {}}
+                    onStart={handleStartWorkout}
+                    onCancel={() => { setShowWorkoutOverview(false); onToggleNav(true); }}
+                    userWeight={healthProfile?.weight}
+                />
+            )}
+        </AnimatePresence>
 
-                                {/* Remaining Budget Display */}
-                                <div className="bg-black/40 border border-gray-800 rounded-xl p-4 text-center mb-6">
-                                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Remaining Calories Budget</div>
-                                    <div className={`text-3xl font-black ${nutritionInfo.macros.calories - dailyIntake.calories < 0 ? 'text-red-500' : 'text-system-success'}`}>
-                                        {Math.max(0, nutritionInfo.macros.calories - dailyIntake.calories)} <span className="text-xs font-normal text-gray-600">KCAL</span>
-                                    </div>
-                                </div>
+        {/* ACTIVE WORKOUT PLAYER */}
+        <AnimatePresence>
+            {isWorkoutActive && activeWorkoutDay && (
+                <ActiveWorkoutPlayer 
+                    plan={activeWorkoutDay}
+                    onComplete={handleWorkoutComplete}
+                    onFail={handleWorkoutFail}
+                    streak={playerData.streak}
+                />
+            )}
+        </AnimatePresence>
 
-                                {/* Macro Breakdown */}
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div className="text-center">
-                                        <div className="text-[9px] text-gray-500 uppercase font-bold mb-1 flex justify-center items-center gap-1"><Beef size={10} /> PRO</div>
-                                        <div className="text-xs font-bold text-blue-400">{dailyIntake.protein} / {nutritionInfo.macros.protein}g</div>
-                                        <div className="h-1 bg-gray-800 mt-1 rounded-full"><div style={{ width: `${Math.min((dailyIntake.protein / nutritionInfo.macros.protein)*100, 100)}%` }} className="h-full bg-blue-500" /></div>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="text-[9px] text-gray-500 uppercase font-bold mb-1 flex justify-center items-center gap-1"><Wheat size={10} /> CARB</div>
-                                        <div className="text-xs font-bold text-green-400">{dailyIntake.carbs} / {nutritionInfo.macros.carbs}g</div>
-                                        <div className="h-1 bg-gray-800 mt-1 rounded-full"><div style={{ width: `${Math.min((dailyIntake.carbs / nutritionInfo.macros.carbs)*100, 100)}%` }} className="h-full bg-green-500" /></div>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="text-[9px] text-gray-500 uppercase font-bold mb-1 flex justify-center items-center gap-1"><Droplets size={10} /> FAT</div>
-                                        <div className="text-xs font-bold text-yellow-400">{dailyIntake.fats} / {nutritionInfo.macros.fats}g</div>
-                                        <div className="h-1 bg-gray-800 mt-1 rounded-full"><div style={{ width: `${Math.min((dailyIntake.fats / nutritionInfo.macros.fats)*100, 100)}%` }} className="h-full bg-yellow-500" /></div>
-                                    </div>
-                                </div>
-                            </motion.div>
-
-                            {/* STATE: IDLE - UPLOAD AREA */}
-                            {scanState === 'IDLE' && (
-                                <motion.div 
-                                    initial={{ scale: 0.9, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    className="w-full max-w-sm"
-                                >
-                                    <div className="bg-gray-900/40 border-2 border-dashed border-gray-800 rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-4 hover:border-system-neon/50 hover:bg-gray-900/60 transition-all cursor-pointer relative overflow-hidden group h-[200px]">
-                                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-system-neon/5 to-transparent translate-y-[-100%] group-hover:translate-y-[100%] transition-transform duration-1000 ease-in-out pointer-events-none" />
-                                        
-                                        <div className="w-16 h-16 rounded-full bg-black border border-system-neon/30 flex items-center justify-center relative shadow-[0_0_30px_rgba(0,210,255,0.1)] group-hover:shadow-[0_0_50px_rgba(0,210,255,0.2)] transition-shadow">
-                                            <Camera size={24} className="text-system-neon relative z-10" />
-                                            <div className="absolute inset-0 rounded-full border border-system-neon opacity-20 animate-ping" />
-                                        </div>
-                                        
-                                        <div>
-                                            <h3 className="text-lg font-bold text-white font-mono tracking-tight">LOG MEAL</h3>
-                                            <p className="text-[9px] text-gray-500 font-mono tracking-widest uppercase mt-1 flex items-center justify-center gap-1">
-                                                <Key size={10} className="text-purple-500" /> 1 KEY REQUIRED
-                                            </p>
-                                        </div>
-
-                                        <input 
-                                            type="file" 
-                                            accept="image/*" 
-                                            capture="environment" 
-                                            ref={fileInputRef}
-                                            onChange={handleFileUpload}
-                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                                        />
-                                    </div>
-                                </motion.div>
-                            )}
-
-                            {/* STATE: SCANNING */}
-                            {scanState === 'SCANNING' && scannedImage && (
-                                <motion.div 
-                                    className="w-full max-w-sm bg-black border border-system-neon/50 rounded-2xl overflow-hidden relative shadow-[0_0_50px_rgba(0,210,255,0.2)]"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                >
-                                    <div className="aspect-[4/5] relative">
-                                        <img src={scannedImage} alt="Scanning" className="w-full h-full object-cover opacity-60" />
-                                        
-                                        {/* Scanning Beam */}
-                                        <motion.div 
-                                            className="absolute left-0 w-full h-1 bg-system-neon shadow-[0_0_20px_#00d2ff,0_0_10px_white] z-10"
-                                            animate={{ top: ['0%', '100%', '0%'] }}
-                                            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                                        />
-                                        
-                                        {/* Grid Overlay */}
-                                        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,210,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,255,0.1)_1px,transparent_1px)] bg-[size:40px_40px] z-0 pointer-events-none" />
-                                        
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
-                                            <div className="bg-black/80 backdrop-blur-md px-6 py-3 rounded-lg border border-system-neon/30 flex items-center gap-3">
-                                                <Loader2 size={18} className="text-system-neon animate-spin" />
-                                                <span className="text-xs font-mono text-white tracking-widest font-bold">{loadingMessage}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            )}
-
-                            {/* STATE: RESULT */}
-                            {scanState === 'RESULT' && scanResult && scannedImage && (
-                                <motion.div 
-                                    className="w-full max-w-sm bg-[#0a0a0a] border border-system-border rounded-2xl overflow-hidden shadow-2xl relative"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                >
-                                    <div className="relative h-48">
-                                        <img src={scannedImage} alt="Result" className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
-                                        <div className="absolute bottom-4 left-4">
-                                            <div className="text-[10px] text-system-neon font-bold tracking-widest bg-system-neon/10 px-2 py-0.5 rounded border border-system-neon/30 inline-block mb-1">
-                                                SCAN COMPLETE
-                                            </div>
-                                            <h3 className="text-2xl font-black text-white italic">{scanResult.name}</h3>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-6 space-y-6">
-                                        {/* Macros Grid */}
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <div className="text-center p-3 bg-gray-900/50 rounded-xl border border-gray-800">
-                                                <div className="text-xs text-gray-500 font-bold mb-1">PROTEIN</div>
-                                                <div className="text-lg font-black text-white">{scanResult.protein}g</div>
-                                                <div className="h-1 bg-gray-800 mt-2 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-blue-500 w-[60%]" />
-                                                </div>
-                                            </div>
-                                            <div className="text-center p-3 bg-gray-900/50 rounded-xl border border-gray-800">
-                                                <div className="text-xs text-gray-500 font-bold mb-1">CARBS</div>
-                                                <div className="text-lg font-black text-white">{scanResult.carbs}g</div>
-                                                <div className="h-1 bg-gray-800 mt-2 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-green-500 w-[40%]" />
-                                                </div>
-                                            </div>
-                                            <div className="text-center p-3 bg-gray-900/50 rounded-xl border border-gray-800">
-                                                <div className="text-xs text-gray-500 font-bold mb-1">FATS</div>
-                                                <div className="text-lg font-black text-white">{scanResult.fats}g</div>
-                                                <div className="h-1 bg-gray-800 mt-2 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-yellow-500 w-[30%]" />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Total Calories */}
-                                        <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10">
-                                            <div className="flex items-center gap-2">
-                                                <Flame size={20} className="text-orange-500" />
-                                                <span className="text-sm font-bold text-gray-300">TOTAL ENERGY</span>
-                                            </div>
-                                            <div className="text-3xl font-black text-white tracking-tighter">
-                                                {scanResult.calories} <span className="text-sm font-normal text-gray-500">KCAL</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Breakdown List */}
-                                        <div className="bg-gray-900/30 rounded-xl border border-gray-800 p-4 max-h-40 overflow-y-auto custom-scrollbar">
-                                            <div className="text-[10px] text-gray-500 font-bold uppercase mb-2 tracking-widest">Detected Ingredients</div>
-                                            <div className="space-y-2">
-                                                {scanItems.map((item, idx) => (
-                                                    <div key={idx} className="flex justify-between items-center text-xs border-b border-gray-800/50 pb-1 last:border-0">
-                                                        <span className="text-gray-300">{item.name} <span className="text-gray-600">({item.quantity})</span></span>
-                                                        <span className="font-mono text-system-neon">{item.calories}</span>
-                                                    </div>
-                                                ))}
-                                                {scanItems.length === 0 && (
-                                                    <div className="text-[10px] text-gray-600 italic text-center py-2">No detailed breakdown available.</div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Actions */}
-                                        <div className="grid grid-cols-2 gap-3 pt-2">
-                                            <button 
-                                                onClick={resetScanner}
-                                                className="py-3 rounded-xl border border-gray-800 text-gray-400 font-mono font-bold text-xs hover:text-white hover:border-gray-600 transition-colors flex items-center justify-center gap-2"
-                                            >
-                                                <Trash2 size={16} /> DISCARD
-                                            </button>
-                                            <button 
-                                                onClick={confirmLog}
-                                                className="py-3 rounded-xl bg-system-neon text-black font-mono font-black text-xs hover:bg-white transition-colors flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,210,255,0.4)]"
-                                            >
-                                                <Save size={16} /> CONFIRM LOG
-                                            </button>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </motion.div>
-                    )}
-                    
-                    {activeTab === 'BODY' && (
-                        <motion.div 
-                            key="body" 
-                            initial={{ opacity: 0 }} 
-                            animate={{ opacity: 1 }} 
-                            exit={{ opacity: 0 }} 
-                            className="flex flex-col items-center justify-center text-gray-600 pt-20"
-                        >
-                            <Utensils size={48} className="mb-4 opacity-50" />
-                            <div className="text-xs font-mono tracking-widest uppercase">Biometric Gallery Offline</div>
-                            <div className="text-[10px] mt-2">Feature pending next system update.</div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-        </div>
-    </>
+    </div>
   );
 };

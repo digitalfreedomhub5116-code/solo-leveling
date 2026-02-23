@@ -3,7 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Add this to satisfy TS for R3F elements in global JSX namespace
+// Add type definitions for React Three Fiber elements to global JSX namespace
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -11,6 +11,17 @@ declare global {
       group: any;
       ambientLight: any;
       pointLight: any;
+    }
+  }
+  // Also augment React.JSX for newer React versions/types
+  namespace React {
+    namespace JSX {
+      interface IntrinsicElements {
+        mesh: any;
+        group: any;
+        ambientLight: any;
+        pointLight: any;
+      }
     }
   }
 }

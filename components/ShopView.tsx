@@ -1,9 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Coins, Plus, ShoppingBag, X, Ghost, Timer, Key, Gift } from 'lucide-react';
+import { 
+  Plus, ShoppingBag, X, Ghost, Timer, Gift, ChevronLeft, ChevronRight, Zap, TrendingUp, Sparkles, Lock,
+  Gamepad2, Pizza, Coffee, Beer, Utensils, Tv, Music, Headphones, Clapperboard, MonitorPlay, Smartphone, 
+  Cpu, Moon, Shirt, Watch, Heart, Smile, Users, Trophy, Crown, Plane, Car, Home, Star 
+} from 'lucide-react';
 import { ShopItem } from '../types';
 import ShopItemCard from './ShopItemCard';
+import PurchaseCelebration from './PurchaseCelebration';
+import { SystemCoin } from './icons/SystemCoin';
+import { SystemKey } from './icons/SystemKey';
 
 interface ShopViewProps {
   gold: number;
@@ -14,7 +21,40 @@ interface ShopViewProps {
   keys?: number;
   lastDungeonEntry?: number;
   onStartDungeon?: (isFree: boolean) => void;
+  onToggleNav?: (visible: boolean) => void;
 }
+
+const ICON_OPTIONS = [
+  { id: 'star', icon: Star },
+  { id: 'gamepad', icon: Gamepad2 },
+  { id: 'pizza', icon: Pizza },
+  { id: 'coffee', icon: Coffee },
+  { id: 'beer', icon: Beer },
+  { id: 'utensils', icon: Utensils },
+  { id: 'tv', icon: Tv },
+  { id: 'music', icon: Music },
+  { id: 'headphones', icon: Headphones },
+  { id: 'clapperboard', icon: Clapperboard },
+  { id: 'monitor-play', icon: MonitorPlay },
+  { id: 'smartphone', icon: Smartphone },
+  { id: 'cpu', icon: Cpu },
+  { id: 'moon', icon: Moon },
+  { id: 'zap', icon: Zap },
+  { id: 'shirt', icon: Shirt },
+  { id: 'watch', icon: Watch },
+  { id: 'gift', icon: Gift },
+  { id: 'shopping-bag', icon: ShoppingBag },
+  { id: 'heart', icon: Heart },
+  { id: 'smile', icon: Smile },
+  { id: 'users', icon: Users },
+  { id: 'trophy', icon: Trophy },
+  { id: 'crown', icon: Crown },
+  { id: 'plane', icon: Plane },
+  { id: 'car', icon: Car },
+  { id: 'home', icon: Home },
+  { id: 'ghost', icon: Ghost },
+  { id: 'key', icon: SystemKey }, 
+];
 
 const ShopView: React.FC<ShopViewProps> = ({ 
     gold, 
@@ -24,15 +64,27 @@ const ShopView: React.FC<ShopViewProps> = ({
     removeItem, 
     keys = 0, 
     lastDungeonEntry = 0, 
-    onStartDungeon 
+    onStartDungeon,
+    onToggleNav 
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [cost, setCost] = useState<number>(100);
+  const [selectedIcon, setSelectedIcon] = useState('star');
   
   const [timeUntilFree, setTimeUntilFree] = useState<number>(0);
-  const [timeUntilDaily, setTimeUntilDaily] = useState<number>(0);
+  const [purchasedItem, setPurchasedItem] = useState<ShopItem | null>(null);
+
+  // --- NAVIGATION CONTROL ---
+  useEffect(() => {
+      if (onToggleNav) {
+          onToggleNav(!isModalOpen && !purchasedItem);
+      }
+      return () => {
+          if (onToggleNav) onToggleNav(true);
+      }
+  }, [isModalOpen, purchasedItem, onToggleNav]);
 
   // Timer Logic for Dungeon
   useEffect(() => {
@@ -47,28 +99,6 @@ const ShopView: React.FC<ShopViewProps> = ({
       return () => clearInterval(interval);
   }, [lastDungeonEntry]);
 
-  // Timer Logic for Daily Reset (Midnight UTC)
-  useEffect(() => {
-      const updateDailyTimer = () => {
-          const now = new Date();
-          const tomorrow = new Date(now);
-          tomorrow.setUTCHours(24, 0, 0, 0); // Next midnight UTC
-          const diff = tomorrow.getTime() - now.getTime();
-          setTimeUntilDaily(Math.max(0, diff));
-      };
-      
-      updateDailyTimer();
-      const interval = setInterval(updateDailyTimer, 1000);
-      return () => clearInterval(interval);
-  }, []);
-
-  const formatTime = (ms: number) => {
-      const h = Math.floor(ms / (1000 * 60 * 60));
-      const m = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-      const s = Math.floor((ms % (1000 * 60)) / 1000);
-      return `${h}h ${m}m ${s}s`;
-  };
-
   const handleCreate = () => {
     if (!title || cost <= 0) return;
 
@@ -77,7 +107,7 @@ const ShopView: React.FC<ShopViewProps> = ({
       title,
       description,
       cost,
-      icon: 'star' // Default icon for custom items
+      icon: selectedIcon
     };
 
     addItem(newItem);
@@ -85,241 +115,219 @@ const ShopView: React.FC<ShopViewProps> = ({
     setTitle('');
     setDescription('');
     setCost(100);
+    setSelectedIcon('star');
+  };
+
+  const handlePurchase = (item: ShopItem) => {
+      if (gold >= item.cost) {
+          purchaseItem(item);
+          setPurchasedItem(item);
+      }
   };
 
   const isFreeReady = timeUntilFree <= 0;
   const canAffordPaid = keys >= 3;
 
   return (
-    <div className="space-y-6">
-      {/* Header with Gold Balance */}
-      <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 border-b border-system-border pb-4 sticky top-20 bg-system-bg/95 backdrop-blur z-20 pt-2 bg-black/80 md:bg-system-bg">
-         <div>
-           <h2 className="text-2xl font-bold text-white font-mono tracking-tighter flex items-center gap-2">
-             SYSTEM REWARDS
-           </h2>
-           <p className="text-xs text-gray-500 font-mono">EXCHANGE CURRENCY FOR REWARDS</p>
-         </div>
+    <div className="w-full max-w-6xl mx-auto pb-24 px-4 md:px-0">
+        <AnimatePresence>
+            {purchasedItem && (
+                <PurchaseCelebration item={purchasedItem} onClose={() => setPurchasedItem(null)} />
+            )}
+        </AnimatePresence>
 
-         <div className="flex items-center gap-4">
-             {/* Gold Display */}
-             <div id="tut-gold-display" className="flex items-center gap-3 bg-system-warning/10 border border-system-warning/30 px-4 py-2 rounded-lg">
-                <Coins className="text-system-warning animate-pulse" size={24} />
-                <div className="flex flex-col items-end">
-                   <span className="text-xs text-system-warning/80 font-mono">BALANCE</span>
-                   <span className="text-xl font-bold text-white font-mono leading-none">{gold} G</span>
-                </div>
-             </div>
-             
-             <button 
-                onClick={() => setIsModalOpen(true)}
-                className="bg-system-card hover:bg-system-border border border-system-border text-gray-300 p-2 rounded-lg transition-colors"
-                title="Add Custom Reward"
-             >
-                <Plus size={24} />
-             </button>
-         </div>
-      </div>
-
-      {/* --- DUNGEON TOWER WIDGET --- */}
-      {onStartDungeon && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full bg-black/60 border border-red-900/50 rounded-xl p-6 relative overflow-hidden group shadow-[0_0_30px_rgba(220,38,38,0.1)]"
-          >
-              <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-red-600 via-red-900 to-red-600 opacity-80" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(220,38,38,0.1),transparent_50%)]" />
-              
-              <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
-                  <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-red-950/30 rounded-full flex items-center justify-center border-2 border-red-500/50 shadow-[0_0_20px_rgba(220,38,38,0.3)]">
-                          <Ghost size={32} className="text-red-500 animate-pulse" />
-                      </div>
-                      <div>
-                          <h3 className="text-2xl font-black text-white font-serif tracking-tight uppercase">DUNGEON TOWER</h3>
-                          <div className="flex items-center gap-3 mt-1">
-                              <span className="text-[10px] bg-red-900/20 text-red-400 px-2 py-0.5 rounded border border-red-900/30 font-mono tracking-widest uppercase">
-                                  HIGH RISK ZONE
-                              </span>
-                              {!isFreeReady && (
-                                  <span className="text-[10px] text-yellow-500 font-mono flex items-center gap-1">
-                                      <Timer size={10} /> RESET: {formatTime(timeUntilFree)}
-                                  </span>
-                              )}
-                          </div>
-                      </div>
-                  </div>
-
-                  <div className="flex gap-3 w-full md:w-auto">
-                      <button 
-                          onClick={() => onStartDungeon(true)}
-                          disabled={!isFreeReady}
-                          className={`flex-1 md:flex-none px-6 py-3 rounded-lg font-mono font-bold text-xs uppercase tracking-widest transition-all
-                              ${isFreeReady 
-                                  ? 'bg-red-600 text-white hover:bg-white hover:text-red-600 shadow-[0_0_15px_rgba(220,38,38,0.5)]' 
-                                  : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
-                              }
-                          `}
-                      >
-                          {isFreeReady ? "ENTER (FREE)" : "LOCKED"}
-                      </button>
-
-                      <button 
-                          onClick={() => onStartDungeon(false)}
-                          disabled={!canAffordPaid}
-                          className={`flex-1 md:flex-none px-6 py-3 rounded-lg font-mono font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 justify-center border
-                              ${canAffordPaid 
-                                  ? 'bg-purple-900/20 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white shadow-[0_0_15px_rgba(168,85,247,0.3)]' 
-                                  : 'bg-gray-900 border-gray-700 text-gray-600 cursor-not-allowed'
-                              }
-                          `}
-                      >
-                          <Key size={12} />
-                          ENTER (3 KEYS)
-                      </button>
-                  </div>
-              </div>
-          </motion.div>
-      )}
-
-      {/* --- DAILY REWARD WIDGET --- */}
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="w-full bg-black/60 border border-blue-900/50 rounded-xl p-6 relative overflow-hidden group shadow-[0_0_30px_rgba(0,210,255,0.1)]"
-      >
-          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-600 via-blue-900 to-blue-600 opacity-80" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(0,210,255,0.1),transparent_50%)]" />
-          
-          <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
-              <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-blue-950/30 rounded-full flex items-center justify-center border-2 border-blue-500/50 shadow-[0_0_20px_rgba(0,210,255,0.3)]">
-                      <Gift size={32} className="text-blue-500 animate-pulse" />
-                  </div>
-                  <div>
-                      <h3 className="text-2xl font-black text-white font-serif tracking-tight uppercase">DAILY SUPPLY DROP</h3>
-                      <div className="flex items-center gap-3 mt-1">
-                          <span className="text-[10px] bg-blue-900/20 text-blue-400 px-2 py-0.5 rounded border border-blue-900/30 font-mono tracking-widest uppercase">
-                              STATUS: CLAIMED
-                          </span>
-                      </div>
-                  </div>
-              </div>
-
-              <div className="flex gap-3 w-full md:w-auto items-center justify-center md:justify-end">
-                  <div className="text-right">
-                      <div className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-1">NEXT DROP IN</div>
-                      <div className="text-xl font-bold text-white font-mono flex items-center gap-2 bg-black/40 px-4 py-2 rounded border border-gray-800">
-                          <Timer size={16} className="text-system-neon" /> 
-                          {formatTime(timeUntilDaily)}
-                      </div>
-                  </div>
-              </div>
-          </div>
-      </motion.div>
-
-      {/* Item Grid */}
-      <div id="tut-shop-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-10">
-         {items.map(item => (
-           <ShopItemCard 
-             key={item.id} 
-             item={item} 
-             currentGold={gold} 
-             onPurchase={purchaseItem}
-             onRemove={removeItem}
-           />
-         ))}
-         
-         {/* Add New Placeholder Card */}
-         <button 
-           onClick={() => setIsModalOpen(true)}
-           className="border-2 border-dashed border-system-border rounded-lg p-6 flex flex-col items-center justify-center text-gray-600 hover:text-system-warning hover:border-system-warning/50 transition-colors min-h-[200px] group"
-         >
-            <div className="p-4 rounded-full bg-system-card group-hover:bg-system-warning/10 transition-colors mb-3">
-               <Plus size={32} />
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row justify-between items-end mb-8 border-b border-gray-800 pb-6 gap-4">
+            <div>
+                <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase mb-2">
+                    REWARDS
+                </h1>
+                <p className="text-xs text-gray-500 font-mono tracking-widest uppercase">
+                    Convert Discipline into Dopamine
+                </p>
             </div>
-            <span className="font-mono text-sm font-bold">CREATE CUSTOM REWARD</span>
-         </button>
-      </div>
-
-      {/* Create Reward Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-system-card border border-system-warning/30 w-full max-w-md rounded-xl shadow-[0_0_50px_rgba(245,158,11,0.1)] overflow-hidden"
-              >
-                 <div className="p-6 border-b border-system-border flex justify-between items-center bg-system-warning/5">
-                    <h3 className="text-lg font-bold text-system-warning font-mono flex items-center gap-2">
-                       <ShoppingBag size={18} /> NEW REWARD
-                    </h3>
-                    <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-white">
-                       <X size={20} />
-                    </button>
-                 </div>
-
-                 <div className="p-6 space-y-4">
-                    <div>
-                       <label className="block text-xs text-gray-500 mb-1 font-mono">REWARD TITLE</label>
-                       <input 
-                         value={title}
-                         onChange={e => setTitle(e.target.value)}
-                         placeholder="e.g. Buy a new game"
-                         className="w-full bg-system-bg border border-system-border rounded p-2 text-white focus:border-system-warning focus:outline-none placeholder:text-gray-700"
-                         autoFocus
-                       />
+            
+            <div className="flex gap-6">
+                <div className="text-right">
+                    <div className="text-[10px] text-gray-500 font-bold uppercase mb-1">Treasury</div>
+                    <div className="text-2xl font-black text-yellow-500 font-mono flex items-center justify-end gap-2">
+                        {Math.round(gold).toLocaleString()} <SystemCoin size={20} />
                     </div>
-
-                    <div>
-                       <label className="block text-xs text-gray-500 mb-1 font-mono">DESCRIPTION (OPTIONAL)</label>
-                       <textarea 
-                         value={description}
-                         onChange={e => setDescription(e.target.value)}
-                         placeholder="Details..."
-                         className="w-full bg-system-bg border border-system-border rounded p-2 text-white focus:border-system-warning focus:outline-none h-20 placeholder:text-gray-700"
-                       />
+                </div>
+                <div className="text-right">
+                    <div className="text-[10px] text-gray-500 font-bold uppercase mb-1">Keys</div>
+                    <div className="text-2xl font-black text-purple-500 font-mono flex items-center justify-end gap-2">
+                        {Math.round(keys)} <SystemKey size={20} />
                     </div>
+                </div>
+            </div>
+        </div>
 
-                    <div>
-                       <label className="block text-xs text-gray-500 mb-1 font-mono">COST (GOLD)</label>
-                       <div className="relative">
-                          <input 
-                            type="number"
-                            value={cost}
-                            onChange={e => setCost(Number(e.target.value))}
-                            className="w-full bg-system-bg border border-system-border rounded p-2 pl-10 text-white focus:border-system-warning focus:outline-none font-mono"
-                          />
-                          <div className="absolute left-3 top-2.5 text-system-warning">
-                             <Coins size={16} />
-                          </div>
-                       </div>
+        {/* Dungeon Widget */}
+        {onStartDungeon && (
+            <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-12"
+            >
+                <div className="w-full relative rounded-xl overflow-hidden group shadow-[0_0_30px_rgba(220,38,38,0.3)] border border-red-900/50">
+                    {/* Background Image - Fitted Fully (Height Auto) */}
+                    <img 
+                        src="https://res.cloudinary.com/dcnqnbvp0/image/upload/v1771066637/Image_202602141625_tlkmvf.jpg" 
+                        alt="Dungeon Tower" 
+                        className="w-full h-auto block"
+                    />
+                    
+                    {/* Gradient Overlay for buttons visibility */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent pointer-events-none" />
+
+                    {/* Reset Timer Badge (Top Right) */}
+                    {!isFreeReady && (
+                        <div className="absolute top-4 right-4 bg-black/80 backdrop-blur border border-red-500/30 text-red-400 px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs font-mono font-bold tracking-widest shadow-lg z-20">
+                            <Timer size={14} className="animate-pulse" />
+                            <span>
+                                {Math.floor(timeUntilFree / (1000 * 60 * 60))}H {Math.floor((timeUntilFree % (1000 * 60 * 60)) / (1000 * 60))}M
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Buttons Container (Bottom) - Small & Side-by-Side */}
+                    <div className="absolute bottom-0 w-full p-6 flex justify-center items-center gap-4 z-20">
+                        {/* Free Entry */}
+                        <button 
+                            onClick={() => onStartDungeon(true)}
+                            disabled={!isFreeReady}
+                            className={`px-5 py-2.5 rounded-lg font-black uppercase tracking-widest text-[10px] sm:text-xs transition-all shadow-lg flex items-center justify-center gap-2 backdrop-blur-sm
+                                ${isFreeReady 
+                                    ? 'bg-red-600 text-white hover:bg-white hover:text-red-600 shadow-[0_0_15px_rgba(220,38,38,0.5)]' 
+                                    : 'bg-gray-900/90 text-gray-500 cursor-not-allowed border border-gray-800'
+                                }
+                            `}
+                        >
+                            {isFreeReady ? (
+                                <>
+                                    <Zap size={14} fill="currentColor" /> PLAY FREE
+                                </>
+                            ) : (
+                                <>
+                                    <Lock size={12} /> COOLING DOWN
+                                </>
+                            )}
+                        </button>
+
+                        {/* Paid Entry */}
+                        <button 
+                            onClick={() => onStartDungeon(false)}
+                            disabled={!canAffordPaid}
+                            className={`px-5 py-2.5 rounded-lg font-black uppercase tracking-widest text-[10px] sm:text-xs transition-all shadow-lg flex items-center justify-center gap-2 backdrop-blur-sm
+                                ${canAffordPaid 
+                                    ? 'bg-purple-600 text-white hover:bg-purple-500 hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]' 
+                                    : 'bg-gray-900/90 text-gray-500 cursor-not-allowed border border-gray-800'
+                                }
+                            `}
+                        >
+                            <SystemKey size={14} /> 3 KEYS
+                        </button>
                     </div>
-                 </div>
-
-                 <div className="p-4 bg-system-bg border-t border-system-border flex justify-end gap-3">
-                    <button 
-                      onClick={() => setIsModalOpen(false)}
-                      className="px-4 py-2 text-xs font-mono text-gray-500 hover:text-white"
-                    >
-                      CANCEL
-                    </button>
-                    <button 
-                      onClick={handleCreate}
-                      disabled={!title || cost <= 0}
-                      className="px-6 py-2 bg-system-warning text-black font-bold rounded text-xs font-mono hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      REGISTER REWARD
-                    </button>
-                 </div>
-              </motion.div>
-           </div>
+                </div>
+            </motion.div>
         )}
-      </AnimatePresence>
+
+        {/* Shop Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            
+            {/* Create Card */}
+            <motion.button
+                onClick={() => setIsModalOpen(true)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="aspect-[4/5] rounded-xl border-2 border-dashed border-gray-800 flex flex-col items-center justify-center gap-4 group hover:border-system-neon/50 hover:bg-system-neon/5 transition-all mt-12"
+            >
+                <div className="w-16 h-16 rounded-full bg-gray-900 flex items-center justify-center group-hover:bg-system-neon group-hover:text-black transition-colors">
+                    <Plus size={32} />
+                </div>
+                <span className="text-xs font-bold text-gray-500 group-hover:text-system-neon tracking-widest uppercase">
+                    Add Reward
+                </span>
+            </motion.button>
+
+            {items.map((item) => (
+                <ShopItemCard 
+                    key={item.id}
+                    item={item}
+                    currentGold={gold}
+                    onPurchase={handlePurchase}
+                    onRemove={removeItem}
+                />
+            ))}
+        </div>
+
+        {/* Create Modal */}
+        <AnimatePresence>
+            {isModalOpen && (
+                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+                    <motion.div 
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.9, opacity: 0 }}
+                        className="bg-[#0a0a0a] border border-gray-800 w-full max-w-md rounded-2xl p-6 shadow-2xl"
+                    >
+                        <div className="flex justify-between items-center mb-6 border-b border-gray-800 pb-4">
+                            <h2 className="text-xl font-bold text-white uppercase tracking-tight">Create Reward</h2>
+                            <button onClick={() => setIsModalOpen(false)}><X className="text-gray-500 hover:text-white" /></button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <input 
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder="Reward Title"
+                                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-white text-sm focus:border-system-neon outline-none"
+                            />
+                            <textarea 
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder="Description (Optional)"
+                                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-white text-sm focus:border-system-neon outline-none h-20 resize-none"
+                            />
+                            
+                            <div>
+                                <label className="text-[10px] text-gray-500 uppercase font-bold mb-2 block">Cost (Gold)</label>
+                                <input 
+                                    type="number"
+                                    value={cost}
+                                    onChange={(e) => setCost(Number(e.target.value))}
+                                    className="w-full bg-black border border-gray-800 rounded-lg p-3 text-white text-sm focus:border-system-neon outline-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] text-gray-500 uppercase font-bold mb-2 block">Icon</label>
+                                <div className="grid grid-cols-6 gap-2 h-32 overflow-y-auto custom-scrollbar p-1">
+                                    {ICON_OPTIONS.map((opt) => (
+                                        <button
+                                            key={opt.id}
+                                            onClick={() => setSelectedIcon(opt.id)}
+                                            className={`p-2 rounded border flex items-center justify-center transition-colors ${selectedIcon === opt.id ? 'bg-system-neon text-black border-system-neon' : 'bg-gray-900 border-gray-800 text-gray-500 hover:text-white'}`}
+                                        >
+                                            <opt.icon size={16} />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button 
+                                onClick={handleCreate}
+                                disabled={!title || cost <= 0}
+                                className="w-full py-4 bg-system-neon text-black font-black uppercase tracking-widest rounded-xl hover:bg-white transition-all disabled:opacity-50"
+                            >
+                                Add to Shop
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>
     </div>
   );
 };

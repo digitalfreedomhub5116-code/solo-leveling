@@ -3,14 +3,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>THE SYSTEM</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#000000" />
+    
+    <!-- Mobile Web App Capability -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="REFORGE">
+    
+    <title>THE SYSTEM // REFORGE</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%2300d2ff%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z%22/><polyline points=%223.27 6.96 12 12.01 20.73 6.96%22/><line x1=%2212%22 y1=%2222.08%22 x2=%2212%22 y2=%2212%22/></svg>">
     
-    <!-- Fonts: Inter for UI, JetBrains Mono for System Text -->
+    <!-- Fonts: Inter for Body, Rajdhani for Tech UI, JetBrains Mono for Data -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -22,73 +30,102 @@
           extend: {
             colors: {
               'system-bg': '#000000',
-              'system-card': '#0d0d0d',
-              'system-border': '#1f1f1f',
-              'system-accent': '#8b5cf6', // Purple
-              'system-neon': '#00d2ff',   // Blue
-              'system-success': '#10b981',
-              'system-warning': '#f59e0b',
-              'system-danger': '#ef4444',
+              'system-card': 'rgba(10, 10, 10, 0.4)', // Increased transparency for floating feel
+              'system-border': 'rgba(255, 255, 255, 0.08)',
+              
+              // Rank Gradients (Semantic)
+              'rank-common': '#94a3b8',
+              'rank-rare': '#10b981',
+              'rank-epic': '#00d2ff',
+              'rank-legendary': '#f59e0b',
+              'rank-mythic': '#d946ef',
+
+              // Dynamic Semantic Colors using CSS Variables
+              'system-neon': 'rgb(var(--color-neon) / <alpha-value>)',     // Primary Active Color
+              'system-accent': 'rgb(var(--color-accent) / <alpha-value>)', // Secondary/Magic
+              
+              'system-success': 'rgb(var(--color-success) / <alpha-value>)',
+              'system-warning': 'rgb(var(--color-warning) / <alpha-value>)',
+              'system-danger': 'rgb(var(--color-danger) / <alpha-value>)',
             },
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
               mono: ['JetBrains Mono', 'monospace'],
+              tech: ['Rajdhani', 'sans-serif'], // Added for High-Tech feel
             },
             boxShadow: {
-              'neon-blue': '0 0 10px rgba(0, 210, 255, 0.5), 0 0 20px rgba(0, 210, 255, 0.3)',
-              'neon-purple': '0 0 10px rgba(139, 92, 246, 0.5), 0 0 20px rgba(139, 92, 246, 0.3)',
+              'neon-blue': '0 0 10px rgba(var(--color-neon), 0.5), 0 0 20px rgba(var(--color-neon), 0.3)',
+              'neon-purple': '0 0 10px rgba(var(--color-accent), 0.5), 0 0 20px rgba(var(--color-accent), 0.3)',
               'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
             },
-            animation: {
-              'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            backgroundImage: {
+              'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+              'mesh': 'radial-gradient(at 0% 0%, rgba(var(--color-neon), 0.15) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(var(--color-accent), 0.15) 0px, transparent 50%)',
             }
           }
         }
       }
     </script>
     <style>
-      body {
-        background-color: #000000;
-        color: #e5e5e5;
-      }
-      /* Custom Scrollbar */
+      /* Custom Scrollbar for Webkit */
       ::-webkit-scrollbar {
-        width: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: #000000; 
+        background: transparent; 
       }
       ::-webkit-scrollbar-thumb {
-        background: #1f1f1f; 
-        border-radius: 4px;
+        background: rgba(255,255,255,0.1); 
+        border-radius: 3px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #8b5cf6; 
+        background: rgba(255,255,255,0.2); 
+      }
+      
+      body {
+        background-color: #000000;
+        color: #e2e8f0;
+        overflow-x: hidden;
+        overscroll-behavior-y: none; /* Prevent rubber-banding on Mac/iOS */
+      }
+
+      /* Base Background */
+      #global-bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1;
+        background-color: #000000;
       }
     </style>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "three": "https://esm.sh/three@^0.182.0",
-    "@react-three/drei": "https://esm.sh/@react-three/drei@^10.7.7",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
+    "react-dom": "https://esm.sh/react-dom@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.95.3",
+    "firebase/": "https://esm.sh/firebase@^12.9.0/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
     "@react-three/fiber": "https://esm.sh/@react-three/fiber@^9.5.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "firebase/": "https://esm.sh/firebase@^12.7.0/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "react-dom": "https://esm.sh/react-dom@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "vite": "https://esm.sh/vite@^7.3.0",
-    "recharts": "https://esm.sh/recharts@^3.6.0",
-    "framer-motion": "https://esm.sh/framer-motion@^12.24.0"
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "framer-motion": "https://esm.sh/framer-motion@^12.34.0",
+    "three": "https://esm.sh/three@^0.182.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "@react-three/drei": "https://esm.sh/@react-three/drei@^10.7.7",
+    "recharts": "https://esm.sh/recharts@^3.7.0"
   }
 }
 </script>
 </head>
   <body>
+    <div id="global-bg"></div>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>

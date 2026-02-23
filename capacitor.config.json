@@ -1,0 +1,14 @@
+
+{
+  "appId": "com.reforge.system",
+  "appName": "REFORGE",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}

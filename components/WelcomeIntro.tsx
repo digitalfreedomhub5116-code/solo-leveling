@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -22,7 +23,7 @@ const WelcomeIntro: React.FC<WelcomeIntroProps> = ({ onComplete }) => {
     const sequence = async () => {
       // Cinematic Text Sequence
       setTimeout(() => setText("INITIALIZING SHADOW PROTOCOL..."), 800);
-      setTimeout(() => setText("WELCOME TO THE SYSTEM"), 2000);
+      setTimeout(() => setText("WELCOME TO REFORGE"), 2000);
       
       // Exit Sequence
       setTimeout(() => {
@@ -38,7 +39,8 @@ const WelcomeIntro: React.FC<WelcomeIntroProps> = ({ onComplete }) => {
     <AnimatePresence>
       {show && (
         <motion.div 
-          className="fixed inset-0 z-[60] bg-black flex items-center justify-center overflow-hidden"
+          className="fixed inset-0 z-[9999] bg-black flex items-center justify-center overflow-hidden"
+          initial={{ opacity: 1 }}
           exit={{ 
             opacity: 0,
             filter: "blur(20px)",

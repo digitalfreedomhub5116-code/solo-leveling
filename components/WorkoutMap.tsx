@@ -2,14 +2,15 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Lock, Swords, Skull, Crown, Flag, Zap, X, Play, Activity } from 'lucide-react';
-import { WorkoutDay } from '../types';
+import { Check, Lock, Swords, Skull, Crown, Flag, Zap, X, Play, Activity, XCircle } from 'lucide-react';
+import { WorkoutDay, ActivityLog } from '../types';
 
 interface WorkoutMapProps {
   currentWeight: number;
   targetWeight: number;
   workoutPlan: WorkoutDay[];
-  completedDays: number;
+  startDate: number;
+  logs: ActivityLog[];
   onStartDay: (dayIndex: number) => void;
 }
 
@@ -17,7 +18,8 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
   currentWeight, 
   targetWeight, 
   workoutPlan, 
-  completedDays, 
+  startDate,
+  logs,
   onStartDay 
 }) => {
   const [selectedPreview, setSelectedPreview] = useState<number | null>(null);
@@ -35,6 +37,31 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Calculate current progress in DAYS based on Time
+  const currentDayIndex = useMemo(() => {
+      const now = Date.now();
+      const diffTime = Math.max(0, now - startDate);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
+      return diffDays;
+  }, [startDate]);
+
+  // Check completions map
+  // Map Key: day index (0, 1, 2...) -> Value: boolean
+  const completionMap = useMemo(() => {
+      const map: Record<number, boolean> = {};
+      const workoutLogs = logs.filter(l => l.type === 'WORKOUT');
+      
+      workoutLogs.forEach(log => {
+          // Calculate which relative day this log belongs to
+          const logDiff = log.timestamp - startDate;
+          const dayIndex = Math.floor(logDiff / (1000 * 60 * 60 * 24));
+          if (dayIndex >= 0) {
+              map[dayIndex] = true;
+          }
+      });
+      return map;
+  }, [logs, startDate]);
+
   // Auto-scroll to current day
   useEffect(() => {
       if (currentDayRef.current && containerRef.current) {
@@ -45,7 +72,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
               });
           }, 500);
       }
-  }, [completedDays]);
+  }, [currentDayIndex]);
 
   // 1. Calculate Journey Length
   const weightDiff = Math.abs((currentWeight || 0) - (targetWeight || 0));
@@ -121,8 +148,9 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                         <defs>
                             <linearGradient id="pathGradient" x1="0" x2="0" y1="0" y2="1">
                                 <stop offset="0%" stopColor="#00d2ff" stopOpacity="0.8"/>
-                                <stop offset={`${(completedDays / totalDays) * 100}%`} stopColor="#00d2ff" stopOpacity="0.8"/>
-                                <stop offset={`${(completedDays / totalDays) * 100 + 5}%`} stopColor="#333" stopOpacity="0.3"/>
+                                {/* Fill based on Current Day Index relative to Total Days */}
+                                <stop offset={`${(currentDayIndex / totalDays) * 100}%`} stopColor="#00d2ff" stopOpacity="0.8"/>
+                                <stop offset={`${(currentDayIndex / totalDays) * 100 + 5}%`} stopColor="#333" stopOpacity="0.3"/>
                                 <stop offset="100%" stopColor="#333" stopOpacity="0.3"/>
                             </linearGradient>
                         </defs>
@@ -153,9 +181,14 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
 
                     {/* Nodes */}
                     {points.map((point, index) => {
-                        const isCompleted = index < completedDays;
-                        const isCurrent = index === completedDays;
-                        const isLocked = index > completedDays;
+                        const isPast = index < currentDayIndex;
+                        const isCurrent = index === currentDayIndex;
+                        const isFuture = index > currentDayIndex;
+                        
+                        // Status Logic
+                        const isCompleted = completionMap[index];
+                        const isSkipped = isPast && !isCompleted;
+                        
                         const isSelected = selectedPreview === index;
                         
                         // Get data for this node
@@ -181,8 +214,9 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                         relative flex items-center justify-center rounded-full transition-all duration-300 cursor-pointer border-4
                                         ${point.isBoss ? 'w-16 h-16 md:w-20 md:h-20' : 'w-12 h-12 md:w-14 md:h-14'}
                                         ${isCompleted ? 'bg-system-neon border-system-neon text-black shadow-[0_0_20px_rgba(0,210,255,0.6)]' : ''}
+                                        ${isSkipped ? 'bg-black border-red-600 text-red-600' : ''}
                                         ${isCurrent ? 'bg-black border-system-neon text-system-neon shadow-[0_0_40px_rgba(0,210,255,0.5)] animate-pulse' : ''}
-                                        ${isLocked ? 'bg-gray-900 border-gray-800 text-gray-600' : ''}
+                                        ${isFuture ? 'bg-gray-900 border-gray-800 text-gray-600' : ''}
                                         ${isSelected ? 'ring-4 ring-white/50' : ''}
                                         hover:scale-110 active:scale-95
                                     `}
@@ -198,6 +232,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                         isCompleted ? <Crown size={32} className="md:w-10 md:h-10" /> : <Skull size={32} className="md:w-10 md:h-10" />
                                     ) : (
                                         isCompleted ? <Check size={20} className="md:w-6 md:h-6" /> : 
+                                        isSkipped ? <XCircle size={20} className="md:w-6 md:h-6" /> :
                                         isCurrent ? <Swords size={24} className="md:w-8 md:h-8" /> :
                                         <Lock size={16} className="md:w-5 md:h-5" />
                                     )}
@@ -219,12 +254,20 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                         <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-0.5 h-6 bg-system-neon/50" />
                                         
                                         <div className="text-[10px] font-mono text-gray-400 tracking-widest uppercase mb-1">
-                                            DAY {index + 1}
+                                            TODAY: DAY {index + 1}
                                         </div>
                                         <div className="text-xl font-black text-white italic tracking-tighter uppercase mb-4 leading-none">
                                             {nodeData?.focus || "TRAINING"}
                                         </div>
                                         
+                                        <div className="w-full text-left mb-4 bg-black/40 p-2 rounded border border-white/10 max-h-[100px] overflow-y-auto custom-scrollbar">
+                                            {nodeData?.exercises.map((ex, i) => (
+                                                <div key={i} className="text-[9px] text-gray-400 truncate border-b border-gray-800 last:border-0 pb-1 mb-1">
+                                                    • {ex.name}
+                                                </div>
+                                            ))}
+                                        </div>
+
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -237,10 +280,12 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                     </motion.div>
                                 )}
 
-                                {/* Completed Replay Tag */}
-                                {isCompleted && !selectedPreview && (
-                                    <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <div className="text-[9px] text-gray-500 font-mono bg-black/80 px-2 py-1 rounded border border-gray-800">REPLAY</div>
+                                {/* Completed/Skipped Labels */}
+                                {!isCurrent && !selectedPreview && (
+                                    <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                        {isSkipped && <div className="text-[9px] text-red-500 font-mono bg-black/80 px-2 py-1 rounded border border-red-900">SKIPPED</div>}
+                                        {isCompleted && <div className="text-[9px] text-system-neon font-mono bg-black/80 px-2 py-1 rounded border border-system-neon/30">COMPLETE</div>}
+                                        {isFuture && <div className="text-[9px] text-gray-500 font-mono bg-black/80 px-2 py-1 rounded border border-gray-800">LOCKED</div>}
                                     </div>
                                 )}
                             </motion.div>
@@ -252,7 +297,8 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
 
             <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-black to-transparent pointer-events-none z-20" />
             
-            {completedDays >= totalDays && (
+            {/* New Game+ if finished (Current day > total days) */}
+            {currentDayIndex > totalDays && (
                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 w-full flex justify-center pointer-events-auto">
                      <button 
                         onClick={() => onStartDay(0)} 
@@ -264,7 +310,7 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
             )}
         </div>
 
-        {/* Preview Pop-up (For Locked or Completed Nodes) */}
+        {/* Universal Preview Modal (Works for Locked, Completed, Skipped) */}
         <AnimatePresence>
             {selectedPreview !== null && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 font-mono">
@@ -290,8 +336,19 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                         </button>
 
                         <div className="mb-6 relative">
-                            <div className={`w-16 h-16 rounded-full border-2 bg-black flex items-center justify-center relative z-10 ${selectedPreview < completedDays ? 'border-system-success' : 'border-gray-800'}`}>
-                                {selectedPreview < completedDays ? <Check size={28} className="text-system-success" /> : <Lock size={28} className="text-gray-500" />}
+                            {/* Icon Based on State */}
+                            <div className={`w-16 h-16 rounded-full border-2 bg-black flex items-center justify-center relative z-10 
+                                ${selectedPreview < currentDayIndex 
+                                    ? (completionMap[selectedPreview] ? 'border-system-success' : 'border-red-600') 
+                                    : 'border-gray-800'}`
+                            }>
+                                {selectedPreview < currentDayIndex ? (
+                                    completionMap[selectedPreview] 
+                                    ? <Check size={28} className="text-system-success" /> 
+                                    : <XCircle size={28} className="text-red-600" />
+                                ) : (
+                                    <Lock size={28} className="text-gray-500" />
+                                )}
                             </div>
                         </div>
 
@@ -304,28 +361,20 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                 {selectedDayData?.focus || "REST"}
                             </h2>
 
-                            {/* Conditional Intel Display: Only show exercises if NOT LOCKED */}
-                            {selectedPreview < completedDays ? (
-                                <div className="w-full bg-gray-900/30 rounded-lg border border-gray-800 p-3 mb-6 text-left max-h-[120px] overflow-y-auto custom-scrollbar">
-                                    <div className="text-[9px] text-gray-500 uppercase font-bold mb-2 tracking-wider sticky top-0 bg-[#0d0d0d]/90 backdrop-blur-sm pb-1 border-b border-gray-800">Protocol Intel</div>
-                                    <div className="space-y-1.5">
-                                        {selectedDayData?.exercises.map((ex, i) => (
-                                            <div key={i} className="flex justify-between items-center text-[10px] text-gray-300">
-                                                <span className="truncate pr-2 font-medium">{ex.name}</span>
-                                                <span className="text-gray-500 whitespace-nowrap bg-gray-800 px-1.5 rounded">{ex.sets}x{ex.reps}</span>
-                                            </div>
-                                        )) || <div className="text-gray-600 text-xs italic">No intel available.</div>}
-                                    </div>
+                            {/* Full Intel Display: Always show exercise names */}
+                            <div className="w-full bg-gray-900/30 rounded-lg border border-gray-800 p-3 mb-6 text-left max-h-[150px] overflow-y-auto custom-scrollbar">
+                                <div className="text-[9px] text-gray-500 uppercase font-bold mb-2 tracking-wider sticky top-0 bg-[#0d0d0d]/90 backdrop-blur-sm pb-1 border-b border-gray-800">Protocol Intel</div>
+                                <div className="space-y-1.5">
+                                    {selectedDayData?.exercises.map((ex, i) => (
+                                        <div key={i} className="flex justify-between items-center text-[10px] text-gray-300 border-b border-gray-800/30 pb-1 last:border-0">
+                                            <span className="truncate pr-2 font-medium">{ex.name}</span>
+                                            <span className="text-gray-500 whitespace-nowrap bg-gray-800 px-1.5 rounded">{ex.sets}x{ex.reps}</span>
+                                        </div>
+                                    )) || <div className="text-gray-600 text-xs italic">No intel available.</div>}
                                 </div>
-                            ) : (
-                                // LOCKED STATE PLACEHOLDER
-                                <div className="w-full bg-gray-900/20 rounded-lg border border-dashed border-gray-800 p-6 mb-6 flex flex-col items-center justify-center gap-2">
-                                    <Lock size={20} className="text-gray-600" />
-                                    <span className="text-[10px] text-gray-600 font-mono tracking-widest">CLASSIFIED INTEL</span>
-                                </div>
-                            )}
+                            </div>
 
-                            {selectedPreview <= completedDays ? (
+                            {completionMap[selectedPreview] ? (
                                 <button 
                                     onClick={() => {
                                         onStartDay(selectedPreview);
@@ -337,9 +386,9 @@ const WorkoutMap: React.FC<WorkoutMapProps> = ({
                                     REPLAY MISSION
                                 </button>
                             ) : (
-                                <button disabled className="w-full py-4 bg-gray-900/50 text-gray-600 font-bold text-sm uppercase tracking-widest rounded-lg cursor-not-allowed border border-gray-800 flex items-center justify-center gap-2">
-                                    <Lock size={14} /> LOCKED
-                                </button>
+                                <div className="text-xs text-gray-500 font-mono uppercase tracking-widest">
+                                    {selectedPreview < currentDayIndex ? "MISSED OPPORTUNITY" : "FUTURE PROTOCOL"}
+                                </div>
                             )}
                         </div>
                     </motion.div>

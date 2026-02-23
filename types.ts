@@ -1,5 +1,4 @@
 
-// Fix: Import React to support React.ReactNode type usage
 import React from 'react';
 
 export enum SystemState {
@@ -8,7 +7,7 @@ export enum SystemState {
   LOCKED = 'LOCKED'
 }
 
-export type Tab = 'DASHBOARD' | 'QUESTS' | 'REWARDS' | 'GROWTH' | 'HEALTH' | 'RANKING' | 'CASTLE';
+export type Tab = 'DASHBOARD' | 'QUESTS' | 'ARMORY' | 'ALLIANCE' | 'HEALTH' | 'RANKING' | 'CASTLE';
 
 export interface NavItem {
   label: string;
@@ -17,8 +16,44 @@ export interface NavItem {
 }
 
 export type Rank = 'E' | 'D' | 'C' | 'B' | 'A' | 'S';
+export type TierLevel = 'E' | 'D' | 'C' | 'B' | 'A' | 'S';
 
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+// --- GAMEPLAY DATA ---
+export interface CombatStats {
+  attack: number;
+  loot: number;
+  ultimate: number;
+  extraction: number;
+}
+
+export interface TierConfig {
+  id: TierLevel;
+  statCap: number;
+  color: string;
+}
+
+export interface Shadow {
+  id: string;
+  name: string;
+  rank: 'Minion' | 'Elite' | 'Monarch';
+  image: string;
+  buffs: {
+    stat: keyof CombatStats;
+    value: number;
+  }[];
+}
+
+export interface Outfit {
+  id: string;
+  name: string;
+  tier: TierLevel;
+  description: string;
+  image: string;
+  baseStats: CombatStats;
+  cost: number;
+}
 
 // --- DAILY REWARDS ---
 export type DailyRewardType = 'WELCOME_KEYS' | 'GOLD' | 'XP' | 'KEYS' | 'DUNGEON_PASS';
@@ -35,6 +70,7 @@ export interface CoreStats {
   focus: number;
   social: number;
   willpower: number;
+  discipline: number; 
 }
 
 export interface StatTimestamps {
@@ -43,13 +79,14 @@ export interface StatTimestamps {
   focus: number;
   social: number;
   willpower: number;
+  discipline: number;
 }
 
 export interface ActivityLog {
   id: string;
   message: string;
   timestamp: number;
-  type: 'XP' | 'LEVEL_UP' | 'PENALTY' | 'SYSTEM' | 'PURCHASE' | 'STREAK' | 'WORKOUT' | 'TOURNAMENT' | 'LOOT';
+  type: 'XP' | 'LEVEL_UP' | 'LEVEL_DOWN' | 'PENALTY' | 'SYSTEM' | 'PURCHASE' | 'STREAK' | 'WORKOUT' | 'TOURNAMENT' | 'LOOT' | 'WARNING' | 'EQUIP';
 }
 
 export interface Quest {
@@ -61,13 +98,33 @@ export interface Quest {
   category: keyof CoreStats;
   xpReward: number;
   isCompleted: boolean;
-  failed?: boolean; // New: Tracks if the system rejected this quest
+  failed?: boolean;
   createdAt: number;
-  expiresAt?: number; // New: For 24h temporary quests
-  isDaily: boolean; // Identify repeatable quests
-  trigger?: string; // The "When" condition/anchor for the habit
-  miniQuest?: string; // The "Activation Energy" version (e.g. Just do 5 reps)
-  completedAsMini?: boolean; // Track if completed in safe mode
+  expiresAt?: number;
+  isDaily: boolean; 
+  scheduledTime?: string; 
+  estimatedDuration?: number; 
+  lastCompletedAt?: number; 
+  aiReasoning?: string; 
+  verificationRequired?: boolean; 
+  minDurationMinutes?: number; 
+  miniQuest?: string; 
+  completedAsMini?: boolean;
+}
+
+// --- ARMORY TYPES (LEGACY DUSK LOOKS INTEGRATED INTO OUTFITS NOW) ---
+export type Rarity = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY' | 'MYTHIC';
+
+export interface DuskLook {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;
+  rarity: Rarity;
+  videoUrl: string;
+  previewImage: string;
+  color: string;
+  cssFilter?: string;
 }
 
 export interface ShopItem {
@@ -75,7 +132,7 @@ export interface ShopItem {
   title: string;
   description: string;
   cost: number;
-  icon: string; // Identifier for icon mapping
+  icon: string; 
 }
 
 export interface AwakeningData {
@@ -92,43 +149,43 @@ export interface SystemNotification {
 }
 
 export interface HistoryEntry {
-  date: string; // YYYY-MM-DD
+  date: string; 
   stats: CoreStats;
   totalXp: number;
   dailyXp: number;
-  questCompletion: number; // 0 to 100 percentage
+  questCompletion: number;
 }
 
-// --- ADMIN / DATABASE TYPES ---
 export interface AdminExercise {
   id: string;
   name: string;
-  muscleGroup: string; // 'Chest', 'Back', 'Legs', 'Shoulders', 'Triceps', 'Biceps', 'Abs', 'Cardio', 'Arms', 'Core'
-  subTarget?: string; // 'Upper', 'Lower', 'Middle', 'Lats', 'Thickness', 'Front', 'Side', 'Rear'
-  difficulty: string; // 'Beginner', 'Intermediate', 'Advanced'
-  equipmentNeeded?: string; // 'Bodyweight', 'Dumbbell', 'Barbell', 'Machine', 'Cable'
-  environment?: string; // 'Home', 'Dumbbells', 'Gym'
+  muscleGroup: string; 
+  subTarget?: string; 
+  difficulty: string; 
+  equipmentNeeded?: string; 
+  environment?: string; 
   imageUrl: string;
   videoUrl: string;
   caloriesBurn: number;
 }
 
-// Health & Biometrics Types
 export interface Exercise {
+  id?: string; 
   name: string;
   sets: number;
   reps: string;
-  duration: number; // Estimated minutes to complete
+  rest?: number; 
+  duration: number; 
   completed: boolean;
   type: 'COMPOUND' | 'ACCESSORY' | 'CARDIO' | 'STRETCH';
-  notes?: string; // For techniques like Drop-sets
+  notes?: string; 
   videoUrl?: string;
   imageUrl?: string;
 }
 
 export interface WorkoutDay {
   day: string;
-  focus: string; // Push, Pull, Legs, Cardio, Rest
+  focus: string; 
   exercises: Exercise[];
   isRecovery?: boolean;
   totalDuration: number;
@@ -136,22 +193,21 @@ export interface WorkoutDay {
 
 export interface ProgressPhoto {
   id: string;
-  date: number; // timestamp
-  imageUrl: string; // base64
+  date: number; 
+  imageUrl: string; 
   weight?: number;
   note?: string;
 }
 
-// --- NUTRITION TYPES ---
 export interface FoodItem {
   id: string;
   name: string;
-  calories: number; // per serving
-  protein: number; // g
-  carbs: number; // g
-  fats: number; // g
-  servingSize: string; // e.g. "1 bowl", "2 pcs"
-  region?: string; // e.g. "Punjab", "South India"
+  calories: number; 
+  protein: number; 
+  carbs: number; 
+  fats: number; 
+  servingSize: string; 
+  region?: string; 
 }
 
 export interface LoggedFoodItem extends FoodItem {
@@ -167,37 +223,42 @@ export interface MealLog {
   totalCarbs: number;
   totalFats: number;
   timestamp: number;
-  imageUrl?: string; // If added via camera
+  imageUrl?: string; 
+}
+
+export interface BaselineStats {
+  pushups: number; 
+  focusDuration: number; 
+  readingTime: number; 
+  sleepAvg: number; 
 }
 
 export interface HealthProfile {
   gender: 'MALE' | 'FEMALE';
   age: number;
-  height: number; // cm
-  weight: number; // kg
-  startingWeight?: number; // Track initial weight for progress
-  targetWeight?: number; // Goal
+  height: number; 
+  weight: number; 
+  startingWeight?: number; 
+  targetWeight?: number; 
   neck?: number;
   waist?: number;
   hip?: number;
   activityLevel: 'SEDENTARY' | 'LIGHT' | 'MODERATE' | 'VERY_ACTIVE';
   goal: 'LOSE_WEIGHT' | 'BUILD_MUSCLE' | 'ENDURANCE' | 'RECOMP';
   equipment: 'GYM' | 'HOME_DUMBBELLS' | 'BODYWEIGHT';
-  workoutSplit?: 'PPL' | 'CLASSIC'; // PPL = Push/Pull/Legs, CLASSIC = Bro split (Chest/Back/etc)
-  sessionDuration: number; // 30, 45, 60, 90, 120
+  workoutSplit?: 'PPL' | 'CLASSIC'; 
+  sessionDuration: number; 
   intensity: 'LIGHT' | 'MODERATE' | 'HIGH';
   injuries: string[];
-  
-  // Calculated
   bmi: number;
   bmr: number;
   bodyFat?: number;
   category: string;
-  
   workoutPlan: WorkoutDay[];
   macros: { protein: number; carbs: number; fats: number; calories: number };
   lastWorkoutDate?: string;
   progressPhotos?: ProgressPhoto[];
+  baselines?: BaselineStats; 
 }
 
 export interface PenaltyTask {
@@ -213,45 +274,80 @@ export interface TournamentReward {
   date: string;
 }
 
+export interface AllianceMember {
+  id: string;
+  name: string;
+  role: 'LEADER' | 'OFFICER' | 'MEMBER';
+  totalXpContribution: number;
+  status: 'ONLINE' | 'OFFLINE';
+  lastActive: number;
+  avatarUrl?: string;
+}
+
+export interface Alliance {
+  id: string;
+  name: string;
+  badge: string; 
+  description: string;
+  type: 'OPEN' | 'CLOSED';
+  members: AllianceMember[];
+  memberCount: number; 
+  totalPower: number;
+  rules: string;
+}
+
+export interface AllianceChatMessage {
+  id: string;
+  senderName: string;
+  text: string;
+  timestamp: number;
+  isSystem: boolean; 
+}
+
+export interface GuildLog {
+  id: string;
+  type: 'SYSTEM' | 'ACHIEVEMENT';
+  content: string;
+  timestamp: number;
+  user?: string;
+}
+
 export interface PlayerData {
   userId?: string; 
-  isConfigured: boolean; // Tracks if user has entered their name
-  
-  // Tutorial State
+  isConfigured: boolean; 
   tutorialStep: number;
   tutorialComplete: boolean;
-
-  // Core System Data
-  name: string;          // Player Display Name
-  username?: string;     // Unique Handle for Auth
-  identity?: string;     // The "Affirmed Identity" (e.g. "Disciplined Hunter")
-  pin?: string;          // Access Key for Auth verification
+  name: string;          
+  username?: string;     
+  country?: string;      
+  timezone?: string;     
+  identity?: string;     
+  pin?: string;          
   level: number;
-  currentXp: number;     // XP in current level
-  requiredXp: number;    // XP needed to level up
-  totalXp: number;       // Lifetime XP for Ranking
-  dailyXp: number;       // XP gained today (for daily graph)
+  currentXp: number;     
+  requiredXp: number;    
+  totalXp: number;       
+  dailyXp: number;       
   rank: Rank;
+  trustScore: number;    
   gold: number;
-  keys: number;          // Dungeon Keys for AI Features
-  streak: number;        // Consecutive days logged in
-  
-  // Attributes
-  stats: CoreStats; // Lifetime Stats
-  dailyStats: CoreStats; // Reset Daily
-  weeklyStats: CoreStats; // Reset Weekly
-  monthlyStats: CoreStats; // Reset Monthly
-  
+  keys: number;          
+  streak: number;        
+  startDate: number;     
+  duskUnreadCount: number; 
+  avatarUrl?: string; 
+  originalSelfieUrl?: string; 
+  cheatStrikes: number; 
+  isBanned: boolean; 
+  stats: CoreStats; 
+  dailyStats: CoreStats; 
+  weeklyStats: CoreStats; 
+  monthlyStats: CoreStats; 
   lastStatUpdate: StatTimestamps;
-  
-  // Reset Timestamps (Epoch ms)
   lastDailyReset: number;
   lastWeeklyReset: number;
   lastMonthlyReset: number;
-
-  history: HistoryEntry[]; // Historical data for graphs
-  
-  // Status
+  history: HistoryEntry[]; 
   hp: number;
   maxHp: number;
   mp: number;
@@ -259,33 +355,36 @@ export interface PlayerData {
   fatigue: number;
   job: string;
   title: string;
-
-  // Logic & Persistence
-  lastLoginDate: string; // YYYY-MM-DD
+  lastLoginDate: string; 
   dailyQuestComplete: boolean;
   isPenaltyActive: boolean;
-  penaltyEndTime?: number; // Timestamp when penalty expires
-  penaltyTask?: PenaltyTask; // Specific penalty assignment
-  lastDungeonEntry?: number; // Timestamp of last FREE dungeon entry
+  penaltyEndTime?: number; 
+  penaltyTask?: PenaltyTask; 
+  lastDungeonEntry?: number; 
   logs: ActivityLog[];
   quests: Quest[];
-  shopItems: ShopItem[];
-  awakening: AwakeningData;
-  personalBests: Record<string, number>; // Map Exercise Name -> Max Reps/Weight (Simplified to number for now)
+  questHistory: Record<string, number>; 
+  shopItems: ShopItem[]; 
   
-  // New Health Integration
+  // ARMORY DATA
+  unlockedLooks: string[]; 
+  activeLookId: string;
+  
+  // NEW ARMORY SYSTEM
+  equippedOutfitId: string;
+  unlockedOutfits: string[];
+  equippedShadows: (Shadow | null)[]; // Max 3 slots
+  combatStats: CombatStats; // The derived stats (Attack, Loot, etc)
+
+  awakening: AwakeningData;
+  personalBests: Record<string, number>; 
   healthProfile?: HealthProfile;
   nutritionLogs: MealLog[];
-  
-  // Global Database (Mock Backend)
   exerciseDatabase: AdminExercise[];
-  focusVideos: Record<string, string>; // Configuration for region videos
-  
-  // Custom Protocols (Admin Edits)
+  focusVideos: Record<string, string>; 
   customProtocols?: Record<string, WorkoutDay[]>;
-
-  // Tournament
   tournament: {
       pendingReward: TournamentReward | null;
   };
+  allianceId?: string; 
 }

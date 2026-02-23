@@ -30,7 +30,17 @@ const ActiveWorkoutSession: React.FC<ActiveWorkoutSessionProps> = ({ plan, playe
   const [sessionResults, setSessionResults] = useState<Record<string, number>>({});
 
   const currentExercise = plan.exercises[currentExerciseIdx];
-  const totalSets = currentExercise.sets;
+  
+  // Strict Safety for Set Count to prevent RangeError
+  let setVal = 3;
+  if (currentExercise?.sets) {
+      const parsed = parseInt(String(currentExercise.sets), 10);
+      if (!isNaN(parsed) && parsed > 0) {
+          setVal = parsed;
+      }
+  }
+  const totalSets = Math.min(30, setVal);
+
   const isOverdrive = streak >= 5;
 
   // Calculate Rest Time based on Vitality/Willpower

@@ -128,8 +128,9 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                   username: username,
                   name: name,
                   pin: '0000',
+                  keys: 0,
+                  raw_data: {}, // Initialize empty JSON object
                   updated_at: new Date().toISOString()
-                  // Note: raw_data is initially null/undefined
               };
 
               const { error: insertError } = await supabase.from('profiles').insert(newProfile);
@@ -287,7 +288,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                       <Terminal size={32} className="text-system-neon relative z-10" />
                    </motion.div>
                    
-                   <h1 className="text-4xl font-black text-white tracking-tighter drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">BIO-SYNC OS</h1>
+                   <h1 className="text-4xl font-black text-white tracking-tighter drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">REFORGE</h1>
                    <p className="text-xs tracking-[0.4em] uppercase mt-2 font-bold text-system-neon">
                      AUTHENTICATION PROTOCOL
                    </p>
@@ -366,7 +367,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, onAdminAccess }) => {
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
                                     className="w-full bg-[#0a0a0a] border border-gray-800 rounded p-3 pl-10 text-white focus:border-system-neon focus:shadow-[0_0_15px_rgba(0,210,255,0.2)] focus:outline-none placeholder:text-gray-800 transition-all"
-                                    placeholder="HUNTER@SYSTEM.IO"
+                                    placeholder="HUNTER@REFORGE.IO"
                                     required
                                 />
                             </div>

@@ -1,8 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Check, Settings, LogOut, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Settings, LogOut, Lock, Calendar, Trophy } from 'lucide-react';
 import { PlayerData } from '../types';
+import RankProgression from './RankProgression';
 
 interface GrowthViewProps {
   player: PlayerData;
@@ -31,6 +32,7 @@ const GrowthView: React.FC<GrowthViewProps> = ({ player, onAdminRequest, onLogou
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showSettings, setShowSettings] = useState(false);
   const [tooltip, setTooltip] = useState<{ x: number, y: number, date: string, percentage: number, stats: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<'CALENDAR' | 'RANKS'>('CALENDAR');
 
   // --- CALENDAR LOGIC ---
   const calendarData = useMemo<CalendarItem[]>(() => {
@@ -128,7 +130,7 @@ const GrowthView: React.FC<GrowthViewProps> = ({ player, onAdminRequest, onLogou
     <div className="flex flex-col min-h-[80vh] w-full max-w-4xl mx-auto relative px-2">
         
         {/* Header */}
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex justify-between items-start mb-6">
             <div>
                 <h1 className="text-4xl font-black text-white tracking-tighter mb-1 font-mono">GROWTH</h1>
                 <p className="text-xs text-gray-500 font-mono tracking-widest uppercase">Your consistency over time</p>
@@ -164,101 +166,148 @@ const GrowthView: React.FC<GrowthViewProps> = ({ player, onAdminRequest, onLogou
             </div>
         </div>
 
-        {/* --- MAIN CALENDAR CARD --- */}
-        <div className="bg-[#080808] border border-gray-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-            {/* Background Glow */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-system-neon/5 rounded-full blur-[100px] pointer-events-none" />
-            
-            {/* Month Controls */}
-            <div className="flex justify-between items-center mb-8 relative z-10">
-                <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-gray-800 rounded-full text-gray-500 hover:text-white transition-colors">
-                    <ChevronLeft size={20} />
-                </button>
-                <div className="text-xl font-bold font-mono text-white tracking-widest">
-                    {MONTHS[currentDate.getMonth()]} <span className="text-gray-600">{currentDate.getFullYear()}</span>
-                </div>
-                <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-800 rounded-full text-gray-500 hover:text-white transition-colors">
-                    <ChevronRight size={20} />
-                </button>
-            </div>
-
-            {/* Grid */}
-            <div className="relative z-10">
-                {/* Weekday Labels */}
-                <div className="grid grid-cols-7 gap-2 mb-4 text-center">
-                    {DAYS_OF_WEEK.map(d => (
-                        <div key={d} className="text-[10px] font-bold text-gray-600 font-mono">{d}</div>
-                    ))}
-                </div>
-
-                {/* Days */}
-                <div className="grid grid-cols-7 gap-3 sm:gap-4">
-                    <AnimatePresence mode="popLayout">
-                        {calendarData.map((day) => (
-                            <motion.div
-                                key={day.id}
-                                layout
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.2 }}
-                                className="aspect-square flex items-center justify-center relative group"
-                                onMouseEnter={(e) => handleMouseEnter(e, day)}
-                                onMouseLeave={() => setTooltip(null)}
-                            >
-                                {day.type === 'day' && (
-                                    <div 
-                                        className={`
-                                            w-full h-full rounded-full transition-all duration-500 flex items-center justify-center relative
-                                            ${getDotColor(day.percentage, day.isFuture)}
-                                            ${day.isToday ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : ''}
-                                        `}
-                                    >
-                                        {/* Percentage-based Checkmark */}
-                                        {day.percentage === 100 && !day.isFuture && (
-                                            <motion.div 
-                                                initial={{ scale: 0 }} 
-                                                animate={{ scale: 1 }} 
-                                                className="text-black drop-shadow-sm"
-                                            >
-                                                <Check size={14} strokeWidth={4} />
-                                            </motion.div>
-                                        )}
-                                        
-                                        {/* Date Number (Subtle) */}
-                                        {!day.isFuture && day.percentage < 100 && (
-                                            <span className="text-[10px] text-white/30 font-mono font-bold group-hover:text-white transition-colors">
-                                                {day.dayNum}
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
-                </div>
-            </div>
+        {/* TAB NAVIGATION */}
+        <div className="flex items-center gap-2 mb-6">
+            <button 
+                onClick={() => setActiveTab('CALENDAR')}
+                className={`flex items-center gap-2 px-6 py-2 rounded-lg font-mono text-xs font-bold tracking-widest transition-all ${
+                    activeTab === 'CALENDAR' 
+                    ? 'bg-system-neon/10 border border-system-neon text-system-neon' 
+                    : 'bg-transparent border border-transparent text-gray-600 hover:text-gray-400'
+                }`}
+            >
+                <Calendar size={14} /> CALENDAR
+            </button>
+            <div className="w-px h-6 bg-gray-800" />
+            <button 
+                onClick={() => setActiveTab('RANKS')}
+                className={`flex items-center gap-2 px-6 py-2 rounded-lg font-mono text-xs font-bold tracking-widest transition-all ${
+                    activeTab === 'RANKS' 
+                    ? 'bg-system-neon/10 border border-system-neon text-system-neon' 
+                    : 'bg-transparent border border-transparent text-gray-600 hover:text-gray-400'
+                }`}
+            >
+                <Trophy size={14} /> RANKS
+            </button>
         </div>
 
-        {/* Legend */}
-        <div className="mt-8 flex justify-center gap-6 text-[10px] font-mono text-gray-500 uppercase tracking-widest">
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-gray-800 border border-gray-700" /> 0%
-            </div>
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-900 border border-blue-700" /> 1-49%
-            </div>
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-teal-600 border border-teal-400" /> 50-99%
-            </div>
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-system-success border border-green-400 flex items-center justify-center text-black">
-                    <Check size={8} strokeWidth={4} />
-                </div> 100%
-            </div>
-        </div>
+        <AnimatePresence mode="wait">
+            {activeTab === 'CALENDAR' ? (
+                <motion.div
+                    key="calendar"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.2 }}
+                >
+                    {/* --- MAIN CALENDAR CARD --- */}
+                    <div className="bg-[#080808] border border-gray-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+                        {/* Background Glow */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-system-neon/5 rounded-full blur-[100px] pointer-events-none" />
+                        
+                        {/* Month Controls */}
+                        <div className="flex justify-between items-center mb-8 relative z-10">
+                            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-gray-800 rounded-full text-gray-500 hover:text-white transition-colors">
+                                <ChevronLeft size={20} />
+                            </button>
+                            <div className="text-xl font-bold font-mono text-white tracking-widest">
+                                {MONTHS[currentDate.getMonth()]} <span className="text-gray-600">{currentDate.getFullYear()}</span>
+                            </div>
+                            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-800 rounded-full text-gray-500 hover:text-white transition-colors">
+                                <ChevronRight size={20} />
+                            </button>
+                        </div>
+
+                        {/* Grid */}
+                        <div className="relative z-10">
+                            {/* Weekday Labels */}
+                            <div className="grid grid-cols-7 gap-2 mb-4 text-center">
+                                {DAYS_OF_WEEK.map(d => (
+                                    <div key={d} className="text-[10px] font-bold text-gray-600 font-mono">{d}</div>
+                                ))}
+                            </div>
+
+                            {/* Days */}
+                            <div className="grid grid-cols-7 gap-3 sm:gap-4">
+                                <AnimatePresence mode="popLayout">
+                                    {calendarData.map((day) => (
+                                        <motion.div
+                                            key={day.id}
+                                            layout
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="aspect-square flex items-center justify-center relative group"
+                                            onMouseEnter={(e) => handleMouseEnter(e, day)}
+                                            onMouseLeave={() => setTooltip(null)}
+                                        >
+                                            {day.type === 'day' && (
+                                                <div 
+                                                    className={`
+                                                        w-full h-full rounded-full transition-all duration-500 flex items-center justify-center relative
+                                                        ${getDotColor(day.percentage, day.isFuture)}
+                                                        ${day.isToday ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : ''}
+                                                    `}
+                                                >
+                                                    {/* Percentage-based Checkmark */}
+                                                    {day.percentage === 100 && !day.isFuture && (
+                                                        <motion.div 
+                                                            initial={{ scale: 0 }} 
+                                                            animate={{ scale: 1 }} 
+                                                            className="text-black drop-shadow-sm"
+                                                        >
+                                                            <Check size={14} strokeWidth={4} />
+                                                        </motion.div>
+                                                    )}
+                                                    
+                                                    {/* Date Number (Subtle) */}
+                                                    {!day.isFuture && day.percentage < 100 && (
+                                                        <span className="text-[10px] text-white/30 font-mono font-bold group-hover:text-white transition-colors">
+                                                            {day.dayNum}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Legend */}
+                    <div className="mt-8 flex justify-center gap-6 text-[10px] font-mono text-gray-500 uppercase tracking-widest">
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-gray-800 border border-gray-700" /> 0%
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-blue-900 border border-blue-700" /> 1-49%
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-teal-600 border border-teal-400" /> 50-99%
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-system-success border border-green-400 flex items-center justify-center text-black">
+                                <Check size={8} strokeWidth={4} />
+                            </div> 100%
+                        </div>
+                    </div>
+                </motion.div>
+            ) : (
+                <motion.div
+                    key="ranking"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                >
+                    <RankProgression player={player} />
+                </motion.div>
+            )}
+        </AnimatePresence>
 
         {/* Tooltip Portal */}
-        {tooltip && (
+        {tooltip && activeTab === 'CALENDAR' && (
             <div 
                 className="fixed z-50 pointer-events-none flex flex-col items-center"
                 style={{ left: tooltip.x, top: tooltip.y, transform: 'translate(-50%, -100%)' }}

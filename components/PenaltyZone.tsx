@@ -143,7 +143,7 @@ const PenaltyZone: React.FC<PenaltyZoneProps> = ({ endTime, task, gold, onSurviv
                     <Lock size={12} /> DIVINE INTERVENTION
                  </span>
                  <span className="text-[10px] text-yellow-600 font-bold tracking-widest uppercase flex items-center gap-2">
-                    BALANCE: <span className={canAffordSacrifice ? "text-white" : "text-red-500"}>{gold} G</span>
+                    BALANCE: <span className={canAffordSacrifice ? "text-white" : "text-red-500"}>{Math.round(gold)} G</span>
                  </span>
              </div>
              

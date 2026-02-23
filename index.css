@@ -1,51 +1,120 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* --- THEME ENGINE --- */
+:root {
+  /* REFERENCE PALETTE */
+  --color-lime: 133 211 224;    /* #85D3E0 */
+  --color-purple: 212 196 250; /* #D4C4FA */
+  --color-dark-surface: 28 28 30; /* #1C1C1E */
+  --color-bg: 0 0 0; /* #000000 */
+  
+  /* Mapping to existing system vars for compatibility */
+  --color-neon: var(--color-lime);
+  --color-accent: var(--color-purple);
+  --color-danger: 239 68 68;
+  --color-success: 16 185 129;
+  --color-warning: 245 158 11;
+}
+
+@layer base {
+  body {
+    background-color: #000000;
+    color: #ffffff;
+    font-family: 'Inter', sans-serif; /* Clean sans-serif like reference */
+  }
+}
+
+@layer components {
+  /* --- NEW CARD SYSTEM --- */
+  
+  /* The "Activity" Dark Card */
+  .card-dark {
+    @apply bg-[#1C1C1E] text-white rounded-[2rem] border-none shadow-none;
+  }
+
+  /* The "Challenge" Lime Card (Now Cyan) */
+  .card-lime {
+    @apply bg-[#85D3E0] text-black rounded-[2rem] border-none shadow-none;
+  }
+
+  /* The "Steps" Purple Card */
+  .card-purple {
+    @apply bg-[#D4C4FA] text-black rounded-[2rem] border-none shadow-none;
+  }
+
+  /* Overwrite existing glass classes to map to new style */
+  .glass-panel {
+    @apply card-dark p-6;
+  }
+  
+  .glass-panel-midnight {
+    @apply card-dark p-6;
+  }
+  
+  .glass-card {
+    @apply bg-[#2C2C2E] text-white rounded-[1.5rem] border-none transition-transform duration-200;
+    &:active {
+      @apply scale-95;
+    }
+  }
+
+  /* Navigation Pill */
+  .nav-pill {
+    @apply bg-white text-black rounded-full shadow-lg;
+  }
+
+  /* --- TYPOGRAPHY --- */
+  .text-metal {
+    @apply text-white;
+  }
+  
+  .font-tech-header {
+    @apply font-sans font-bold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .text-shadow-neon {
+    text-shadow: none; /* Removed glow for clean look */
+  }
+  
+  /* Hide Scrollbar Utility */
+  .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+  }
+  .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+  }
+}
+
 /* Custom Scrollbar Logic */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(31, 41, 55, 0.8);
-  border-radius: 3px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(75, 85, 99, 1);
+  background: #333;
+  border-radius: 2px;
 }
 
-/* Hide Scrollbar Utility */
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
-.scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-/* Slanted Edge Clip Path */
-.clip-path-slant {
-    clip-path: polygon(10% 0, 100% 0, 100% 100%, 0% 100%);
-}
-
-/* --- JUICY COIN ANIMATION STYLES --- */
-
-/* The Coin Particle */
+/* Coin Animation */
 .coin-particle {
-  filter: drop-shadow(0 0 5px rgba(234, 179, 8, 0.5));
+  filter: drop-shadow(0 0 2px rgba(133, 211, 224, 0.5));
   will-change: transform, opacity;
-}
-
-/* Wallet Impact Animation */
-@keyframes walletBump {
-  0% { transform: scale(1); color: #fbbf24; text-shadow: 0 0 0px transparent; }
-  50% { transform: scale(1.3); color: #fff; text-shadow: 0 0 15px #fbbf24; }
-  100% { transform: scale(1); color: #fbbf24; text-shadow: 0 0 0px transparent; }
 }
 
 .wallet-bump {
   animation: walletBump 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+@keyframes walletBump {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
 }

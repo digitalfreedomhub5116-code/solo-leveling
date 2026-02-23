@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Terminal, ArrowRight, User, Loader2 } from 'lucide-react';
@@ -77,7 +78,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
              IDENTIFY YOURSELF
            </h1>
            <p className="text-xs text-gray-500 font-mono tracking-[0.2em] uppercase">
-             Bio-Sync OS v1.0 Initialization
+             REFORGE v1.0 Initialization
            </p>
         </div>
 
